@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Durga Puja Club Dashboard</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+body {
+  font-family: "Arial", sans-serif;
+  background: #fff5f0;
+  color: #4b2e2e;
+  margin: 0;
+  padding: 0;
+}
+header {
+  background: #b71c1c;
+  color: white;
+  padding: 15px;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+h2 { color: #b71c1c; margin-top: 30px; }
+.container { padding: 20px; max-width: 1200px; margin: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  border-radius: 5px;
+  overflow: hidden;
+}
+th, td {
+  border: 1px solid #b71c1c;
+  padding: 8px;
+  text-align: left;
+}
+th {
+  background: #fdd835;
+  color: #4b2e2e;
+}
+input, select {
+  padding: 5px;
+  margin: 5px 0;
+  border: 1px solid #b71c1c;
+  border-radius: 3px;
+}
+button {
+  background: #b71c1c;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  margin-right: 5px;
+  border-radius: 3px;
+  transition: 0.2s;
+}
+button:hover:not(:disabled) { background: #d32f2f; }
+button:disabled { background: #ccc; cursor: not-allowed; }
+
+#login-btn, #logout-btn { margin-top: 10px; }
+.hidden { display: none; }
+
+.editable {
+  background: #fff8e1;
+  cursor: text;
+  transition: 0.2s;
+}
+.editable:hover { border: 2px solid #fdd835; }
+.editable:focus { outline: none; border: 2px solid #f57f17; background: #fff3e0; }
+td { min-width: 80px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Durga Puja Club Dashboard</h1>
+  <div id="auth-section">
+    <button id="login-btn">Login with Google</button>
+    <button id="logout-btn" class="hidden">Logout</button>
+    <span id="user-info"></span>
+  </div>
+</header>
+
+<div class="container hidden" id="main-content">
+  <h2>Invitation List</h2>
+  <table id="invitation-table">
+    <thead><tr><th>Name</th><th>Village</th><th>Mobile No</th><th>Remarks</th><th>Actions</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div id="invitation-form">
+    <input type="text" id="inv-name" placeholder="Name">
+    <input type="text" id="inv-village" placeholder="Village">
+    <input type="text" id="inv-mobile" placeholder="Mobile No">
+    <input type="text" id="inv-remarks" placeholder="Remarks">
+    <button id="add-inv-btn">Add Invitation</button>
+  </div>
+
+  <h2>Members List</h2>
+  <table id="members-table">
+    <thead><tr><th>Name</th><th>Village</th><th>Mobile No</th><th>Remarks</th><th>Actions</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div id="member-form">
+    <input type="text" id="mem-name" placeholder="Name">
+    <input type="text" id="mem-village" placeholder="Village">
+    <input type="text" id="mem-mobile" placeholder="Mobile No">
+    <input type="text" id="mem-remarks" placeholder="Remarks">
+    <button id="add-mem-btn">Add Member</button>
+  </div>
+
+  <h2>Donation Collectors</h2>
+  <table id="collector-table">
+    <thead><tr><th>Name</th><th>Assigned Area</th><th>Actions</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div id="collector-form">
+    <input type="text" id="col-name" placeholder="Name">
+    <input type="text" id="col-area" placeholder="Assigned Area">
+    <button id="add-col-btn">Add Collector</button>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCuVs6jx7HiNIx25lzLgoq1B6nQqaHLHm0",
+  authDomain: "guestandcollection.firebaseapp.com",
+  projectId: "guestandcollection",
+  storageBucket: "guestandcollection.firebasestorage.app",
+  messagingSenderId: "272278233160",
+  appId: "1:272278233160:web:d6d1e6a7d58be260d9b87d",
+  measurementId: "G-B5783XTFSP"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const roles = { "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin", "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer" };
+let currentRole = "viewer";
+
+const loginBtn = document.getElementById("login-btn");
+const logoutBtn = document.getElementById("logout-btn");
+const userInfo = document.getElementById("user-info");
+const mainContent = document.getElementById("main-content");
+
+loginBtn.onclick = ()=> auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+logoutBtn.onclick = ()=> auth.signOut();
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    currentRole = roles[user.uid] || "viewer";
+    loginBtn.classList.add("hidden");
+    logoutBtn.classList.remove("hidden");
+    mainContent.classList.remove("hidden");
+    userInfo.textContent = `${user.displayName} (${currentRole})`;
+    applyRoleToUI();
+    loadAllData();
+  } else {
+    loginBtn.classList.remove("hidden");
+    logoutBtn.classList.add("hidden");
+    mainContent.classList.add("hidden");
+    userInfo.textContent = "";
+  }
+});
+
+function applyRoleToUI(){
+  const adminOnly = document.querySelectorAll("#add-inv-btn,#add-mem-btn,#add-col-btn,.delete-btn");
+  adminOnly.forEach(btn=>btn.disabled=currentRole!=="admin");
+}
+
+const invitationCol = db.collection("invitations");
+const membersCol = db.collection("members");
+const collectorsCol = db.collection("collectors");
+
+function loadAllData(){
+  loadTable(invitationCol,"invitation-table",["name","village","mobile","remarks"]);
+  loadTable(membersCol,"members-table",["name","village","mobile","remarks"]);
+  loadTable(collectorsCol,"collector-table",["name","area"]);
+}
+
+function loadTable(colRef,tableId,fields){
+  const tbody=document.getElementById(tableId).querySelector("tbody");
+  tbody.innerHTML="";
+  colRef.get().then(snapshot=>{
+    snapshot.forEach(doc=>{
+      const data=doc.data();
+      const tr=document.createElement("tr");
+      tr.dataset.id=doc.id;
+      fields.forEach(f=>{
+        const td=document.createElement("td");
+        td.textContent=data[f]||"";
+        if(currentRole==="admin"){
+          td.classList.add("editable");
+          td.contentEditable=true;
+          td.onblur=()=>{let update={}; update[f]=td.textContent; doc.ref.update(update);}
+        }
+        tr.appendChild(td);
+      });
+      const actionTd=document.createElement("td");
+      const delBtn=document.createElement("button");
+      delBtn.textContent="Delete";
+      delBtn.disabled=currentRole!=="admin";
+      delBtn.onclick=()=>{if(confirm("Delete?"))doc.ref.delete().then(loadAllData);}
+      actionTd.appendChild(delBtn);
+      tr.appendChild(actionTd);
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+// Add handlers
+document.getElementById("add-inv-btn").onclick=()=>{const n=document.getElementById("inv-name").value,v=document.getElementById("inv-village").value,m=document.getElementById("inv-mobile").value,r=document.getElementById("inv-remarks").value;if(n&&v&&m){invitationCol.add({name:n,village:v,mobile:m,remarks:r}).then(loadAllData);["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");}};
+document.getElementById("add-mem-btn").onclick=()=>{const n=document.getElementById("mem-name").value,v=document.getElementById("mem-village").value,m=document.getElementById("mem-mobile").value,r=document.getElementById("mem-remarks").value;if(n&&v&&m){membersCol.add({name:n,village:v,mobile:m,remarks:r}).then(loadAllData);["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");}};
+document.getElementById("add-col-btn").onclick=()=>{const n=document.getElementById("col-name").value,a=document.getElementById("col-area").value;if(n&&a){collectorsCol.add({name:n,area:a}).then(loadAllData);["col-name","col-area"].forEach(id=>document.getElementById(id).value="");}};
+</script>
+</body>
+</html>
