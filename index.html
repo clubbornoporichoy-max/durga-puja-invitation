@@ -8,68 +8,21 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
-body {
-  font-family: "Arial", sans-serif;
-  background: #fff5f0;
-  color: #4b2e2e;
-  margin: 0;
-  padding: 0;
-}
-header {
-  background: #b71c1c;
-  color: white;
-  padding: 15px;
-  text-align: center;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-}
+body { font-family: Arial; background: #fff5f0; color: #4b2e2e; margin: 0; padding: 0; }
+header { background: #b71c1c; color: white; padding: 15px; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
 h2 { color: #b71c1c; margin-top: 30px; }
 .container { padding: 20px; max-width: 1200px; margin: auto; }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  border-radius: 5px;
-  overflow: hidden;
-}
-th, td {
-  border: 1px solid #b71c1c;
-  padding: 8px;
-  text-align: left;
-}
-th {
-  background: #fdd835;
-  color: #4b2e2e;
-}
-input, select {
-  padding: 5px;
-  margin: 5px 0;
-  border: 1px solid #b71c1c;
-  border-radius: 3px;
-}
-button {
-  background: #b71c1c;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  cursor: pointer;
-  margin-right: 5px;
-  border-radius: 3px;
-  transition: 0.2s;
-}
+table { width: 100%; border-collapse: collapse; margin-bottom: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border-radius: 5px; overflow: hidden; }
+th, td { border: 1px solid #b71c1c; padding: 8px; text-align: left; }
+th { background: #fdd835; color: #4b2e2e; }
+input, select { padding: 5px; margin: 5px 0; border: 1px solid #b71c1c; border-radius: 3px; }
+button { background: #b71c1c; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-right: 5px; border-radius: 3px; transition: 0.2s; }
 button:hover:not(:disabled) { background: #d32f2f; }
 button:disabled { background: #ccc; cursor: not-allowed; }
-
-#login-btn, #logout-btn { margin-top: 10px; }
-.hidden { display: none; }
-
-.editable {
-  background: #fff8e1;
-  cursor: text;
-  transition: 0.2s;
-}
+.editable { background: #fff8e1; cursor: text; transition: 0.2s; }
 .editable:hover { border: 2px solid #fdd835; }
 .editable:focus { outline: none; border: 2px solid #f57f17; background: #fff3e0; }
+.hidden { display: none; }
 td { min-width: 80px; }
 </style>
 </head>
@@ -77,7 +30,9 @@ td { min-width: 80px; }
 <header>
   <h1>Durga Puja Club Dashboard</h1>
   <div id="auth-section">
-    <button id="login-btn">Login with Google</button>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button id="login-btn">Login</button>
     <button id="logout-btn" class="hidden">Logout</button>
     <span id="user-info"></span>
   </div>
@@ -136,24 +91,37 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-const roles = { "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin", "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer" };
+// Hardcoded roles
+const roles = {
+  "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin",
+  "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer"
+};
 let currentRole = "viewer";
 
+// Elements
 const loginBtn = document.getElementById("login-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const mainContent = document.getElementById("main-content");
 
-loginBtn.onclick = ()=> auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-logoutBtn.onclick = ()=> auth.signOut();
+// Email/password login
+loginBtn.onclick = () => {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  if(email && password){
+    auth.signInWithEmailAndPassword(email, password)
+      .catch(err => alert(err.message));
+  }
+};
+logoutBtn.onclick = () => auth.signOut();
 
-auth.onAuthStateChanged(user=>{
+auth.onAuthStateChanged(user => {
   if(user){
     currentRole = roles[user.uid] || "viewer";
     loginBtn.classList.add("hidden");
     logoutBtn.classList.remove("hidden");
     mainContent.classList.remove("hidden");
-    userInfo.textContent = `${user.displayName} (${currentRole})`;
+    userInfo.textContent = `${user.email} (${currentRole})`;
     applyRoleToUI();
     loadAllData();
   } else {
@@ -166,7 +134,7 @@ auth.onAuthStateChanged(user=>{
 
 function applyRoleToUI(){
   const adminOnly = document.querySelectorAll("#add-inv-btn,#add-mem-btn,#add-col-btn,.delete-btn");
-  adminOnly.forEach(btn=>btn.disabled=currentRole!=="admin");
+  adminOnly.forEach(btn => btn.disabled = currentRole !== "admin");
 }
 
 const invitationCol = db.collection("invitations");
@@ -210,9 +178,18 @@ function loadTable(colRef,tableId,fields){
 }
 
 // Add handlers
-document.getElementById("add-inv-btn").onclick=()=>{const n=document.getElementById("inv-name").value,v=document.getElementById("inv-village").value,m=document.getElementById("inv-mobile").value,r=document.getElementById("inv-remarks").value;if(n&&v&&m){invitationCol.add({name:n,village:v,mobile:m,remarks:r}).then(loadAllData);["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");}};
-document.getElementById("add-mem-btn").onclick=()=>{const n=document.getElementById("mem-name").value,v=document.getElementById("mem-village").value,m=document.getElementById("mem-mobile").value,r=document.getElementById("mem-remarks").value;if(n&&v&&m){membersCol.add({name:n,village:v,mobile:m,remarks:r}).then(loadAllData);["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");}};
-document.getElementById("add-col-btn").onclick=()=>{const n=document.getElementById("col-name").value,a=document.getElementById("col-area").value;if(n&&a){collectorsCol.add({name:n,area:a}).then(loadAllData);["col-name","col-area"].forEach(id=>document.getElementById(id).value="");}};
+document.getElementById("add-inv-btn").onclick=()=>{
+  const n=document.getElementById("inv-name").value,v=document.getElementById("inv-village").value,m=document.getElementById("inv-mobile").value,r=document.getElementById("inv-remarks").value;
+  if(n&&v&&m){invitationCol.add({name:n,village:v,mobile:m,remarks:r}).then(loadAllData);["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");}
+};
+document.getElementById("add-mem-btn").onclick=()=>{
+  const n=document.getElementById("mem-name").value,v=document.getElementById("mem-village").value,m=document.getElementById("mem-mobile").value,r=document.getElementById("mem-remarks").value;
+  if(n&&v&&m){membersCol.add({name:n,village:v,mobile:m,remarks:r}).then(loadAllData);["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");}
+};
+document.getElementById("add-col-btn").onclick=()=>{
+  const n=document.getElementById("col-name").value,a=document.getElementById("col-area").value;
+  if(n&&a){collectorsCol.add({name:n,area:a}).then(loadAllData);["col-name","col-area"].forEach(id=>document.getElementById(id).value="");}
+};
 </script>
 </body>
 </html>
