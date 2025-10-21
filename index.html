@@ -14,7 +14,7 @@ h2 { color: #b71c1c; margin-top: 30px; }
 .container { padding: 20px; max-width: 1200px; margin: auto; }
 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border-radius: 5px; overflow: hidden; }
 th, td { border: 1px solid #b71c1c; padding: 8px; text-align: left; }
-th { background: #fdd835; color: #4b2e2e; }
+th { background: #fdd835; color: #4b2e2e; cursor: pointer; }
 input, select { padding: 5px; margin: 5px 0; border: 1px solid #b71c1c; border-radius: 3px; }
 button { background: #b71c1c; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-right: 5px; border-radius: 3px; transition: 0.2s; }
 button:hover:not(:disabled) { background: #d32f2f; }
@@ -24,6 +24,9 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 .editable:focus { outline: none; border: 2px solid #f57f17; background: #fff3e0; }
 .hidden { display: none; }
 td { min-width: 80px; }
+.summary { margin-bottom: 20px; font-weight: bold; }
+.sent-badge { color: white; background: green; padding: 2px 5px; border-radius: 3px; font-size: 0.8em; }
+.pending-badge { color: white; background: orange; padding: 2px 5px; border-radius: 3px; font-size: 0.8em; }
 </style>
 </head>
 <body>
@@ -39,9 +42,14 @@ td { min-width: 80px; }
 </header>
 
 <div class="container hidden" id="main-content">
+
+  <div class="summary" id="summary-invitees"></div>
   <h2>Invitation List</h2>
+  <input type="text" id="search-invite" placeholder="Search invitations...">
   <table id="invitation-table">
-    <thead><tr><th>Name</th><th>Village</th><th>Mobile No</th><th>Remarks</th><th>Actions</th></tr></thead>
+    <thead><tr>
+      <th>Name</th><th>Village</th><th>Mobile No</th><th>Remarks</th><th>Sent</th><th>Actions</th>
+    </tr></thead>
     <tbody></tbody>
   </table>
   <div id="invitation-form">
@@ -52,7 +60,9 @@ td { min-width: 80px; }
     <button id="add-inv-btn">Add Invitation</button>
   </div>
 
+  <div class="summary" id="summary-members"></div>
   <h2>Members List</h2>
+  <input type="text" id="search-members" placeholder="Search members...">
   <table id="members-table">
     <thead><tr><th>Name</th><th>Village</th><th>Mobile No</th><th>Remarks</th><th>Actions</th></tr></thead>
     <tbody></tbody>
@@ -66,6 +76,7 @@ td { min-width: 80px; }
   </div>
 
   <h2>Donation Collectors</h2>
+  <input type="text" id="search-collectors" placeholder="Search collectors...">
   <table id="collector-table">
     <thead><tr><th>Name</th><th>Assigned Area</th><th>Actions</th></tr></thead>
     <tbody></tbody>
@@ -75,6 +86,7 @@ td { min-width: 80px; }
     <input type="text" id="col-area" placeholder="Assigned Area">
     <button id="add-col-btn">Add Collector</button>
   </div>
+
 </div>
 
 <script>
@@ -142,28 +154,40 @@ const membersCol = db.collection("members");
 const collectorsCol = db.collection("collectors");
 
 function loadAllData(){
-  loadTable(invitationCol,"invitation-table",["name","village","mobile","remarks"]);
-  loadTable(membersCol,"members-table",["name","village","mobile","remarks"]);
-  loadTable(collectorsCol,"collector-table",["name","area"]);
+  loadTable(invitationCol,"invitation-table",["name","village","mobile","remarks","sent"],true);
+  loadTable(membersCol,"members-table",["name","village","mobile","remarks"],false);
+  loadTable(collectorsCol,"collector-table",["name","area"],false);
 }
 
-function loadTable(colRef,tableId,fields){
+// Load table and apply search/filter
+function loadTable(colRef,tableId,fields,isInvite){
   const tbody=document.getElementById(tableId).querySelector("tbody");
   tbody.innerHTML="";
   colRef.get().then(snapshot=>{
+    let countTotal=0,countSent=0;
     snapshot.forEach(doc=>{
       const data=doc.data();
       const tr=document.createElement("tr");
       tr.dataset.id=doc.id;
       fields.forEach(f=>{
         const td=document.createElement("td");
-        td.textContent=data[f]||"";
-        if(currentRole==="admin"){
-          td.classList.add("editable");
-          td.contentEditable=true;
-          td.onblur=()=>{let update={}; update[f]=td.textContent; doc.ref.update(update);}
+        if(f==="sent" && isInvite){
+          const chk=document.createElement("input");
+          chk.type="checkbox";
+          chk.checked=data.sent||false;
+          chk.disabled = currentRole !== "admin";
+          chk.onchange=()=>{doc.ref.update({sent:chk.checked}).then(updateSummary);}
+          td.appendChild(chk);
+          tr.appendChild(td);
+        } else {
+          td.textContent=data[f]||"";
+          if(currentRole==="admin"){
+            td.classList.add("editable");
+            td.contentEditable=true;
+            td.onblur=()=>{let update={}; update[f]=td.textContent; doc.ref.update(update);}
+          }
+          tr.appendChild(td);
         }
-        tr.appendChild(td);
       });
       const actionTd=document.createElement("td");
       const delBtn=document.createElement("button");
@@ -173,25 +197,57 @@ function loadTable(colRef,tableId,fields){
       actionTd.appendChild(delBtn);
       tr.appendChild(actionTd);
       tbody.appendChild(tr);
+
+      if(isInvite){countTotal++; if(data.sent)countSent++;}
     });
+    if(isInvite) updateSummary(countTotal,countSent);
   });
 }
 
-// Add handlers
+// Update summary
+function updateSummary(total=0,sent=0){
+  document.getElementById("summary-invitees").textContent = `Total Invitees: ${total} | Sent: ${sent} ✅ | Pending: ${total-sent} ⏳`;
+  membersCol.get().then(snap=>document.getElementById("summary-members").textContent = `Total Members: ${snap.size}`);
+}
+
+// Add handlers with duplicate check
+function addDocument(colRef,fields,values){
+  colRef.where("name","==",values.name).where("mobile","==",values.mobile).get().then(snap=>{
+    if(!snap.empty){alert("Duplicate entry!"); return;}
+    colRef.add({...values, sent:false, dateAdded:new Date()}).then(loadAllData);
+  });
+}
 document.getElementById("add-inv-btn").onclick=()=>{
-  const n=document.getElementById("inv-name").value,v=document.getElementById("inv-village").value,m=document.getElementById("inv-mobile").value,r=document.getElementById("inv-remarks").value;
-  if(n&&v&&m){invitationCol.add({name:n,village:v,mobile:m,remarks:r}).then(loadAllData);["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");}
+  const values={name:document.getElementById("inv-name").value,village:document.getElementById("inv-village").value,mobile:document.getElementById("inv-mobile").value,remarks:document.getElementById("inv-remarks").value};
+  if(values.name && values.village && values.mobile){addDocument(invitationCol,[],values); ["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");}
 };
 document.getElementById("add-mem-btn").onclick=()=>{
-  const n=document.getElementById("mem-name").value,v=document.getElementById("mem-village").value,m=document.getElementById("mem-mobile").value,r=document.getElementById("mem-remarks").value;
-  if(n&&v&&m){membersCol.add({name:n,village:v,mobile:m,remarks:r}).then(loadAllData);["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");}
+  const values={name:document.getElementById("mem-name").value,village:document.getElementById("mem-village").value,mobile:document.getElementById("mem-mobile").value,remarks:document.getElementById("mem-remarks").value};
+  if(values.name && values.village && values.mobile){addDocument(membersCol,[],values); ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");}
 };
 document.getElementById("add-col-btn").onclick=()=>{
-  const n=document.getElementById("col-name").value,a=document.getElementById("col-area").value;
-  if(n&&a){collectorsCol.add({name:n,area:a}).then(loadAllData);["col-name","col-area"].forEach(id=>document.getElementById(id).value="");}
+  const values={name:document.getElementById("col-name").value,area:document.getElementById("col-area").value};
+  if(values.name && values.area){collectorsCol.add(values).then(loadAllData); ["col-name","col-area"].forEach(id=>document.getElementById(id).value="");}
 };
+
+// Search functionality
+document.getElementById("search-invite").oninput=function(){
+  filterTable("invitation-table",this.value);
+};
+document.getElementById("search-members").oninput=function(){
+  filterTable("members-table",this.value);
+};
+document.getElementById("search-collectors").oninput=function(){
+  filterTable("collector-table",this.value);
+};
+
+function filterTable(tableId,term){
+  const rows=document.getElementById(tableId).querySelectorAll("tbody tr");
+  rows.forEach(tr=>{
+    const text = tr.innerText.toLowerCase();
+    tr.style.display = text.includes(term.toLowerCase()) ? "" : "none";
+  });
+}
 </script>
 </body>
 </html>
-
-
