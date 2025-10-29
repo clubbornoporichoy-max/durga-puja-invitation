@@ -19,9 +19,6 @@ input, select { padding: 5px; margin: 5px 0; border: 1px solid #b71c1c; border-r
 button { background: #b71c1c; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-right: 5px; border-radius: 3px; transition: 0.2s; }
 button:hover:not(:disabled) { background: #d32f2f; }
 button:disabled { background: #ccc; cursor: not-allowed; }
-.editable { background: #fff8e1; cursor: text; transition: 0.2s; }
-.editable:hover { border: 2px solid #fdd835; }
-.editable:focus { outline: none; border: 2px solid #f57f17; background: #fff3e0; }
 .hidden { display: none; }
 .summary { margin-bottom: 20px; font-weight: bold; }
 </style>
@@ -39,11 +36,13 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 </header>
 
 <div class="container hidden" id="main-content">
+
+  <!-- Invitations -->
   <div class="summary" id="summary-invitees"></div>
   <h2>Invitation List</h2>
   <input type="text" id="search-invite" placeholder="Search invitations...">
   <table id="invitation-table">
-    <thead><tr><th>Name</th><th>Village</th><th>Mobile No</th><th>Remarks</th><th>Sent</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Sent</th><th>Actions</th></tr></thead>
     <tbody></tbody>
   </table>
   <div id="invitation-form">
@@ -54,11 +53,12 @@ button:disabled { background: #ccc; cursor: not-allowed; }
     <button id="add-inv-btn">Add Invitation</button>
   </div>
 
+  <!-- Members -->
   <div class="summary" id="summary-members"></div>
   <h2>Members List</h2>
   <input type="text" id="search-members" placeholder="Search members...">
   <table id="members-table">
-    <thead><tr><th>Name</th><th>Village</th><th>Mobile No</th><th>Remarks</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Actions</th></tr></thead>
     <tbody></tbody>
   </table>
   <div id="member-form">
@@ -69,6 +69,7 @@ button:disabled { background: #ccc; cursor: not-allowed; }
     <button id="add-mem-btn">Add Member</button>
   </div>
 
+  <!-- Membership Fee Tracker -->
   <h2>Membership Fee Tracker (₹100/month)</h2>
   <input type="text" id="search-fee" placeholder="Search member payments...">
   <table id="fee-table">
@@ -79,17 +80,15 @@ button:disabled { background: #ccc; cursor: not-allowed; }
     <input type="text" id="fee-member" placeholder="Member Name">
     <select id="fee-month">
       <option value="">Select Month</option>
-      <option>January</option><option>February</option><option>March</option>
-      <option>April</option><option>May</option><option>June</option>
-      <option>July</option><option>August</option><option>September</option>
-      <option>October</option><option>November</option><option>December</option>
+      <option>January</option><option>February</option><option>March</option><option>April</option>
+      <option>May</option><option>June</option><option>July</option><option>August</option>
+      <option>September</option><option>October</option><option>November</option><option>December</option>
     </select>
     <input type="number" id="fee-amount" value="100" min="0">
-    <select id="fee-status">
-      <option>Paid</option><option>Pending</option>
-    </select>
+    <select id="fee-status"><option>Paid</option><option>Pending</option></select>
     <button id="add-fee-btn">Add Record</button>
   </div>
+
 </div>
 
 <script>
@@ -105,7 +104,6 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Hardcoded roles
 const roles = {
   "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin",
   "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer"
@@ -142,7 +140,7 @@ auth.onAuthStateChanged(user => {
 });
 
 function applyRoleToUI(){
-  const adminOnly = document.querySelectorAll("#add-inv-btn,#add-mem-btn,#add-col-btn,#add-fee-btn,.delete-btn");
+  const adminOnly = document.querySelectorAll("#add-inv-btn,#add-mem-btn,#add-fee-btn,.delete-btn");
   adminOnly.forEach(btn => btn.disabled = currentRole !== "admin");
 }
 
@@ -152,12 +150,13 @@ const membersCol = db.collection("members");
 const feeCol = db.collection("membership_fees");
 
 function loadAllData(){
-  loadTable(invitationCol, "invitation-table", ["name","village","mobile","remarks","sent"], true);
-  loadTable(membersCol, "members-table", ["name","village","mobile","remarks"], false);
+  loadTable(invitationCol,"invitation-table",["name","village","mobile","remarks"],"invitations");
+  loadTable(membersCol,"members-table",["name","village","mobile","remarks"],"members");
   loadFeeTable();
 }
 
-function loadTable(colRef, tableId, fields, isInvite){
+// Generic table loader
+function loadTable(colRef,tableId,fields,type){
   const tbody=document.getElementById(tableId).querySelector("tbody");
   tbody.innerHTML="";
   colRef.get().then(snapshot=>{
@@ -169,11 +168,37 @@ function loadTable(colRef, tableId, fields, isInvite){
         td.textContent=data[f]||"";
         tr.appendChild(td);
       });
+      const td=document.createElement("td");
+      const del=document.createElement("button");
+      del.textContent="Delete";
+      del.disabled=currentRole!=="admin";
+      del.onclick=()=>{if(confirm("Delete?"))doc.ref.delete().then(()=>loadAllData());};
+      td.appendChild(del);
+      tr.appendChild(td);
       tbody.appendChild(tr);
     });
   });
 }
 
+// Add invitation/member
+function addDocument(colRef,values,callback){
+  colRef.where("name","==",values.name).where("mobile","==",values.mobile).get().then(snap=>{
+    if(!snap.empty){alert("Duplicate entry!");return;}
+    colRef.add({...values,dateAdded:new Date()}).then(callback);
+  });
+}
+
+document.getElementById("add-inv-btn").onclick=()=>{
+  const v={name:inv-name.value,village:inv-village.value,mobile:inv-mobile.value,remarks:inv-remarks.value};
+  if(v.name && v.village && v.mobile){addDocument(invitationCol,v,loadAllData);["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");}
+};
+
+document.getElementById("add-mem-btn").onclick=()=>{
+  const v={name:mem-name.value,village:mem-village.value,mobile:mem-mobile.value,remarks:mem-remarks.value};
+  if(v.name && v.village && v.mobile){addDocument(membersCol,v,loadAllData);["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");}
+};
+
+// Fee table
 function loadFeeTable(){
   const tbody=document.getElementById("fee-table").querySelector("tbody");
   tbody.innerHTML="";
@@ -183,11 +208,11 @@ function loadFeeTable(){
       const tr=document.createElement("tr");
       tr.innerHTML=`<td>${d.member}</td><td>${d.month}</td><td>${d.amount}</td><td>${d.status}</td>`;
       const td=document.createElement("td");
-      const delBtn=document.createElement("button");
-      delBtn.textContent="Delete";
-      delBtn.disabled=currentRole!=="admin";
-      delBtn.onclick=()=>{if(confirm("Delete record?"))doc.ref.delete().then(loadFeeTable);};
-      td.appendChild(delBtn);
+      const del=document.createElement("button");
+      del.textContent="Delete";
+      del.disabled=currentRole!=="admin";
+      del.onclick=()=>{if(confirm("Delete record?"))doc.ref.delete().then(loadFeeTable);};
+      td.appendChild(del);
       tr.appendChild(td);
       tbody.appendChild(tr);
     });
@@ -195,30 +220,18 @@ function loadFeeTable(){
 }
 
 document.getElementById("add-fee-btn").onclick=()=>{
-  const record={
-    member:document.getElementById("fee-member").value,
-    month:document.getElementById("fee-month").value,
-    amount:Number(document.getElementById("fee-amount").value),
-    status:document.getElementById("fee-status").value,
-    dateAdded:new Date()
-  };
-  if(record.member && record.month){
-    feeCol.add(record).then(()=>{
-      ["fee-member","fee-month"].forEach(id=>document.getElementById(id).value="");
-      document.getElementById("fee-amount").value=100;
-      loadFeeTable();
-    });
-  } else alert("Please fill all details");
+  const record={member:fee-member.value,month:fee-month.value,amount:Number(fee-amount.value),status:fee-status.value,dateAdded:new Date()};
+  if(record.member && record.month){feeCol.add(record).then(loadFeeTable);}
+  else alert("Please fill all details");
 };
 
-// Search
+// Search filters
+document.getElementById("search-invite").oninput=function(){filterTable("invitation-table",this.value);}
+document.getElementById("search-members").oninput=function(){filterTable("members-table",this.value);}
 document.getElementById("search-fee").oninput=function(){filterTable("fee-table",this.value);}
 function filterTable(tableId,term){
   const rows=document.getElementById(tableId).querySelectorAll("tbody tr");
-  rows.forEach(tr=>{
-    const text = tr.innerText.toLowerCase();
-    tr.style.display = text.includes(term.toLowerCase()) ? "" : "none";
-  });
+  rows.forEach(tr=>{tr.style.display=tr.innerText.toLowerCase().includes(term.toLowerCase())?"":"none";});
 }
 </script>
 </body>
