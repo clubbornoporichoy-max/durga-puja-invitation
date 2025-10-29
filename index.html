@@ -1,238 +1,235 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Durga Puja Club Dashboard</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<style>
-body { font-family: Arial; background: #fff5f0; color: #4b2e2e; margin: 0; padding: 0; }
-header { background: #b71c1c; color: white; padding: 15px; text-align: center; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-h2 { color: #b71c1c; margin-top: 30px; }
-.container { padding: 20px; max-width: 1200px; margin: auto; }
-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); border-radius: 5px; overflow: hidden; }
-th, td { border: 1px solid #b71c1c; padding: 8px; text-align: left; }
-th { background: #fdd835; color: #4b2e2e; cursor: pointer; }
-input, select { padding: 5px; margin: 5px 0; border: 1px solid #b71c1c; border-radius: 3px; }
-button { background: #b71c1c; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-right: 5px; border-radius: 3px; transition: 0.2s; }
-button:hover:not(:disabled) { background: #d32f2f; }
-button:disabled { background: #ccc; cursor: not-allowed; }
-.hidden { display: none; }
-.summary { margin-bottom: 20px; font-weight: bold; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Durga Puja Club Dashboard — Single Page</title>
+
+  <!-- Firebase compat SDKs (easy to use) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root{
+      --red:#b71c1c; --gold:#fdd835; --bg:#fff5f0; --text:#4b2e2e;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter, Arial, sans-serif;background:var(--bg);color:var(--text);margin:0;padding:0}
+    header{background:var(--red);color:white;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    header h1{margin:0;font-size:20px}
+    #auth-section{display:flex;gap:8px;align-items:center}
+    input[type="email"],input[type="password"],input[type="text"],select{padding:6px;border:1px solid rgba(0,0,0,0.08);border-radius:6px}
+    button{background:var(--red);color:white;border:none;padding:6px 10px;border-radius:6px;cursor:pointer}
+    button:disabled{background:#ccc;cursor:not-allowed}
+    .container{max-width:1200px;margin:18px auto;padding:18px;background:white;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.06)}
+    h2{color:var(--red);margin:10px 0}
+    .grid{display:grid;grid-template-columns:1fr;gap:18px}
+    .section{padding:12px;border-radius:8px;border:1px solid rgba(0,0,0,0.03)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:8px;border:1px solid rgba(0,0,0,0.06);text-align:left;vertical-align:middle}
+    th{background:var(--gold);color:var(--text)}
+    .muted{color:#666;font-size:0.95rem}
+    .summary{font-weight:600;margin-bottom:8px}
+    .badge-sent{background:green;color:white;padding:3px 6px;border-radius:4px;font-size:0.8rem}
+    .badge-pending{background:orange;color:white;padding:3px 6px;border-radius:4px;font-size:0.8rem}
+    .editable{background:#fff8e1;cursor:text}
+    .month-checkbox{display:inline-block;margin:0 4px}
+    @media(min-width:900px){ .grid{grid-template-columns:1fr 1fr} .full{grid-column:1/-1} }
+    .center{display:flex;align-items:center;gap:8px}
+    .right{margin-left:auto}
+  </style>
 </head>
 <body>
-<header>
-  <h1>Durga Puja Club Dashboard</h1>
-  <div id="auth-section">
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
-    <button id="login-btn">Login</button>
-    <button id="logout-btn" class="hidden">Logout</button>
-    <span id="user-info"></span>
-  </div>
-</header>
+  <header>
+    <h1>Durga Puja Club Dashboard — Club Bornoporichoy</h1>
+    <div id="auth-section">
+      <input id="email" type="email" placeholder="Email" />
+      <input id="password" type="password" placeholder="Password" />
+      <button id="login-btn">Login</button>
+      <button id="logout-btn" class="hidden">Logout</button>
+      <span id="user-info" class="muted"></span>
+    </div>
+  </header>
 
-<div class="container hidden" id="main-content">
+  <main class="container">
+    <div class="grid">
 
-  <!-- Invitations -->
-  <div class="summary" id="summary-invitees"></div>
-  <h2>Invitation List</h2>
-  <input type="text" id="search-invite" placeholder="Search invitations...">
-  <table id="invitation-table">
-    <thead><tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Sent</th><th>Actions</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <div id="invitation-form">
-    <input type="text" id="inv-name" placeholder="Name">
-    <input type="text" id="inv-village" placeholder="Village">
-    <input type="text" id="inv-mobile" placeholder="Mobile No">
-    <input type="text" id="inv-remarks" placeholder="Remarks">
-    <button id="add-inv-btn">Add Invitation</button>
-  </div>
+      <!-- Invitations -->
+      <div class="section">
+        <div class="center">
+          <div>
+            <div id="inv-summary" class="summary">Invitation summary</div>
+            <div class="muted">Manage invitation cards and mark sent</div>
+          </div>
+          <div class="right">
+            <input id="search-invite" placeholder="Search invitations..." />
+          </div>
+        </div>
 
-  <!-- Members -->
-  <div class="summary" id="summary-members"></div>
-  <h2>Members List</h2>
-  <input type="text" id="search-members" placeholder="Search members...">
-  <table id="members-table">
-    <thead><tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Actions</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <div id="member-form">
-    <input type="text" id="mem-name" placeholder="Name">
-    <input type="text" id="mem-village" placeholder="Village">
-    <input type="text" id="mem-mobile" placeholder="Mobile No">
-    <input type="text" id="mem-remarks" placeholder="Remarks">
-    <button id="add-mem-btn">Add Member</button>
-  </div>
+        <div class="controls" style="margin-top:10px">
+          <input id="inv-name" placeholder="Name" />
+          <input id="inv-village" placeholder="Village" />
+          <input id="inv-mobile" placeholder="Mobile no" />
+          <input id="inv-remarks" placeholder="Remarks" />
+          <button id="add-inv-btn">Add Invitation</button>
+        </div>
 
-  <!-- Membership Fee Tracker -->
-  <h2>Membership Fee Tracker (₹100/month)</h2>
-  <input type="text" id="search-fee" placeholder="Search member payments...">
-  <table id="fee-table">
-    <thead><tr><th>Member Name</th><th>Month</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <div id="fee-form">
-    <input type="text" id="fee-member" placeholder="Member Name">
-    <select id="fee-month">
-      <option value="">Select Month</option>
-      <option>January</option><option>February</option><option>March</option><option>April</option>
-      <option>May</option><option>June</option><option>July</option><option>August</option>
-      <option>September</option><option>October</option><option>November</option><option>December</option>
-    </select>
-    <input type="number" id="fee-amount" value="100" min="0">
-    <select id="fee-status"><option>Paid</option><option>Pending</option></select>
-    <button id="add-fee-btn">Add Record</button>
-  </div>
+        <table id="invitation-table">
+          <thead>
+            <tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Sent</th><th>Actions</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
 
-</div>
+      <!-- Collectors -->
+      <div class="section">
+        <div class="center">
+          <div>
+            <div id="collector-summary" class="summary">Collectors summary</div>
+            <div class="muted">People assigned to raise donations (by area)</div>
+          </div>
+          <div class="right">
+            <input id="search-collectors" placeholder="Search collectors..." />
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:10px">
+          <input id="col-name" placeholder="Collector name" />
+          <input id="col-area" placeholder="Assigned area" />
+          <button id="add-col-btn">Add Collector</button>
+        </div>
+
+        <table id="collector-table">
+          <thead><tr><th>Name</th><th>Area</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Members & Fees (full width) -->
+      <div class="section full">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div>
+            <div id="members-summary" class="summary">Members summary</div>
+            <div class="muted">Members + monthly fee (₹100/month)</div>
+          </div>
+          <div class="right">
+            <input id="search-members" placeholder="Search members..." />
+          </div>
+        </div>
+
+        <div style="margin-top:10px" class="controls">
+          <input id="mem-name" placeholder="Name" />
+          <input id="mem-village" placeholder="Village" />
+          <input id="mem-mobile" placeholder="Mobile no" />
+          <input id="mem-remarks" placeholder="Remarks" />
+          <button id="add-mem-btn">Add Member</button>
+        </div>
+
+        <!-- Monthly summary table -->
+        <h2 style="margin-top:12px">Monthly Summary (₹100 / paid month)</h2>
+        <table id="monthly-summary-table">
+          <thead><tr><th>Month</th><th>Paid Members</th><th>Total Collected (₹)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+
+        <!-- Members table with months -->
+        <h2 style="margin-top:12px">Members & Fee Tracking</h2>
+        <table id="members-table">
+          <thead>
+            <tr>
+              <th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th>
+              <th style="min-width:360px">Jan–Dec (tick paid)</th><th>Total Paid (₹)</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCuVs6jx7HiNIx25lzLgoq1B6nQqaHLHm0",
-  authDomain: "guestandcollection.firebaseapp.com",
-  projectId: "guestandcollection",
-  storageBucket: "guestandcollection.firebasestorage.app",
-  messagingSenderId: "272278233160",
-  appId: "1:272278233160:web:d6d1e6a7d58be260d9b87d"
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+  // ---------- Firebase config (hardcoded) ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyCuVs6jx7HiNIx25lzLgoq1B6nQqaHLHm0",
+    authDomain: "guestandcollection.firebaseapp.com",
+    projectId: "guestandcollection",
+    storageBucket: "guestandcollection.firebasestorage.app",
+    messagingSenderId: "272278233160",
+    appId: "1:272278233160:web:d6d1e6a7d58be260d9b87d",
+    measurementId: "G-B5783XTFSP"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-const roles = {
-  "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin",
-  "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer"
-};
-let currentRole = "viewer";
+  // ---------- Hardcoded roles ----------
+  const roles = {
+    "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin",
+    "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer"
+  };
+  let currentRole = "viewer";
 
-const loginBtn = document.getElementById("login-btn");
-const logoutBtn = document.getElementById("logout-btn");
-const userInfo = document.getElementById("user-info");
-const mainContent = document.getElementById("main-content");
+  // ---------- Elements ----------
+  const loginBtn = document.getElementById("login-btn");
+  const logoutBtn = document.getElementById("logout-btn");
+  const userInfo = document.getElementById("user-info");
 
-loginBtn.onclick = () => {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  auth.signInWithEmailAndPassword(email, password).catch(err => alert(err.message));
-};
-logoutBtn.onclick = () => auth.signOut();
+  // Collections
+  const invitationsCol = db.collection("invitations");
+  const collectorsCol = db.collection("collectors");
+  const membersCol = db.collection("members");
 
-auth.onAuthStateChanged(user => {
-  if (user) {
-    currentRole = roles[user.uid] || "viewer";
-    loginBtn.classList.add("hidden");
-    logoutBtn.classList.remove("hidden");
-    mainContent.classList.remove("hidden");
-    userInfo.textContent = `${user.email} (${currentRole})`;
-    applyRoleToUI();
-    loadAllData();
-  } else {
-    loginBtn.classList.remove("hidden");
-    logoutBtn.classList.add("hidden");
-    mainContent.classList.add("hidden");
-    userInfo.textContent = "";
+  // months list
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const monthlyFeeDefault = 100;
+
+  // ---------- Auth handlers ----------
+  loginBtn.onclick = () => {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    if(!email || !password) return alert("Enter email & password");
+    auth.signInWithEmailAndPassword(email, password).catch(e=>alert(e.message));
+  };
+  logoutBtn.onclick = ()=> auth.signOut();
+
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      currentRole = roles[user.uid] || "viewer";
+      loginBtn.classList.add("hidden");
+      logoutBtn.classList.remove("hidden");
+      userInfo.textContent = `${user.email} (${currentRole})`;
+      enableUIForRole();
+      loadAllData();
+    } else {
+      currentRole = "viewer";
+      loginBtn.classList.remove("hidden");
+      logoutBtn.classList.add("hidden");
+      userInfo.textContent = "";
+      enableUIForRole();
+      // hide tables until login for privacy
+      // (If you want to allow read without login, change Firestore rules and remove this)
+    }
+  });
+
+  function enableUIForRole(){
+    // enable/disable add buttons and editable interactions for viewer vs admin
+    const adminOnly = [ "add-inv-btn","add-col-btn","add-mem-btn" ];
+    adminOnly.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.disabled = (currentRole !== "admin");
+    });
+    // inline editing will be applied when tables load (td.contentEditable = currentRole==="admin")
   }
-});
 
-function applyRoleToUI(){
-  const adminOnly = document.querySelectorAll("#add-inv-btn,#add-mem-btn,#add-fee-btn,.delete-btn");
-  adminOnly.forEach(btn => btn.disabled = currentRole !== "admin");
-}
+  // ---------- Load everything ----------
+  function loadAllData(){
+    loadInvitations();
+    loadCollectors();
+    loadMembers();
+    updateMonthlySummary();
+  }
 
-// Firestore collections
-const invitationCol = db.collection("invitations");
-const membersCol = db.collection("members");
-const feeCol = db.collection("membership_fees");
-
-function loadAllData(){
-  loadTable(invitationCol,"invitation-table",["name","village","mobile","remarks"],"invitations");
-  loadTable(membersCol,"members-table",["name","village","mobile","remarks"],"members");
-  loadFeeTable();
-}
-
-// Generic table loader
-function loadTable(colRef,tableId,fields,type){
-  const tbody=document.getElementById(tableId).querySelector("tbody");
-  tbody.innerHTML="";
-  colRef.get().then(snapshot=>{
-    snapshot.forEach(doc=>{
-      const data=doc.data();
-      const tr=document.createElement("tr");
-      fields.forEach(f=>{
-        const td=document.createElement("td");
-        td.textContent=data[f]||"";
-        tr.appendChild(td);
-      });
-      const td=document.createElement("td");
-      const del=document.createElement("button");
-      del.textContent="Delete";
-      del.disabled=currentRole!=="admin";
-      del.onclick=()=>{if(confirm("Delete?"))doc.ref.delete().then(()=>loadAllData());};
-      td.appendChild(del);
-      tr.appendChild(td);
-      tbody.appendChild(tr);
-    });
-  });
-}
-
-// Add invitation/member
-function addDocument(colRef,values,callback){
-  colRef.where("name","==",values.name).where("mobile","==",values.mobile).get().then(snap=>{
-    if(!snap.empty){alert("Duplicate entry!");return;}
-    colRef.add({...values,dateAdded:new Date()}).then(callback);
-  });
-}
-
-document.getElementById("add-inv-btn").onclick=()=>{
-  const v={name:inv-name.value,village:inv-village.value,mobile:inv-mobile.value,remarks:inv-remarks.value};
-  if(v.name && v.village && v.mobile){addDocument(invitationCol,v,loadAllData);["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");}
-};
-
-document.getElementById("add-mem-btn").onclick=()=>{
-  const v={name:mem-name.value,village:mem-village.value,mobile:mem-mobile.value,remarks:mem-remarks.value};
-  if(v.name && v.village && v.mobile){addDocument(membersCol,v,loadAllData);["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");}
-};
-
-// Fee table
-function loadFeeTable(){
-  const tbody=document.getElementById("fee-table").querySelector("tbody");
-  tbody.innerHTML="";
-  feeCol.get().then(snapshot=>{
-    snapshot.forEach(doc=>{
-      const d=doc.data();
-      const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${d.member}</td><td>${d.month}</td><td>${d.amount}</td><td>${d.status}</td>`;
-      const td=document.createElement("td");
-      const del=document.createElement("button");
-      del.textContent="Delete";
-      del.disabled=currentRole!=="admin";
-      del.onclick=()=>{if(confirm("Delete record?"))doc.ref.delete().then(loadFeeTable);};
-      td.appendChild(del);
-      tr.appendChild(td);
-      tbody.appendChild(tr);
-    });
-  });
-}
-
-document.getElementById("add-fee-btn").onclick=()=>{
-  const record={member:fee-member.value,month:fee-month.value,amount:Number(fee-amount.value),status:fee-status.value,dateAdded:new Date()};
-  if(record.member && record.month){feeCol.add(record).then(loadFeeTable);}
-  else alert("Please fill all details");
-};
-
-// Search filters
-document.getElementById("search-invite").oninput=function(){filterTable("invitation-table",this.value);}
-document.getElementById("search-members").oninput=function(){filterTable("members-table",this.value);}
-document.getElementById("search-fee").oninput=function(){filterTable("fee-table",this.value);}
-function filterTable(tableId,term){
-  const rows=document.getElementById(tableId).querySelectorAll("tbody tr");
-  rows.forEach(tr=>{tr.style.display=tr.innerText.toLowerCase().includes(term.toLowerCase())?"":"none";});
-}
-</script>
-</body>
-</html>
+  //
