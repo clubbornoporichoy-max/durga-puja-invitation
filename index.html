@@ -42,6 +42,8 @@
   .small{font-size:0.9em}
   .right{margin-left:auto}
   .center{text-align:center}
+  label.small{font-size:0.9em; display:block; margin-bottom:4px;}
+  .year-select { display:flex; gap:10px; align-items:center; }
   @media (max-width:900px){
     .flex{flex-direction:column; align-items:stretch;}
     table, thead, tbody, th, td, tr{font-size:13px;}
@@ -58,17 +60,24 @@
 
 <div class="container">
 
-  <!-- Auth Card -->
+  <!-- Auth Card + Year Selector -->
   <div class="card" id="auth-card">
-    <div class="flex">
-      <div>
+    <div class="flex" style="align-items:flex-end;">
+      <div style="min-width:260px;">
         <label class="small">Email</label><br>
         <input id="email" type="email" placeholder="admin@club.com" />
       </div>
-      <div>
+      <div style="min-width:220px;">
         <label class="small">Password</label><br>
         <input id="password" type="password" placeholder="password" />
       </div>
+
+      <!-- Year selector -->
+      <div style="min-width:200px;" class="year-select">
+        <label class="small" for="yearSelect">Select Year</label>
+        <select id="yearSelect"></select>
+      </div>
+
       <div class="right">
         <button id="login-btn">Login</button>
         <button id="logout-btn" class="hidden">Logout</button>
@@ -76,7 +85,7 @@
       </div>
     </div>
     <div class="muted small" style="margin-top:10px;">
-      Use email/password login. Admin features require the admin UID: <code>fRpLuiBgU0ZE1AtVmkGaA1RhBJk2</code>
+      Use email/password login. Admin UID for edits: <code>fRpLuiBgU0ZE1AtVmkGaA1RhBJk2</code>
     </div>
   </div>
 
@@ -210,7 +219,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* ---------------- Roles (hardcoded) ---------------- */
+/* ---------------- Roles & constants ---------------- */
 const ROLES = {
   "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin",
   "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer"
@@ -218,20 +227,39 @@ const ROLES = {
 let currentRole = "viewer";
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+/* ---------------- Year selector (2025 - 2050) ---------------- */
+const yearSelect = document.getElementById('yearSelect');
+const thisYear = new Date().getFullYear();
+for (let y = 2025; y <= 2050; y++){
+  const opt = document.createElement('option');
+  opt.value = y;
+  opt.textContent = y;
+  if (y === thisYear) opt.selected = true;
+  yearSelect.appendChild(opt);
+}
+// initial pujaYear and dynamic collections
+let pujaYear = parseInt(yearSelect.value);
+let invitationCol = db.collection(`invitations_${pujaYear}`);
+let membersCol = db.collection(`members_${pujaYear}`);
+let collectorsCol = db.collection(`collectors_${pujaYear}`);
+
+// when year changes, update collections and reload
+yearSelect.addEventListener('change', () => {
+  pujaYear = parseInt(yearSelect.value);
+  invitationCol = db.collection(`invitations_${pujaYear}`);
+  membersCol = db.collection(`members_${pujaYear}`);
+  collectorsCol = db.collection(`collectors_${pujaYear}`);
+  // reload all data for the selected year
+  loadAllData();
+});
+
 /* ---------------- Elements ---------------- */
 const loginBtn = document.getElementById("login-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const mainContent = document.getElementById("main-content");
 
-/* collection refs */
-const invitationCol = db.collection("invitations");
-const membersCol = db.collection("members");
-const collectorsCol = db.collection("collectors");
-
 /* ---------------- Auth handlers ---------------- */
-
-/* Use click handlers that are idempotent; guard against multiple clicks */
 loginBtn.addEventListener("click", () => {
   const email = document.getElementById("email").value.trim();
   const pw = document.getElementById("password").value;
@@ -250,25 +278,19 @@ logoutBtn.addEventListener("click", () => {
 
 /* Auth state listener — keeps UI in sync */
 auth.onAuthStateChanged(user => {
-  // This will run on initial load and whenever auth state changes.
   if(user){
-    // determine role
     currentRole = ROLES[user.uid] || "viewer";
-
-    // toggle UI
+    // hide login inputs and show main
     document.getElementById("email").style.display = "none";
     document.getElementById("password").style.display = "none";
     loginBtn.style.display = "none";
     logoutBtn.classList.remove("hidden");
     mainContent.classList.remove("hidden");
     userInfo.textContent = `${user.email} (${currentRole})`;
-
-    // ensure role UI and data load are stable and serial
     applyRoleToUI();
-    // small delay to ensure UI shows before heavy queries start (avoids perceived freeze)
-    setTimeout(() => loadAllData(), 100);
+    setTimeout(()=> loadAllData(), 80); // small delay to make UI feel responsive
   } else {
-    // show login inputs
+    // show login
     document.getElementById("email").style.display = "";
     document.getElementById("password").style.display = "";
     loginBtn.style.display = "";
@@ -302,7 +324,6 @@ function clearAllTables(){
 
 /* ---------------- Load everything ---------------- */
 function loadAllData(){
-  // load in parallel but keep UI responsive
   loadInvitations();
   loadMembersTable();
   loadCollectors();
@@ -310,7 +331,6 @@ function loadAllData(){
 }
 
 /* ---------------- INVITATIONS ---------------- */
-/* add invitation */
 document.getElementById("add-inv-btn").addEventListener("click", async () => {
   if(currentRole !== "admin") return alert("Only admin can add");
   const name = document.getElementById("inv-name").value.trim();
@@ -319,7 +339,6 @@ document.getElementById("add-inv-btn").addEventListener("click", async () => {
   const remarks = document.getElementById("inv-remarks").value.trim();
   if(!name || !village) return alert("Name & Village required");
   try {
-    // duplicate check
     let dupQuery = invitationCol.where("name","==",name);
     if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
     const dup = await dupQuery.get();
@@ -338,7 +357,6 @@ document.getElementById("add-inv-btn").addEventListener("click", async () => {
   }
 });
 
-/* load invitations */
 async function loadInvitations(){
   const tbody = document.querySelector("#invitation-table tbody");
   tbody.innerHTML = "";
@@ -361,7 +379,6 @@ async function loadInvitations(){
       `;
       tbody.appendChild(tr);
 
-      // actions and editable handlers for admin
       const actionsTd = tr.querySelector("td:last-child");
       if(currentRole==="admin"){
         const toggleBtn = document.createElement("button");
@@ -383,7 +400,7 @@ async function loadInvitations(){
               const val = cell.textContent.trim();
               const update = {}; update[fieldMap[idx]] = val;
               await doc.ref.update(update);
-            } catch(e) { console.error("Save edit error:", e); alert("Save failed: "+e.message); }
+            } catch(e) { console.error("Save edit error:", e); alert("Save failed: "+(e.message||e)); }
           };
         });
       }
@@ -402,7 +419,6 @@ document.getElementById("search-invite").addEventListener("input", (e)=>{
 
 /* ---------------- MEMBERS & FEES ---------------- */
 
-/* add member */
 document.getElementById("add-mem-btn").addEventListener("click", async () => {
   if(currentRole !== "admin") return alert("Only admin can add members");
   const name = document.getElementById("mem-name").value.trim();
@@ -416,7 +432,7 @@ document.getElementById("add-mem-btn").addEventListener("click", async () => {
     const fees = {}; MONTHS.forEach(m => fees[m]=false);
     await membersCol.add({
       name, village, mobile, remarks,
-      monthlyFee: 100, year: new Date().getFullYear(),
+      monthlyFee: 100, year: pujaYear,
       fees, totalPaid: 0, dateAdded: firebase.firestore.FieldValue.serverTimestamp()
     });
     ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");
@@ -428,7 +444,6 @@ document.getElementById("add-mem-btn").addEventListener("click", async () => {
   }
 });
 
-/* load members table */
 async function loadMembersTable(){
   const tbody = document.querySelector("#members-table tbody");
   tbody.innerHTML = "";
@@ -438,7 +453,6 @@ async function loadMembersTable(){
     snapshot.forEach(docSnap => {
       totalMembers++;
       const d = docSnap.data();
-      // create row
       const tr = document.createElement("tr");
       const monthCells = MONTHS.map(m => {
         const checked = d.fees && d.fees[m];
@@ -458,7 +472,6 @@ async function loadMembersTable(){
       `;
       tbody.appendChild(tr);
 
-      // attach admin interactions
       if(currentRole==="admin"){
         const editableCells = tr.querySelectorAll("td[contenteditable='true']");
         editableCells.forEach((cell, idx) => {
@@ -468,7 +481,7 @@ async function loadMembersTable(){
               const val = cell.textContent.trim();
               const update = {}; update[fieldMap[idx]] = val;
               await membersCol.doc(docSnap.id).update(update);
-            } catch(e){ console.error("Save member edit error:", e); alert("Save failed: "+e.message); }
+            } catch(e){ console.error("Save member edit error:", e); alert("Save failed: "+(e.message||e)); }
           };
         });
 
@@ -488,7 +501,7 @@ async function loadMembersTable(){
               await membersCol.doc(docSnap.id).update({ totalPaid: totalPaidNew });
               loadMembersTable();
               updateMonthlySummary();
-            } catch(e){ console.error("Toggle month error:", e); alert("Update failed: "+e.message); }
+            } catch(e){ console.error("Toggle month error:", e); alert("Update failed: "+(e.message||e)); }
           };
         });
 
@@ -504,7 +517,6 @@ async function loadMembersTable(){
         };
         actionsTd.appendChild(delBtn);
       }
-
     });
 
     document.getElementById("summary-members").textContent = `Members: ${totalMembers}`;
@@ -599,16 +611,15 @@ function filterTable(tableId, term){
   });
 }
 
-/* ---------------- Ensure we attach initial state safely ---------------- */
-/* If user is already logged in, auth.onAuthStateChanged will handle it; this ensures the UI doesn't stay stuck */
+/* ---------------- Defensive auth initial refresh ---------------- */
 setTimeout(() => {
   if(auth.currentUser){
-    // trigger a UI refresh defensively
-    auth.onAuthStateChanged(user => { if(user) { currentRole = ROLES[user.uid] || "viewer"; applyRoleToUI(); loadAllData(); } });
+    // re-run auth handler to ensure UI is loaded
+    auth.onAuthStateChanged(user => { if(user){ currentRole = ROLES[user.uid] || "viewer"; applyRoleToUI(); loadAllData(); } });
   }
 }, 200);
 
-/* expose loadAllData for debugging in console if needed */
+/* expose loadAllData for debugging */
 window.loadAllData = loadAllData;
 
 </script>
