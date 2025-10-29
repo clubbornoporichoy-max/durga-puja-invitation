@@ -230,28 +230,43 @@ const membersCol = db.collection("members");
 const collectorsCol = db.collection("collectors");
 
 /* ---------------- Auth handlers ---------------- */
-loginBtn.onclick = () => {
+
+/* Use click handlers that are idempotent; guard against multiple clicks */
+loginBtn.addEventListener("click", () => {
   const email = document.getElementById("email").value.trim();
   const pw = document.getElementById("password").value;
   if(!email || !pw) return alert("Enter email and password");
-  auth.signInWithEmailAndPassword(email,pw).catch(e => alert("Login error: "+e.message));
-};
+  loginBtn.disabled = true;
+  auth.signInWithEmailAndPassword(email,pw)
+    .catch(e => alert("Login error: "+e.message))
+    .finally(()=> loginBtn.disabled = false);
+});
 
-logoutBtn.onclick = () => auth.signOut();
+logoutBtn.addEventListener("click", () => {
+  logoutBtn.disabled = true;
+  auth.signOut().catch(e => alert("Logout error: " + e.message))
+    .finally(()=> logoutBtn.disabled = false);
+});
 
 /* Auth state listener — keeps UI in sync */
 auth.onAuthStateChanged(user => {
+  // This will run on initial load and whenever auth state changes.
   if(user){
+    // determine role
     currentRole = ROLES[user.uid] || "viewer";
-    // hide login inputs
+
+    // toggle UI
     document.getElementById("email").style.display = "none";
     document.getElementById("password").style.display = "none";
     loginBtn.style.display = "none";
     logoutBtn.classList.remove("hidden");
     mainContent.classList.remove("hidden");
     userInfo.textContent = `${user.email} (${currentRole})`;
+
+    // ensure role UI and data load are stable and serial
     applyRoleToUI();
-    loadAllData();
+    // small delay to ensure UI shows before heavy queries start (avoids perceived freeze)
+    setTimeout(() => loadAllData(), 100);
   } else {
     // show login inputs
     document.getElementById("email").style.display = "";
@@ -260,7 +275,6 @@ auth.onAuthStateChanged(user => {
     logoutBtn.classList.add("hidden");
     mainContent.classList.add("hidden");
     userInfo.textContent = "";
-    // clear tables
     clearAllTables();
   }
 });
@@ -276,10 +290,11 @@ function applyRoleToUI(){
 
 /* ---------------- Clear tables ---------------- */
 function clearAllTables(){
-  document.querySelector("#invitation-table tbody").innerHTML="";
-  document.querySelector("#members-table tbody").innerHTML="";
-  document.querySelector("#collector-table tbody").innerHTML="";
-  document.querySelector("#monthly-summary-table tbody").innerHTML="";
+  const tables = ["invitation-table","members-table","collector-table","monthly-summary-table"];
+  tables.forEach(t => {
+    const bb = document.querySelector(`#${t} tbody`);
+    if(bb) bb.innerHTML = "";
+  });
   document.getElementById("summary-invitees").textContent = "Invitees: —";
   document.getElementById("summary-members").textContent = "Members: —";
   document.getElementById("summary-collection").textContent = "Total Collected: ₹0";
@@ -287,6 +302,7 @@ function clearAllTables(){
 
 /* ---------------- Load everything ---------------- */
 function loadAllData(){
+  // load in parallel but keep UI responsive
   loadInvitations();
   loadMembersTable();
   loadCollectors();
@@ -294,260 +310,279 @@ function loadAllData(){
 }
 
 /* ---------------- INVITATIONS ---------------- */
-document.getElementById("add-inv-btn").onclick = async () => {
+/* add invitation */
+document.getElementById("add-inv-btn").addEventListener("click", async () => {
   if(currentRole !== "admin") return alert("Only admin can add");
   const name = document.getElementById("inv-name").value.trim();
   const village = document.getElementById("inv-village").value.trim();
   const mobile = document.getElementById("inv-mobile").value.trim();
   const remarks = document.getElementById("inv-remarks").value.trim();
   if(!name || !village) return alert("Name & Village required");
-  // duplicate check on name+mobile
-  let dupQuery = invitationCol.where("name","==",name);
-  if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
-  const dup = await dupQuery.get();
-  if(!dup.empty) { if(!confirm("Possible duplicate found. Add anyway?")) return; }
-  await invitationCol.add({
-    name, village, mobile, remarks,
-    sent: false, dateAdded: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  ["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");
-  loadInvitations();
-};
+  try {
+    // duplicate check
+    let dupQuery = invitationCol.where("name","==",name);
+    if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
+    const dup = await dupQuery.get();
+    if(!dup.empty && !confirm("Possible duplicate found. Add anyway?")) return;
 
+    await invitationCol.add({
+      name, village, mobile, remarks,
+      sent: false,
+      dateAdded: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    ["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");
+    loadInvitations();
+  } catch(err){
+    console.error("Add invitation error:", err);
+    alert("Failed to add invitation: " + (err.message || err));
+  }
+});
+
+/* load invitations */
 async function loadInvitations(){
   const tbody = document.querySelector("#invitation-table tbody");
   tbody.innerHTML = "";
-  const snapshot = await invitationCol.orderBy("dateAdded","desc").get();
-  let total=0, sent=0;
-  snapshot.forEach(doc => {
-    total++;
-    const d = doc.data();
-    if(d.sent) sent++;
-    const tr = document.createElement("tr");
+  try {
+    const snapshot = await invitationCol.orderBy("dateAdded","desc").get();
+    let total=0, sent=0;
+    snapshot.forEach(doc => {
+      total++;
+      const d = doc.data();
+      if(d.sent) sent++;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.name||"")}</td>
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.village||"")}</td>
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.mobile||"")}</td>
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.remarks||"")}</td>
+        <td class="center">${d.sent?'<span class="badge-sent">Sent</span>':'<span class="badge-pending">Pending</span>'}</td>
+        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
+        <td></td>
+      `;
+      tbody.appendChild(tr);
 
-    // name village mobile remarks
-    tr.innerHTML = `
-      <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.name||"")}</td>
-      <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.village||"")}</td>
-      <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.mobile||"")}</td>
-      <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.remarks||"")}</td>
-      <td class="center">${d.sent?'<span class="badge-sent">Sent</span>':'<span class="badge-pending">Pending</span>'}</td>
-      <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
-      <td></td>
-    `;
-    tbody.appendChild(tr);
+      // actions and editable handlers for admin
+      const actionsTd = tr.querySelector("td:last-child");
+      if(currentRole==="admin"){
+        const toggleBtn = document.createElement("button");
+        toggleBtn.textContent = d.sent ? "Mark Pending" : "Mark Sent";
+        toggleBtn.onclick = () => doc.ref.update({sent: !d.sent}).then(loadInvitations);
+        actionsTd.appendChild(toggleBtn);
 
-    // actions column
-    const actionsTd = tr.querySelector("td:last-child");
-    if(currentRole==="admin"){
-      // mark toggle button
-      const toggleBtn = document.createElement("button");
-      toggleBtn.textContent = d.sent ? "Mark Pending" : "Mark Sent";
-      toggleBtn.onclick = ()=> {
-        doc.ref.update({sent: !d.sent}).then(loadInvitations);
-      };
-      actionsTd.appendChild(toggleBtn);
+        const delBtn = document.createElement("button");
+        delBtn.style.marginLeft = "8px";
+        delBtn.textContent = "Delete";
+        delBtn.onclick = () => { if(confirm("Delete invitation?")) doc.ref.delete().then(loadInvitations); };
+        actionsTd.appendChild(delBtn);
 
-      // delete button
-      const delBtn = document.createElement("button");
-      delBtn.style.marginLeft = "8px";
-      delBtn.textContent = "Delete";
-      delBtn.onclick = ()=> {
-        if(confirm("Delete invitation?")) doc.ref.delete().then(loadInvitations);
-      };
-      actionsTd.appendChild(delBtn);
-
-      // attach blur save to editable cells
-      const editableCells = tr.querySelectorAll("td[contenteditable='true']");
-      editableCells.forEach((cell, idx) => {
-        const fieldMap = ["name","village","mobile","remarks"];
-        cell.onblur = () => {
-          const val = cell.textContent.trim();
-          const update = {};
-          update[fieldMap[idx]] = val;
-          doc.ref.update(update);
-        };
-      });
-    }
-
-  });
-  document.getElementById("summary-invitees").textContent = `Invitees: ${total} | Sent: ${sent} | Pending: ${total - sent}`;
+        const editableCells = tr.querySelectorAll("td[contenteditable='true']");
+        editableCells.forEach((cell, idx) => {
+          const fieldMap = ["name","village","mobile","remarks"];
+          cell.onblur = async () => {
+            try {
+              const val = cell.textContent.trim();
+              const update = {}; update[fieldMap[idx]] = val;
+              await doc.ref.update(update);
+            } catch(e) { console.error("Save edit error:", e); alert("Save failed: "+e.message); }
+          };
+        });
+      }
+    });
+    document.getElementById("summary-invitees").textContent = `Invitees: ${total} | Sent: ${sent} | Pending: ${total - sent}`;
+  } catch(e){
+    console.error("Load invitations error:", e);
+    alert("Failed to load invitations: " + (e.message || e));
+  }
 }
 
-/* Invitation search */
+/* invitation search */
 document.getElementById("search-invite").addEventListener("input", (e)=>{
   filterTable("invitation-table", e.target.value);
 });
 
 /* ---------------- MEMBERS & FEES ---------------- */
 
-/* Add member */
-document.getElementById("add-mem-btn").onclick = async () => {
+/* add member */
+document.getElementById("add-mem-btn").addEventListener("click", async () => {
   if(currentRole !== "admin") return alert("Only admin can add members");
   const name = document.getElementById("mem-name").value.trim();
   const village = document.getElementById("mem-village").value.trim();
   const mobile = document.getElementById("mem-mobile").value.trim();
   const remarks = document.getElementById("mem-remarks").value.trim();
   if(!name || !mobile) return alert("Name & Mobile required");
-  // duplicate check
-  const dup = await membersCol.where("name","==",name).where("mobile","==",mobile).get();
-  if(!dup.empty) { if(!confirm("Possible duplicate member. Add anyway?")) return; }
-  const fees = {}; MONTHS.forEach(m => fees[m]=false);
-  await membersCol.add({
-    name, village, mobile, remarks,
-    monthlyFee: 100, year: new Date().getFullYear(),
-    fees, totalPaid: 0, dateAdded: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");
-  loadMembersTable();
-  updateMonthlySummary();
-};
+  try {
+    const dup = await membersCol.where("name","==",name).where("mobile","==",mobile).get();
+    if(!dup.empty && !confirm("Possible duplicate member. Add anyway?")) return;
+    const fees = {}; MONTHS.forEach(m => fees[m]=false);
+    await membersCol.add({
+      name, village, mobile, remarks,
+      monthlyFee: 100, year: new Date().getFullYear(),
+      fees, totalPaid: 0, dateAdded: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");
+    loadMembersTable();
+    updateMonthlySummary();
+  } catch(e){
+    console.error("Add member error:", e);
+    alert("Failed to add member: " + (e.message || e));
+  }
+});
 
-/* Load members table with month checkboxes */
+/* load members table */
 async function loadMembersTable(){
   const tbody = document.querySelector("#members-table tbody");
   tbody.innerHTML = "";
-  const snapshot = await membersCol.orderBy("name").get();
-  let totalMembers = 0;
-  let overallCollected = 0;
+  try {
+    const snapshot = await membersCol.orderBy("name").get();
+    let totalMembers = 0, overallCollected = 0;
+    snapshot.forEach(docSnap => {
+      totalMembers++;
+      const d = docSnap.data();
+      // create row
+      const tr = document.createElement("tr");
+      const monthCells = MONTHS.map(m => {
+        const checked = d.fees && d.fees[m];
+        return `<td class="center"><input class="month-checkbox" type="checkbox" data-month="${m}" ${checked ? "checked" : ""} ${currentRole!=='admin' ? "disabled" : ""}></td>`;
+      }).join("");
+      const paidCount = Object.values(d.fees || {}).filter(v => v).length;
+      const totalPaid = paidCount * (d.monthlyFee || 100);
+      overallCollected += totalPaid;
+      tr.innerHTML = `
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.name||"")}</td>
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.village||"")}</td>
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.mobile||"")}</td>
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.remarks||"")}</td>
+        ${monthCells}
+        <td class="center"><b>₹${totalPaid}</b><div class="muted small">${paidCount}/12</div></td>
+        <td></td>
+      `;
+      tbody.appendChild(tr);
 
-  snapshot.forEach(docSnap => {
-    totalMembers++;
-    const d = docSnap.data();
-    const tr = document.createElement("tr");
+      // attach admin interactions
+      if(currentRole==="admin"){
+        const editableCells = tr.querySelectorAll("td[contenteditable='true']");
+        editableCells.forEach((cell, idx) => {
+          const fieldMap = ["name","village","mobile","remarks"];
+          cell.onblur = async () => {
+            try {
+              const val = cell.textContent.trim();
+              const update = {}; update[fieldMap[idx]] = val;
+              await membersCol.doc(docSnap.id).update(update);
+            } catch(e){ console.error("Save member edit error:", e); alert("Save failed: "+e.message); }
+          };
+        });
 
-    // build month checkbox cells
-    const monthCells = MONTHS.map(m => {
-      const checked = d.fees && d.fees[m];
-      return `<td class="center"><input class="month-checkbox" type="checkbox" data-month="${m}" ${checked ? "checked" : ""} ${currentRole!=='admin' ? "disabled" : ""}></td>`;
-    }).join("");
+        const checkboxes = tr.querySelectorAll("input.month-checkbox");
+        checkboxes.forEach(cb => {
+          cb.onchange = async () => {
+            try {
+              const month = cb.getAttribute("data-month");
+              const status = cb.checked;
+              const update = {}; update[`fees.${month}`] = status;
+              await membersCol.doc(docSnap.id).update(update);
+              // recalc and store totalPaid
+              const refres = await membersCol.doc(docSnap.id).get();
+              const feesObj = refres.data().fees || {};
+              const paid = Object.values(feesObj).filter(v => v).length;
+              const totalPaidNew = paid * (refres.data().monthlyFee || 100);
+              await membersCol.doc(docSnap.id).update({ totalPaid: totalPaidNew });
+              loadMembersTable();
+              updateMonthlySummary();
+            } catch(e){ console.error("Toggle month error:", e); alert("Update failed: "+e.message); }
+          };
+        });
 
-    // compute totalPaid
-    const paidCount = Object.values(d.fees || {}).filter(v => v).length;
-    const totalPaid = paidCount * (d.monthlyFee || 100);
-    overallCollected += totalPaid;
-
-    tr.innerHTML = `
-      <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.name||"")}</td>
-      <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.village||"")}</td>
-      <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.mobile||"")}</td>
-      <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escape(d.remarks||"")}</td>
-      ${monthCells}
-      <td class="center"><b>₹${totalPaid}</b><div class="muted small">${paidCount}/12</div></td>
-      <td></td>
-    `;
-    tbody.appendChild(tr);
-
-    // attach events
-    // 1) editable cell blur save
-    if(currentRole==="admin"){
-      const editableCells = tr.querySelectorAll("td[contenteditable='true']");
-      editableCells.forEach((cell, idx) => {
-        const fieldMap = ["name","village","mobile","remarks"];
-        cell.onblur = async () => {
-          const val = cell.textContent.trim();
-          const update = {}; update[fieldMap[idx]] = val;
-          await membersCol.doc(docSnap.id).update(update);
+        const actionsTd = tr.querySelector("td:last-child");
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "Delete";
+        delBtn.onclick = async () => {
+          if(confirm("Delete member?")) {
+            await membersCol.doc(docSnap.id).delete();
+            loadMembersTable();
+            updateMonthlySummary();
+          }
         };
-      });
-      // 2) month checkbox change
-      const checkboxes = tr.querySelectorAll("input.month-checkbox");
-      checkboxes.forEach(cb => {
-        cb.onchange = async (e) => {
-          const month = cb.getAttribute("data-month");
-          const status = cb.checked;
-          const update = {};
-          update[`fees.${month}`] = status;
-          // update totalPaid also
-          await membersCol.doc(docSnap.id).update(update);
-          // recalc totalPaid field
-          const doc2 = await membersCol.doc(docSnap.id).get();
-          const feesObj = doc2.data().fees || {};
-          const paid = Object.values(feesObj).filter(v => v).length;
-          const totalPaidNew = paid * (doc2.data().monthlyFee || 100);
-          await membersCol.doc(docSnap.id).update({ totalPaid: totalPaidNew });
-          loadMembersTable();
-          updateMonthlySummary();
-        };
-      });
-      // 3) delete button
-      const actionsTd = tr.querySelector("td:last-child");
-      const delBtn = document.createElement("button");
-      delBtn.textContent = "Delete";
-      delBtn.onclick = async () => {
-        if(confirm("Delete member?")) {
-          await membersCol.doc(docSnap.id).delete();
-          loadMembersTable();
-          updateMonthlySummary();
-        }
-      };
-      actionsTd.appendChild(delBtn);
-    }
+        actionsTd.appendChild(delBtn);
+      }
 
-  });
+    });
 
-  document.getElementById("summary-members").textContent = `Members: ${totalMembers}`;
-  document.getElementById("summary-collection").textContent = `Total Collected: ₹${overallCollected}`;
+    document.getElementById("summary-members").textContent = `Members: ${totalMembers}`;
+    document.getElementById("summary-collection").textContent = `Total Collected: ₹${overallCollected}`;
+  } catch(e){
+    console.error("Load members error:", e);
+    alert("Failed to load members: " + (e.message || e));
+  }
 }
 
 /* members search */
 document.getElementById("search-members").addEventListener("input", (e)=> filterTable("members-table", e.target.value));
 
-
 /* ---------------- Monthly Summary ---------------- */
 async function updateMonthlySummary(){
   const tbody = document.querySelector("#monthly-summary-table tbody");
   tbody.innerHTML = "";
-  const monthData = {}; MONTHS.forEach(m => monthData[m] = { paid:0, total:0 });
-  const snapshot = await membersCol.get();
-  snapshot.forEach(docSnap => {
-    const d = docSnap.data();
-    MONTHS.forEach(m => {
-      if(d.fees && d.fees[m]){
-        monthData[m].paid++;
-        monthData[m].total += (d.monthlyFee || 100);
-      }
+  try {
+    const monthData = {}; MONTHS.forEach(m => monthData[m] = { paid:0, total:0 });
+    const snapshot = await membersCol.get();
+    snapshot.forEach(docSnap => {
+      const d = docSnap.data();
+      MONTHS.forEach(m => {
+        if(d.fees && d.fees[m]){
+          monthData[m].paid++;
+          monthData[m].total += (d.monthlyFee || 100);
+        }
+      });
     });
-  });
-  MONTHS.forEach(m => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${m}</td><td class="center">${monthData[m].paid}</td><td class="center">₹${monthData[m].total}</td>`;
-    tbody.appendChild(tr);
-  });
+    MONTHS.forEach(m => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${m}</td><td class="center">${monthData[m].paid}</td><td class="center">₹${monthData[m].total}</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch(e){
+    console.error("Monthly summary error:", e);
+  }
 }
 
 /* ---------------- COLLECTORS ---------------- */
-document.getElementById("add-col-btn").onclick = async () => {
+document.getElementById("add-col-btn").addEventListener("click", async () => {
   if(currentRole !== "admin") return alert("Only admin can add");
   const name = document.getElementById("col-name").value.trim();
   const area = document.getElementById("col-area").value.trim();
   if(!name || !area) return alert("Name & area required");
-  // duplicate check (same name+area)
-  const dup = await collectorsCol.where("name","==",name).where("area","==",area).get();
-  if(!dup.empty) { if(!confirm("Possible duplicate. Add anyway?")) return; }
-  await collectorsCol.add({ name, area, dateAdded: firebase.firestore.FieldValue.serverTimestamp() });
-  ["col-name","col-area"].forEach(id=>document.getElementById(id).value="");
-  loadCollectors();
-};
+  try {
+    const dup = await collectorsCol.where("name","==",name).where("area","==",area).get();
+    if(!dup.empty && !confirm("Possible duplicate. Add anyway?")) return;
+    await collectorsCol.add({ name, area, dateAdded: firebase.firestore.FieldValue.serverTimestamp() });
+    ["col-name","col-area"].forEach(id=>document.getElementById(id).value="");
+    loadCollectors();
+  } catch(e){
+    console.error("Add collector error:", e);
+    alert("Failed to add collector: " + (e.message || e));
+  }
+});
 
 async function loadCollectors(){
   const tbody = document.querySelector("#collector-table tbody");
   tbody.innerHTML = "";
-  const snapshot = await collectorsCol.orderBy("name").get();
-  snapshot.forEach(docSnap => {
-    const d = docSnap.data();
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${escape(d.name||"")}</td><td>${escape(d.area||"")}</td><td></td>`;
-    tbody.appendChild(tr);
-
-    if(currentRole==="admin"){
-      const actionsTd = tr.querySelector("td:last-child");
-      const delBtn = document.createElement("button");
-      delBtn.textContent = "Delete";
-      delBtn.onclick = ()=>{ if(confirm("Delete collector?")) docSnap.ref.delete().then(loadCollectors); };
-      actionsTd.appendChild(delBtn);
-    }
-  });
+  try {
+    const snapshot = await collectorsCol.orderBy("name").get();
+    snapshot.forEach(docSnap => {
+      const d = docSnap.data();
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${escape(d.name||"")}</td><td>${escape(d.area||"")}</td><td></td>`;
+      tbody.appendChild(tr);
+      if(currentRole==="admin"){
+        const actionsTd = tr.querySelector("td:last-child");
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "Delete";
+        delBtn.onclick = ()=>{ if(confirm("Delete collector?")) docSnap.ref.delete().then(loadCollectors); };
+        actionsTd.appendChild(delBtn);
+      }
+    });
+  } catch(e){
+    console.error("Load collectors error:", e);
+  }
 }
 
 /* collectors search */
@@ -564,11 +599,17 @@ function filterTable(tableId, term){
   });
 }
 
-/* ---------------- Utility: load initial if already logged in ---------------- */
-if(auth.currentUser){
-  // auth.onAuthStateChanged will fire on load usually — but ensure loadAllData if needed
-  auth.onAuthStateChanged(user => { if(user) loadAllData(); });
-}
+/* ---------------- Ensure we attach initial state safely ---------------- */
+/* If user is already logged in, auth.onAuthStateChanged will handle it; this ensures the UI doesn't stay stuck */
+setTimeout(() => {
+  if(auth.currentUser){
+    // trigger a UI refresh defensively
+    auth.onAuthStateChanged(user => { if(user) { currentRole = ROLES[user.uid] || "viewer"; applyRoleToUI(); loadAllData(); } });
+  }
+}, 200);
+
+/* expose loadAllData for debugging in console if needed */
+window.loadAllData = loadAllData;
 
 </script>
 </body>
