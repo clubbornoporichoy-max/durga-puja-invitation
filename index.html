@@ -23,11 +23,7 @@ button:disabled { background: #ccc; cursor: not-allowed; }
 .editable:hover { border: 2px solid #fdd835; }
 .editable:focus { outline: none; border: 2px solid #f57f17; background: #fff3e0; }
 .hidden { display: none; }
-td { min-width: 80px; }
 .summary { margin-bottom: 20px; font-weight: bold; }
-.membership-table td, .membership-table th { font-size: 0.85em; text-align: center; }
-.paid { background: #c8e6c9; }
-.unpaid { background: #ffcdd2; }
 </style>
 </head>
 <body>
@@ -43,14 +39,11 @@ td { min-width: 80px; }
 </header>
 
 <div class="container hidden" id="main-content">
-
   <div class="summary" id="summary-invitees"></div>
   <h2>Invitation List</h2>
   <input type="text" id="search-invite" placeholder="Search invitations...">
   <table id="invitation-table">
-    <thead><tr>
-      <th>Name</th><th>Village</th><th>Mobile No</th><th>Remarks</th><th>Sent</th><th>Actions</th>
-    </tr></thead>
+    <thead><tr><th>Name</th><th>Village</th><th>Mobile No</th><th>Remarks</th><th>Sent</th><th>Actions</th></tr></thead>
     <tbody></tbody>
   </table>
   <div id="invitation-form">
@@ -76,31 +69,27 @@ td { min-width: 80px; }
     <button id="add-mem-btn">Add Member</button>
   </div>
 
-  <h2>Donation Collectors</h2>
-  <input type="text" id="search-collectors" placeholder="Search collectors...">
-  <table id="collector-table">
-    <thead><tr><th>Name</th><th>Assigned Area</th><th>Actions</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <div id="collector-form">
-    <input type="text" id="col-name" placeholder="Name">
-    <input type="text" id="col-area" placeholder="Assigned Area">
-    <button id="add-col-btn">Add Collector</button>
-  </div>
-
   <h2>Membership Fee Tracker (₹100/month)</h2>
-  <div class="summary" id="membership-summary"></div>
-  <table id="membership-table" class="membership-table">
-    <thead>
-      <tr>
-        <th>Member Name</th>
-        <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
-        <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
-        <th>Total Paid (₹)</th><th>Pending (₹)</th>
-      </tr>
-    </thead>
+  <input type="text" id="search-fee" placeholder="Search member payments...">
+  <table id="fee-table">
+    <thead><tr><th>Member Name</th><th>Month</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody></tbody>
   </table>
+  <div id="fee-form">
+    <input type="text" id="fee-member" placeholder="Member Name">
+    <select id="fee-month">
+      <option value="">Select Month</option>
+      <option>January</option><option>February</option><option>March</option>
+      <option>April</option><option>May</option><option>June</option>
+      <option>July</option><option>August</option><option>September</option>
+      <option>October</option><option>November</option><option>December</option>
+    </select>
+    <input type="number" id="fee-amount" value="100" min="0">
+    <select id="fee-status">
+      <option>Paid</option><option>Pending</option>
+    </select>
+    <button id="add-fee-btn">Add Record</button>
+  </div>
 </div>
 
 <script>
@@ -116,6 +105,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Hardcoded roles
 const roles = {
   "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin",
   "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer"
@@ -135,7 +125,7 @@ loginBtn.onclick = () => {
 logoutBtn.onclick = () => auth.signOut();
 
 auth.onAuthStateChanged(user => {
-  if(user){
+  if (user) {
     currentRole = roles[user.uid] || "viewer";
     loginBtn.classList.add("hidden");
     logoutBtn.classList.remove("hidden");
@@ -152,73 +142,84 @@ auth.onAuthStateChanged(user => {
 });
 
 function applyRoleToUI(){
-  document.querySelectorAll("#add-inv-btn,#add-mem-btn,#add-col-btn").forEach(b=>b.disabled=currentRole!=="admin");
+  const adminOnly = document.querySelectorAll("#add-inv-btn,#add-mem-btn,#add-col-btn,#add-fee-btn,.delete-btn");
+  adminOnly.forEach(btn => btn.disabled = currentRole !== "admin");
 }
 
-const invitationCol=db.collection("invitations");
-const membersCol=db.collection("members");
-const collectorsCol=db.collection("collectors");
-const feesCol=db.collection("membershipFees");
+// Firestore collections
+const invitationCol = db.collection("invitations");
+const membersCol = db.collection("members");
+const feeCol = db.collection("membership_fees");
 
 function loadAllData(){
-  loadTable(invitationCol,"invitation-table",["name","village","mobile","remarks","sent"],true);
-  loadTable(membersCol,"members-table",["name","village","mobile","remarks"],false);
-  loadTable(collectorsCol,"collector-table",["name","area"],false);
-  loadMembershipTable();
+  loadTable(invitationCol, "invitation-table", ["name","village","mobile","remarks","sent"], true);
+  loadTable(membersCol, "members-table", ["name","village","mobile","remarks"], false);
+  loadFeeTable();
 }
 
-// --- MEMBERSHIP FEES ---
-const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-function loadMembershipTable(){
-  const tbody=document.querySelector("#membership-table tbody");
+function loadTable(colRef, tableId, fields, isInvite){
+  const tbody=document.getElementById(tableId).querySelector("tbody");
   tbody.innerHTML="";
-  membersCol.get().then(membersSnap=>{
-    let totalCollection=0,totalPending=0;
-    membersSnap.forEach(mem=>{
-      const data=mem.data();
+  colRef.get().then(snapshot=>{
+    snapshot.forEach(doc=>{
+      const data=doc.data();
       const tr=document.createElement("tr");
-      const tdName=document.createElement("td");
-      tdName.textContent=data.name;
-      tr.appendChild(tdName);
-
-      feesCol.doc(mem.id).get().then(feeSnap=>{
-        let feeData=feeSnap.exists?feeSnap.data():{};
-        let paidCount=0;
-        months.forEach(m=>{
-          const td=document.createElement("td");
-          const chk=document.createElement("input");
-          chk.type="checkbox";
-          chk.checked=feeData[m]||false;
-          chk.disabled=currentRole!=="admin";
-          chk.onchange=()=>{
-            feeData[m]=chk.checked;
-            feesCol.doc(mem.id).set(feeData);
-            loadMembershipTable();
-          };
-          td.appendChild(chk);
-          td.className=chk.checked?"paid":"unpaid";
-          tr.appendChild(td);
-          if(chk.checked) paidCount++;
-        });
-        const paidAmt=paidCount*100;
-        const pendingAmt=(12-paidCount)*100;
-        totalCollection+=paidAmt;
-        totalPending+=pendingAmt;
-        const tdPaid=document.createElement("td");
-        const tdPending=document.createElement("td");
-        tdPaid.textContent=paidAmt;
-        tdPending.textContent=pendingAmt;
-        tr.appendChild(tdPaid);
-        tr.appendChild(tdPending);
-        tbody.appendChild(tr);
-        document.getElementById("membership-summary").textContent=`Total Collection: ₹${totalCollection} | Pending: ₹${totalPending}`;
+      fields.forEach(f=>{
+        const td=document.createElement("td");
+        td.textContent=data[f]||"";
+        tr.appendChild(td);
       });
+      tbody.appendChild(tr);
     });
   });
 }
 
-// rest of your loadTable, addDocument, and search functions remain same from your existing code...
-// (You can keep the same ones from your last working version)
+function loadFeeTable(){
+  const tbody=document.getElementById("fee-table").querySelector("tbody");
+  tbody.innerHTML="";
+  feeCol.get().then(snapshot=>{
+    snapshot.forEach(doc=>{
+      const d=doc.data();
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${d.member}</td><td>${d.month}</td><td>${d.amount}</td><td>${d.status}</td>`;
+      const td=document.createElement("td");
+      const delBtn=document.createElement("button");
+      delBtn.textContent="Delete";
+      delBtn.disabled=currentRole!=="admin";
+      delBtn.onclick=()=>{if(confirm("Delete record?"))doc.ref.delete().then(loadFeeTable);};
+      td.appendChild(delBtn);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+document.getElementById("add-fee-btn").onclick=()=>{
+  const record={
+    member:document.getElementById("fee-member").value,
+    month:document.getElementById("fee-month").value,
+    amount:Number(document.getElementById("fee-amount").value),
+    status:document.getElementById("fee-status").value,
+    dateAdded:new Date()
+  };
+  if(record.member && record.month){
+    feeCol.add(record).then(()=>{
+      ["fee-member","fee-month"].forEach(id=>document.getElementById(id).value="");
+      document.getElementById("fee-amount").value=100;
+      loadFeeTable();
+    });
+  } else alert("Please fill all details");
+};
+
+// Search
+document.getElementById("search-fee").oninput=function(){filterTable("fee-table",this.value);}
+function filterTable(tableId,term){
+  const rows=document.getElementById(tableId).querySelectorAll("tbody tr");
+  rows.forEach(tr=>{
+    const text = tr.innerText.toLowerCase();
+    tr.style.display = text.includes(term.toLowerCase()) ? "" : "none";
+  });
+}
 </script>
 </body>
 </html>
