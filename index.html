@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Club Bornoporichoy — Durga Puja Dashboard</title>
 
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
 <!-- Firebase compat SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -12,264 +15,280 @@
 
 <style>
   :root{
-    --red: #b71c1c;
+    --primary-red: #B71C1C;
     --deep-red: #a31313;
-    --gold: #fdd835;
-    --bg: #fff5f0;
-    --text: #4b2e2e;
-    --nav-bg-start: #fffaf0;
-    --nav-bg-end: #fff2d6;
+    --accent-gold: #D4AF37;
+    --bg-start: #ffffff;
+    --bg-end: #f7f0e8; /* soft beige */
+    --card: #ffffff;
+    --muted: #6b6b6b;
+    --text: #2f2f2f;
+    --radius: 12px;
+    --shadow: 0 10px 30px rgba(17,17,17,0.06);
+    --glass: rgba(255,255,255,0.6);
   }
   *{box-sizing:border-box}
+  html,body{height:100%}
   body {
-    font-family: "Segoe UI", Roboto, Arial;
-    background: var(--bg);
+    margin: 0;
+    background: linear-gradient(180deg, var(--bg-start), var(--bg-end));
     color: var(--text);
-    margin: 0;
-    padding: 0;
+    font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, Arial;
     -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    line-height:1.45;
   }
 
+  /* Header / nav (fixed) */
   header {
-    background: linear-gradient(90deg, var(--nav-bg-start), var(--nav-bg-end));
-    color: var(--deep-red);
-    padding: 14px 18px;
-    text-align: center;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    position: sticky;
-    top: 0;
-    z-index: 50;
+    position: fixed; top:0; left:0; right:0; z-index:100;
+    background: linear-gradient(90deg, rgba(255,255,255,0.96), rgba(255,250,240,0.96));
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+    padding: 12px 18px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+    backdrop-filter: blur(6px);
   }
-  header .title {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--deep-red);
-    margin: 0;
+  .header-inner { max-width:1200px; margin:0 auto; display:flex; gap:12px; align-items:center; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .logo {
+    width:44px; height:44px; border-radius:10px;
+    background: linear-gradient(135deg, var(--primary-red), #e34b4b);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(183,28,28,0.12);
   }
-  nav.topbar {
-    margin-top: 8px;
-    display:flex;
-    justify-content:center;
-    gap:18px;
-    padding:8px 12px;
-    align-items:center;
-  }
-  nav.topbar a {
-    color: var(--deep-red);
-    font-weight:600;
-    text-decoration:none;
-    padding:6px 10px;
-    border-radius:8px;
-  }
-  nav.topbar a:hover {
-    color: #7f0f0f;
-    box-shadow: inset 0 -2px 0 var(--gold);
-  }
-  nav.topbar a.active {
-    color: var(--deep-red);
-    background: rgba(183,28,28,0.06);
-    box-shadow: 0 2px 6px rgba(183,28,28,0.08);
-  }
+  .brand h1 { margin:0; font-size:16px; color:var(--deep-red); font-weight:700; letter-spacing:0.2px; }
+  .brand .sub { font-size:12px; color:var(--muted); margin-top:2px; }
 
-  .container{max-width:1150px; margin:20px auto; padding:18px;}
-  .card{background:#fff; padding:14px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:18px;}
-  .flex{display:flex; gap:10px; align-items:center;}
-  input[type="text"], input[type="email"], input[type="password"], input[type="number"], select{
-    padding:8px; border:1px solid var(--red); border-radius:4px; width:100%;
+  nav.topbar { margin-left:20px; display:flex; gap:10px; align-items:center; flex:1; }
+  nav.topbar a {
+    padding:8px 12px; border-radius:10px; text-decoration:none; color:var(--deep-red);
+    font-weight:600; font-size:14px; transition: all 160ms ease;
   }
-  button{background:var(--red); color:#fff; border:none; padding:8px 10px; border-radius:6px; cursor:pointer;}
-  button.secondary{background:var(--gold); color:var(--text); border:1px solid rgba(0,0,0,0.06);}
-  button:disabled{background:#ccc; cursor:not-allowed;}
-  h2{color:var(--red); margin:0 0 8px 0;}
-  table{width:100%; border-collapse:collapse; margin-top:10px;}
-  th, td{padding:8px; border:1px solid rgba(0,0,0,0.08); text-align:left; vertical-align:middle;}
-  th{background:var(--gold); color:var(--text);}
-  .summary{font-weight:700; margin-bottom:8px;}
-  .muted{color:#666; font-size:0.95em;}
-  .editable{background:#fff8e1; cursor:text;}
-  .badge-sent{background:green;color:#fff;padding:3px 6px;border-radius:4px;font-size:0.85em}
-  .badge-pending{background:orange;color:#fff;padding:3px 6px;border-radius:4px;font-size:0.85em}
-  .month-checkbox{margin-right:6px;}
-  .small{font-size:0.9em}
-  .right{margin-left:auto}
-  .center{text-align:center}
-  label.small{font-size:0.9em; display:block; margin-bottom:4px;}
-  .year-select { display:flex; gap:10px; align-items:center; }
-  @media (max-width:900px){
-    .flex{flex-direction:column; align-items:stretch;}
-    table, thead, tbody, th, td, tr{font-size:13px;}
+  nav.topbar a:hover { transform: translateY(-2px); color: #7f0f0f; box-shadow: inset 0 -2px 0 var(--accent-gold); }
+  nav.topbar a.active { background: rgba(183,28,28,0.06); }
+
+  .auth-area { margin-left:auto; display:flex; gap:8px; align-items:center; }
+
+  /* Container + cards */
+  .spacer { height:86px } /* to offset fixed header */
+  .container { max-width:1200px; margin:22px auto; padding:0 18px 80px; }
+  .card { background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); margin-bottom:18px; border:1px solid rgba(0,0,0,0.03); transition: transform 160ms ease, box-shadow 160ms ease; }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(17,17,17,0.08); }
+  .card h2 { margin:0 0 8px 0; color:var(--primary-red); font-size:18px; display:flex; align-items:center; gap:8px; }
+  .subtitle { color:var(--muted); font-size:13px; margin-bottom:10px; }
+
+  .flex { display:flex; gap:12px; align-items:center; }
+  .flex.space { justify-content:space-between; }
+
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
+    padding:10px 12px; border-radius:10px; border:1px solid rgba(0,0,0,0.06); background:#fff;
+    font-size:14px; color:var(--text); outline:none;
+  }
+  input:focus, select:focus, textarea:focus { box-shadow: 0 8px 24px rgba(183,28,28,0.06); border-color: rgba(183,28,28,0.18); }
+
+  /* Buttons */
+  .btn { background:var(--primary-red); color:#fff; border:none; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600; box-shadow: 0 8px 20px rgba(183,28,28,0.08); transition: transform 120ms ease, box-shadow 120ms ease; }
+  .btn:hover{ transform: translateY(-2px); box-shadow: 0 14px 28px rgba(183,28,28,0.12); }
+  .btn.small { padding:7px 10px; font-size:13px; border-radius:8px; }
+  .btn.secondary { background:var(--accent-gold); color:#222; box-shadow:none; }
+  .btn.ghost { background:transparent; color:var(--deep-red); border:1px solid rgba(0,0,0,0.06); box-shadow:none; }
+
+  .muted { color:var(--muted); font-size:13px; }
+  .note { font-size:13px; color:var(--muted); margin-top:8px; }
+
+  /* Tables */
+  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:12px; }
+  thead th {
+    text-align:left; padding:12px 14px; background:linear-gradient(0deg,var(--accent-gold), #f6e9a8); color:var(--text); border-bottom:2px solid rgba(0,0,0,0.04);
+  }
+  tbody td { padding:12px 14px; border-bottom:1px solid rgba(0,0,0,0.04); vertical-align:middle; }
+  tbody tr:hover { background: rgba(183,28,28,0.02); }
+  .editable { background: linear-gradient(180deg,#fff8e6,#fffdf7); border-radius:6px; padding:8px; }
+  .badge { display:inline-block; padding:6px 8px; border-radius:8px; font-weight:700; font-size:13px; }
+  .badge.ok { background:#28a745; color:#fff; }
+  .badge.warn { background:#ff8c00; color:#fff; }
+
+  .center { text-align:center; }
+  .right { margin-left:auto; }
+
+  /* responsive */
+  @media (max-width:980px){
+    .header-inner{flex-direction:column; gap:10px; align-items:flex-start}
+    nav.topbar{flex-wrap:wrap}
+    .flex{flex-direction:column; align-items:stretch}
+    .spacer{height:120px}
   }
 </style>
 </head>
 <body>
-<header>
-  <div class="title">Club Bornoporichoy — Durga Puja Dashboard</div>
 
-  <nav class="topbar" role="navigation" aria-label="Main navigation">
-    <a href="#invitations" id="nav-invitations" class="active">Manage Invitations</a>
-    <a href="#members" id="nav-members">Members</a>
-    <a href="#collectors" id="nav-collectors">Donation Collectors</a>
-    <a href="#fees" id="nav-fees">Membership Fees</a>
-  </nav>
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="logo">BP</div>
+      <div>
+        <h1>Club Bornoporichoy</h1>
+        <div class="sub">Durga Puja Dashboard</div>
+      </div>
+    </div>
+
+    <nav class="topbar" role="navigation" aria-label="Main navigation">
+      <a href="#invitations" id="nav-invitations" class="active">Manage Invitations</a>
+      <a href="#members" id="nav-members">Members</a>
+      <a href="#collectors" id="nav-collectors">Donation Collectors</a>
+      <a href="#fees" id="nav-fees">Membership Fees</a>
+    </nav>
+
+    <div class="auth-area">
+      <div id="user-info" class="muted" style="font-size:13px"></div>
+      <button id="logout-btn" class="btn small hidden">Logout</button>
+    </div>
+  </div>
 </header>
+
+<div class="spacer"></div>
 
 <div class="container">
 
-  <!-- Auth Card + Fees-year selector -->
+  <!-- Auth / Login Card -->
   <div class="card" id="auth-card">
-    <div class="flex" style="align-items:flex-end;">
-      <div style="min-width:260px; flex:1;">
-        <label class="small">Email</label>
-        <input id="email" type="email" placeholder="admin@club.com" />
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div style="min-width:240px;flex:1">
+        <label class="muted">Email</label>
+        <input id="email" type="email" placeholder="admin@example.com" />
       </div>
-      <div style="min-width:220px; flex:1;">
-        <label class="small">Password</label>
+      <div style="min-width:220px;flex:1">
+        <label class="muted">Password</label>
         <input id="password" type="password" placeholder="password" />
       </div>
 
-      <!-- Fees-year selector (for membership fees only) -->
-      <div style="min-width:200px;">
-        <label class="small">Fees Year</label>
-        <select id="feeYearSelectSmall"></select>
+      <div style="min-width:160px">
+        <label class="muted">Fees Year</label>
+        <select id="feeYearSelectSmall" style="width:100%;"></select>
       </div>
 
-      <div style="min-width:180px;">
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button id="login-btn">Login</button>
-          <button id="logout-btn" class="hidden">Logout</button>
-        </div>
-        <div id="user-info" class="muted small" style="margin-top:8px;"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="login-btn" class="btn">Login</button>
       </div>
     </div>
   </div>
 
-  <!-- Page content (hidden until login) -->
+  <!-- Main content (hidden until login) -->
   <div id="main-content" class="hidden">
 
-    <!-- Top summaries -->
+    <!-- Top summary -->
     <div class="card">
-      <div class="flex">
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
         <div>
-          <div class="summary" id="summary-invitees">Invitees: —</div>
-          <div class="muted">Invitation list summary</div>
+          <div style="font-weight:700;color:var(--primary-red)">Invitees</div>
+          <div id="summary-invitees" class="muted">—</div>
         </div>
         <div>
-          <div class="summary" id="summary-members">Members: —</div>
-          <div class="muted">Members & membership collection</div>
+          <div style="font-weight:700;color:var(--primary-red)">Members</div>
+          <div id="summary-members" class="muted">—</div>
         </div>
-        <div class="right">
-          <div id="summary-collection" class="summary">Total Collected: ₹0</div>
-          <div class="muted">Membership collection overall</div>
+        <div style="margin-left:auto">
+          <div style="font-weight:700;color:var(--primary-red)">Total Collected</div>
+          <div id="summary-collection" class="muted">₹0</div>
         </div>
       </div>
     </div>
 
     <!-- Invitations -->
     <div class="card" id="invitations">
-      <h2>Invitation List</h2>
-      <div class="flex">
+      <h2>🪔 Invitation List</h2>
+      <div class="subtitle">Add, search and track invitation card distribution</div>
+
+      <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
         <input id="search-invite" type="text" placeholder="Search invitations (name / village / mobile)..." style="flex:1" />
-        <div class="right muted small">Admin can add/edit/delete</div>
+        <div class="muted">Admin can add/edit/delete</div>
       </div>
 
-      <table id="invitation-table">
+      <table id="invitation-table" style="margin-top:12px">
         <thead>
-          <tr>
-            <th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Sent</th><th>Date Added</th><th>Actions</th>
-          </tr>
+          <tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Sent</th><th>Date Added</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
 
-      <div style="margin-top:10px" id="invitation-form">
-        <div class="flex">
-          <input id="inv-name" type="text" placeholder="Name" />
-          <input id="inv-village" type="text" placeholder="Village" />
-          <input id="inv-mobile" type="text" placeholder="Mobile No" />
-          <input id="inv-remarks" type="text" placeholder="Remarks" />
-          <button id="add-inv-btn">Add Invitation</button>
+      <div style="margin-top:12px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input id="inv-name" type="text" placeholder="Name" style="min-width:180px" />
+          <input id="inv-village" type="text" placeholder="Village" style="min-width:160px" />
+          <input id="inv-mobile" type="text" placeholder="Mobile No" style="min-width:140px" />
+          <input id="inv-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
+          <button id="add-inv-btn" class="btn small">Add Invitation</button>
         </div>
       </div>
     </div>
 
     <!-- Members -->
     <div class="card" id="members">
-      <h2>Members List</h2>
-      <div style="margin-top:12px" class="flex">
+      <h2>🌸 Members List</h2>
+      <div class="subtitle">Manage members — linked to membership fee tracker</div>
+
+      <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
         <input id="search-members" type="text" placeholder="Search members (name/mobile)..." style="flex:1" />
-        <div class="right muted small">Admin can add/edit/delete</div>
+        <div class="muted">Admin can add/edit/delete</div>
       </div>
 
-      <table id="members-table">
-        <thead>
-          <tr>
-            <th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Actions</th>
-          </tr>
-        </thead>
+      <table id="members-table" style="margin-top:12px">
+        <thead><tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
 
-      <div style="margin-top:10px" id="member-form">
-        <div class="flex">
-          <input id="mem-name" type="text" placeholder="Name" />
-          <input id="mem-village" type="text" placeholder="Village" />
-          <input id="mem-mobile" type="text" placeholder="Mobile No" />
-          <input id="mem-remarks" type="text" placeholder="Remarks" />
-          <button id="add-mem-btn">Add Member</button>
+      <div style="margin-top:12px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input id="mem-name" type="text" placeholder="Name" style="min-width:180px" />
+          <input id="mem-village" type="text" placeholder="Village" style="min-width:160px" />
+          <input id="mem-mobile" type="text" placeholder="Mobile No" style="min-width:140px" />
+          <input id="mem-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
+          <button id="add-mem-btn" class="btn small">Add Member</button>
         </div>
       </div>
     </div>
 
-    <!-- Membership Fees (NEW) -->
+    <!-- Membership Fees -->
     <div class="card" id="fees">
-      <h2>Membership Fees Tracker (per Year)</h2>
+      <h2>💰 Membership Fees Tracker (per Year)</h2>
+      <div class="subtitle">Track monthly payments (₹ per month configurable)</div>
 
-      <div class="flex" style="align-items:center; gap:12px;">
-        <div style="min-width:160px;">
-          <label class="small">Fees Year</label><br>
-          <select id="feeYearSelectSmall2"></select>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
+        <div style="min-width:160px">
+          <label class="muted">Year</label>
+          <select id="feeYearSelectSmall2" style="width:100%"></select>
         </div>
 
-        <div style="min-width:260px;">
-          <label class="small">Select Member</label><br>
-          <select id="feeMemberSelect" style="min-width:220px;">
-            <option value="">-- Select member --</option>
-          </select>
+        <div style="min-width:260px">
+          <label class="muted">Member</label>
+          <select id="feeMemberSelect" style="width:100%"><option value="">-- Select member --</option></select>
         </div>
 
-        <div style="min-width:140px;">
-          <label class="small">Monthly Fee (₹)</label><br>
+        <div style="min-width:140px">
+          <label class="muted">Monthly Fee (₹)</label>
           <input id="feeAmountInput" type="number" min="1" value="100" />
         </div>
 
-        <div>
-          <button id="loadMemberFeeBtn">Load Member Fee</button>
-        </div>
-
-        <div style="margin-left:8px;">
-          <button id="exportCsvBtn" class="secondary">Export CSV</button>
+        <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+          <button id="loadMemberFeeBtn" class="btn small">Load</button>
+          <button id="exportCsvBtn" class="btn small secondary">Export CSV</button>
         </div>
       </div>
 
-      <div style="margin-top:12px;">
-        <table id="fee-months-table">
-          <thead>
-            <tr><th>Month</th><th>Status</th><th>Paid On</th><th>Toggle (Admin)</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+      <table id="fee-months-table" style="margin-top:12px">
+        <thead><tr><th>Month</th><th>Status</th><th>Paid On</th><th>Toggle (Admin)</th></tr></thead>
+        <tbody></tbody>
+      </table>
 
-      <div style="margin-top:8px;" class="flex">
-        <div id="fee-member-summary" class="muted"></div>
-        <div class="right">
-          <button id="saveFeeConfigBtn">Save Fee Config</button>
-          <button id="clearFeeRecordBtn">Clear Member Fees</button>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+        <div id="fee-member-summary" class="muted">Select member to load fees</div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button id="saveFeeConfigBtn" class="btn small">Save Config</button>
+          <button id="clearFeeRecordBtn" class="btn small ghost">Clear</button>
         </div>
       </div>
 
-      <div style="margin-top:12px;">
-        <h3 class="small">Yearly Fees Summary (selected year)</h3>
+      <div style="margin-top:12px">
+        <h3 style="margin:0 0 8px 0;color:var(--primary-red);font-size:15px">Yearly Summary</h3>
         <table id="fees-yearly-summary">
           <thead><tr><th>Month</th><th>Paid Members</th><th>Total Collected (₹)</th></tr></thead>
           <tbody></tbody>
@@ -279,27 +298,27 @@
 
     <!-- Collectors -->
     <div class="card" id="collectors">
-      <h2>Donation Collectors</h2>
-      <div class="flex">
+      <h2>📬 Donation Collectors</h2>
+      <div class="subtitle">Assign areas and track bills</div>
+
+      <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
         <input id="search-collectors" type="text" placeholder="Search collectors..." style="flex:1" />
-        <div class="right muted small">Area assignment for collectors</div>
+        <div class="muted">Admin can add/edit/delete</div>
       </div>
 
-      <table id="collector-table">
-        <thead><tr>
-          <th>Name</th><th>Assigned Area</th><th>Bill No</th><th>Mobile No</th><th>Remarks</th><th>Actions</th>
-        </tr></thead>
+      <table id="collector-table" style="margin-top:12px">
+        <thead><tr><th>Name</th><th>Assigned Area</th><th>Bill No</th><th>Mobile No</th><th>Remarks</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
 
-      <div style="margin-top:10px" id="collector-form">
-        <div class="flex">
-          <input id="col-name" type="text" placeholder="Name" />
-          <input id="col-area" type="text" placeholder="Assigned Area (comma separated areas)" />
-          <input id="col-bill" type="text" placeholder="Bill No" />
-          <input id="col-mobile" type="text" placeholder="Mobile No" />
-          <input id="col-remarks" type="text" placeholder="Remarks" />
-          <button id="add-col-btn">Add Collector</button>
+      <div style="margin-top:12px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <input id="col-name" type="text" placeholder="Name" style="min-width:160px" />
+          <input id="col-area" type="text" placeholder="Assigned Area (comma separated)" style="min-width:160px" />
+          <input id="col-bill" type="text" placeholder="Bill No" style="min-width:120px" />
+          <input id="col-mobile" type="text" placeholder="Mobile No" style="min-width:120px" />
+          <input id="col-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
+          <button id="add-col-btn" class="btn small">Add Collector</button>
         </div>
       </div>
     </div>
@@ -337,20 +356,36 @@ const collectorsCol = db.collection("collectors");
 /* membership_fees flat per-year: membership_fees_2025, membership_fees_2026, ... */
 function membershipFeesCollectionFor(year){ return db.collection(`membership_fees_${year}`); }
 
-/* ---------------- fee-year dropdown (2025-2050) ---------------- */
+/* ---------------- fee-year dropdown two selectors (2025-2050) ---------------- */
 const feeYearSmall = document.getElementById('feeYearSelectSmall');
-const currentYear = new Date().getFullYear();
+const feeYearSmall2 = document.getElementById('feeYearSelectSmall2');
+const now = new Date().getFullYear();
 for(let y=2025;y<=2050;y++){
   const o=document.createElement('option'); o.value=y; o.textContent=y;
-  if(y===currentYear) o.selected=true;
+  if(y===now){ o.selected=true; }
   feeYearSmall.appendChild(o);
 }
-let selectedFeeYear = parseInt(feeYearSmall.value);
+let selectedFeeYear = parseInt(feeYearSmall.value || 2025);
+
+/* connect second year select used inside fees card */
+(function populateFeeYearSelect2(){
+  const sel = document.getElementById('feeYearSelectSmall2');
+  if(!sel) return;
+  sel.innerHTML = '';
+  for(let y=2025;y<=2050;y++){
+    const o=document.createElement('option'); o.value=y; o.textContent=y;
+    if(y===now) o.selected=true;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', ()=> {
+    selectedFeeYear = parseInt(sel.value);
+    loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary();
+  });
+})();
+
 feeYearSmall.addEventListener('change', ()=> {
   selectedFeeYear = parseInt(feeYearSmall.value);
-  loadFeeMembersDropdown();
-  loadFeeMonthsTable();
-  loadFeeYearlySummary();
+  loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary();
 });
 
 /* ---------------- UI elements ---------------- */
@@ -385,7 +420,7 @@ auth.onAuthStateChanged(user => {
     mainContent.classList.remove("hidden");
     userInfo.textContent = `${user.email} (${currentRole})`;
     applyRoleToUI();
-    setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); }, 80);
+    setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); }, 120);
   } else {
     document.getElementById("email").style.display="";
     document.getElementById("password").style.display="";
@@ -402,7 +437,6 @@ function applyRoleToUI(){
   ["add-inv-btn","add-mem-btn","add-col-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.disabled = (currentRole !== "admin");
   });
-  // export CSV should be available to both; do nothing
 }
 
 /* helpers */
@@ -462,7 +496,7 @@ async function loadInvitations(){
         <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.village||"")}</td>
         <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
         <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.remarks||"")}</td>
-        <td class="center">${d.sent?'<span class="badge-sent">Sent</span>':'<span class="badge-pending">Pending</span>'}</td>
+        <td class="center">${d.sent?'<span class="badge ok">Sent</span>':'<span class="badge warn">Pending</span>'}</td>
         <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
         <td></td>
       `;
@@ -470,11 +504,11 @@ async function loadInvitations(){
 
       const actionsTd=tr.querySelector("td:last-child");
       if(currentRole==="admin"){
-        const toggle=document.createElement("button"); toggle.textContent=d.sent?"Mark Pending":"Mark Sent";
+        const toggle=document.createElement("button"); toggle.textContent=d.sent?"Mark Pending":"Mark Sent"; toggle.className="btn small";
         toggle.onclick=()=>doc.ref.update({sent:!d.sent}).then(loadInvitations).catch(err=>alert(err.message));
         actionsTd.appendChild(toggle);
 
-        const del=document.createElement("button"); del.style.marginLeft="8px"; del.textContent="Delete";
+        const del=document.createElement("button"); del.style.marginLeft="8px"; del.textContent="Delete"; del.className="btn small ghost";
         del.onclick=()=>{ if(confirm("Delete invitation?")) doc.ref.delete().then(loadInvitations); };
         actionsTd.appendChild(del);
 
@@ -528,7 +562,7 @@ async function loadMembers(){
 
       const actionsTd=tr.querySelector("td:last-child");
       if(currentRole==="admin"){
-        const del=document.createElement("button"); del.textContent="Delete";
+        const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
         del.onclick=()=>{ if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ loadMembers(); loadFeeMembersDropdown(); }); };
         actionsTd.appendChild(del);
 
@@ -574,7 +608,7 @@ async function loadCollectors(){
       tr.innerHTML=`<td>${escapeHtml(d.name||"")}</td><td>${escapeHtml(d.area||"")}</td><td>${escapeHtml(d.bill||"")}</td><td>${escapeHtml(d.mobile||"")}</td><td>${escapeHtml(d.remarks||"")}</td><td></td>`;
       tbody.appendChild(tr);
       if(currentRole==="admin"){
-        const del=document.createElement("button"); del.textContent="Delete";
+        const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
         del.onclick=()=>{ if(confirm("Delete collector?")) docSnap.ref.delete().then(loadCollectors); };
         tr.querySelector("td:last-child").appendChild(del);
       }
@@ -583,25 +617,9 @@ async function loadCollectors(){
 }
 document.getElementById("search-collectors").addEventListener("input",(e)=> filterTable("collector-table", e.target.value));
 
-/* ---------------- Monthly summary (members.fees legacy) ---------------- */
+/* ---------------- Monthly summary placeholder ---------------- */
 async function updateMonthlySummary(){
-  const tbody = document.querySelector("#monthly-summary-table tbody"); if(!tbody) return;
-  tbody.innerHTML = "";
-  try{
-    const monthData = {}; MONTHS.forEach(m=> monthData[m] = { paid:0, total:0 });
-    const snapshot = await membersCol.get();
-    snapshot.forEach(docSnap=>{
-      const d = docSnap.data();
-      MONTHS.forEach(m => {
-        if(d.fees && d.fees[m]){ monthData[m].paid++; monthData[m].total += (d.monthlyFee||100); }
-      });
-    });
-    MONTHS.forEach(m=> {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${m}</td><td class="center">${monthData[m].paid}</td><td class="center">₹${monthData[m].total}</td>`;
-      tbody.appendChild(tr);
-    });
-  }catch(e){ console.error(e); }
+  // placeholder for backward compatibility if members.fees used previously
 }
 
 /* ---------------- Membership Fees (flat per-year collections) ---------------- */
@@ -709,7 +727,7 @@ document.getElementById("clearFeeRecordBtn").addEventListener("click", async ()=
     if(snap.exists) await docRef.delete();
     alert("Cleared");
     loadFeeMonthsTable(); loadFeeYearlySummary();
-  }catch(e){ console.error("Clear fee error:", e); alert("Failed to clear: "+(e.message||e)); }
+  }catch(e){ console.error(e); alert("Failed to clear: "+(e.message||e)); }
 });
 
 /* Yearly aggregated summary for fees (selected year) */
@@ -752,11 +770,8 @@ document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
       const m = mDoc.data();
       const memberId = mDoc.id;
       const feeRec = feeMap[memberId] || { months: {} };
-      // For export, we include one row per member that shows overall Paid (Yes/No) for the selected year.
-      // Define "Paid" = paid for at least 1 month? Or show per-month? You asked earlier: include all members; we'll show overall if any month paid -> Yes, and latest paid date (if any).
       const monthsObj = feeRec.months || {};
       const paidAny = Object.values(monthsObj).some(x => x && x.paid);
-      // find latest paidAt if exists
       let latestPaidAt = null;
       Object.values(monthsObj).forEach(x => {
         if(x && x.paidAt){
@@ -790,17 +805,18 @@ document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
   }
 });
 
-/* Utility: initial dropdown populate */
+/* ---------------- fee dropdown load */
 loadFeeMembersDropdown();
 
 /* initial loads if already logged in */
 setTimeout(()=>{ if(auth.currentUser){ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); } }, 200);
 
-/* small feature: navigation links scroll to sections */
-document.getElementById("nav-invitations").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("invitations").scrollIntoView({behavior:"smooth"}); });
-document.getElementById("nav-members").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("members").scrollIntoView({behavior:"smooth"}); });
-document.getElementById("nav-collectors").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("collectors").scrollIntoView({behavior:"smooth"}); });
-document.getElementById("nav-fees").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("fees").scrollIntoView({behavior:"smooth"}); });
+/* small feature: navigation links scroll to sections and highlight */
+function clearActiveNav(){ document.querySelectorAll('nav.topbar a').forEach(a=>a.classList.remove('active')); }
+document.getElementById("nav-invitations").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("invitations").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-invitations").classList.add('active'); });
+document.getElementById("nav-members").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("members").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-members").classList.add('active'); });
+document.getElementById("nav-collectors").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("collectors").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-collectors").classList.add('active'); });
+document.getElementById("nav-fees").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("fees").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-fees").classList.add('active'); });
 
 /* Expose for debugging */
 window.loadAllData = loadAllData;
