@@ -30,7 +30,6 @@
     -webkit-font-smoothing:antialiased;
   }
 
-  /* Header / navigation */
   header {
     background: linear-gradient(90deg, var(--nav-bg-start), var(--nav-bg-end));
     color: var(--deep-red);
@@ -64,7 +63,6 @@
   }
   nav.topbar a:hover {
     color: #7f0f0f;
-    text-decoration:none;
     box-shadow: inset 0 -2px 0 var(--gold);
   }
   nav.topbar a.active {
@@ -80,6 +78,7 @@
     padding:8px; border:1px solid var(--red); border-radius:4px; width:100%;
   }
   button{background:var(--red); color:#fff; border:none; padding:8px 10px; border-radius:6px; cursor:pointer;}
+  button.secondary{background:var(--gold); color:var(--text); border:1px solid rgba(0,0,0,0.06);}
   button:disabled{background:#ccc; cursor:not-allowed;}
   h2{color:var(--red); margin:0 0 8px 0;}
   table{width:100%; border-collapse:collapse; margin-top:10px;}
@@ -226,7 +225,7 @@
       <h2>Membership Fees Tracker (per Year)</h2>
 
       <div class="flex" style="align-items:center; gap:12px;">
-        <div style="min-width:180px;">
+        <div style="min-width:160px;">
           <label class="small">Fees Year</label><br>
           <select id="feeYearSelectSmall2"></select>
         </div>
@@ -243,8 +242,12 @@
           <input id="feeAmountInput" type="number" min="1" value="100" />
         </div>
 
-        <div class="right">
+        <div>
           <button id="loadMemberFeeBtn">Load Member Fee</button>
+        </div>
+
+        <div style="margin-left:8px;">
+          <button id="exportCsvBtn" class="secondary">Export CSV</button>
         </div>
       </div>
 
@@ -283,7 +286,9 @@
       </div>
 
       <table id="collector-table">
-        <thead><tr><th>Name</th><th>Assigned Area</th><th>Actions</th></tr></thead>
+        <thead><tr>
+          <th>Name</th><th>Assigned Area</th><th>Bill No</th><th>Mobile No</th><th>Remarks</th><th>Actions</th>
+        </tr></thead>
         <tbody></tbody>
       </table>
 
@@ -291,6 +296,9 @@
         <div class="flex">
           <input id="col-name" type="text" placeholder="Name" />
           <input id="col-area" type="text" placeholder="Assigned Area (comma separated areas)" />
+          <input id="col-bill" type="text" placeholder="Bill No" />
+          <input id="col-mobile" type="text" placeholder="Mobile No" />
+          <input id="col-remarks" type="text" placeholder="Remarks" />
           <button id="add-col-btn">Add Collector</button>
         </div>
       </div>
@@ -326,22 +334,20 @@ const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 const invitationCol = db.collection("invitations");
 const membersCol = db.collection("members");
 const collectorsCol = db.collection("collectors");
-/* membership_fees collections are flat per year: membership_fees_2025, membership_fees_2026, ... */
-function membershipFeesCollectionFor(year){
-  return db.collection(`membership_fees_${year}`);
-}
+/* membership_fees flat per-year: membership_fees_2025, membership_fees_2026, ... */
+function membershipFeesCollectionFor(year){ return db.collection(`membership_fees_${year}`); }
 
-/* ---------------- fee-year dropdowns (2025-2050) ---------------- */
-const feeYearSelectSmall = document.getElementById('feeYearSelectSmall2');
+/* ---------------- fee-year dropdown (2025-2050) ---------------- */
+const feeYearSmall = document.getElementById('feeYearSelectSmall');
 const currentYear = new Date().getFullYear();
 for(let y=2025;y<=2050;y++){
   const o=document.createElement('option'); o.value=y; o.textContent=y;
   if(y===currentYear) o.selected=true;
-  feeYearSelectSmall.appendChild(o);
+  feeYearSmall.appendChild(o);
 }
-let selectedFeeYear = parseInt(feeYearSelectSmall.value);
-feeYearSelectSmall.addEventListener('change', ()=> {
-  selectedFeeYear = parseInt(feeYearSelectSmall.value);
+let selectedFeeYear = parseInt(feeYearSmall.value);
+feeYearSmall.addEventListener('change', ()=> {
+  selectedFeeYear = parseInt(feeYearSmall.value);
   loadFeeMembersDropdown();
   loadFeeMonthsTable();
   loadFeeYearlySummary();
@@ -396,6 +402,7 @@ function applyRoleToUI(){
   ["add-inv-btn","add-mem-btn","add-col-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.disabled = (currentRole !== "admin");
   });
+  // export CSV should be available to both; do nothing
 }
 
 /* helpers */
@@ -539,20 +546,24 @@ async function loadMembers(){
 }
 document.getElementById("search-members").addEventListener("input",(e)=> filterTable("members-table", e.target.value));
 
-/* ---------------- Collectors ---------------- */
+/* ---------------- Collectors (with bill no, mobile, remarks) ---------------- */
 document.getElementById("add-col-btn").addEventListener("click", async ()=>{
   if(currentRole!=="admin") return alert("Only admin can add");
   const name=document.getElementById("col-name").value.trim();
   const area=document.getElementById("col-area").value.trim();
+  const bill=document.getElementById("col-bill").value.trim();
+  const mobile=document.getElementById("col-mobile").value.trim();
+  const remarks=document.getElementById("col-remarks").value.trim();
   if(!name||!area) return alert("Name & area required");
   try{
     const dup=await collectorsCol.where("name","==",name).where("area","==",area).get();
     if(!dup.empty && !confirm("Possible duplicate. Add anyway?")) return;
-    await collectorsCol.add({name,area,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
-    ["col-name","col-area"].forEach(id=>document.getElementById(id).value="");
+    await collectorsCol.add({name,area,bill,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
+    ["col-name","col-area","col-bill","col-mobile","col-remarks"].forEach(id=>document.getElementById(id).value="");
     loadCollectors();
   }catch(e){ console.error(e); alert("Add collector failed: "+(e.message||e)); }
 });
+
 async function loadCollectors(){
   const tbody=document.querySelector("#collector-table tbody"); tbody.innerHTML="";
   try{
@@ -560,7 +571,7 @@ async function loadCollectors(){
     snap.forEach(docSnap=>{
       const d=docSnap.data();
       const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${escapeHtml(d.name||"")}</td><td>${escapeHtml(d.area||"")}</td><td></td>`;
+      tr.innerHTML=`<td>${escapeHtml(d.name||"")}</td><td>${escapeHtml(d.area||"")}</td><td>${escapeHtml(d.bill||"")}</td><td>${escapeHtml(d.mobile||"")}</td><td>${escapeHtml(d.remarks||"")}</td><td></td>`;
       tbody.appendChild(tr);
       if(currentRole==="admin"){
         const del=document.createElement("button"); del.textContent="Delete";
@@ -572,7 +583,7 @@ async function loadCollectors(){
 }
 document.getElementById("search-collectors").addEventListener("input",(e)=> filterTable("collector-table", e.target.value));
 
-/* ---------------- Monthly summary (members fees recorded inside members.fees if used) ---------------- */
+/* ---------------- Monthly summary (members.fees legacy) ---------------- */
 async function updateMonthlySummary(){
   const tbody = document.querySelector("#monthly-summary-table tbody"); if(!tbody) return;
   tbody.innerHTML = "";
@@ -722,6 +733,62 @@ async function loadFeeYearlySummary(){
     });
   }catch(e){ console.error("Fee yearly summary error:", e); }
 }
+
+/* ---------------- Export CSV for selected fees year (all members) ---------------- */
+document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
+  try{
+    const year = selectedFeeYear;
+    const feesCol = membershipFeesCollectionFor(year);
+    // load all members (master member info)
+    const membersSnap = await membersCol.orderBy("name").get();
+    // load fees for the year (map by memberId)
+    const feeSnap = await feesCol.get();
+    const feeMap = {};
+    feeSnap.forEach(fs => feeMap[fs.id] = fs.data());
+    // assemble CSV rows: Name, Village, Mobile, Remarks, Paid (Yes/No), Paid Date
+    const rows = [];
+    rows.push(["Name","Village","Mobile","Remarks","Paid (Yes/No)","Paid Date"]);
+    membersSnap.forEach(mDoc=>{
+      const m = mDoc.data();
+      const memberId = mDoc.id;
+      const feeRec = feeMap[memberId] || { months: {} };
+      // For export, we include one row per member that shows overall Paid (Yes/No) for the selected year.
+      // Define "Paid" = paid for at least 1 month? Or show per-month? You asked earlier: include all members; we'll show overall if any month paid -> Yes, and latest paid date (if any).
+      const monthsObj = feeRec.months || {};
+      const paidAny = Object.values(monthsObj).some(x => x && x.paid);
+      // find latest paidAt if exists
+      let latestPaidAt = null;
+      Object.values(monthsObj).forEach(x => {
+        if(x && x.paidAt){
+          const t = x.paidAt.seconds ? x.paidAt.seconds*1000 : x.paidAt;
+          if(!latestPaidAt || t > latestPaidAt) latestPaidAt = t;
+        }
+      });
+      const paidDateStr = latestPaidAt ? new Date(latestPaidAt).toLocaleString() : "";
+      rows.push([m.name || "", m.village || "", m.mobile || "", m.remarks || "", paidAny ? "Yes" : "No", paidDateStr]);
+    });
+
+    // convert to CSV text
+    const csvContent = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const filename = `MembershipFees_${year}.csv`;
+    if (navigator.msSaveBlob) { navigator.msSaveBlob(blob, filename); }
+    else {
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(()=> URL.revokeObjectURL(url), 1000);
+    }
+  }catch(e){
+    console.error("Export CSV error:", e);
+    alert("Failed to export CSV: " + (e.message || e));
+  }
+});
 
 /* Utility: initial dropdown populate */
 loadFeeMembersDropdown();
