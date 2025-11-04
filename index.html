@@ -95,6 +95,12 @@
   .muted { color:var(--muted); font-size:13px; }
   .note { font-size:13px; color:var(--muted); margin-top:8px; }
 
+  /* Cards for stats */
+  .stats { display:flex; gap:14px; align-items:stretch; flex-wrap:wrap; }
+  .stat-card { flex:1 1 200px; padding:14px; border-radius:12px; background:linear-gradient(180deg, #fff, #fffefb); box-shadow:0 8px 24px rgba(183,28,28,0.04); border:1px solid rgba(0,0,0,0.03); }
+  .stat-value { font-size:20px; font-weight:700; color:var(--deep-red); }
+  .stat-label { font-size:13px; color:var(--muted); margin-top:6px; }
+
   /* Tables */
   table { width:100%; border-collapse:collapse; font-size:14px; margin-top:12px; }
   thead th {
@@ -109,9 +115,6 @@
 
   .center { text-align:center; }
   .right { margin-left:auto; }
-
-  /* Duplicate remover popup animation */
-  @keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
 
   /* responsive */
   @media (max-width:980px){
@@ -173,6 +176,7 @@
         <button id="login-btn" class="btn">Login</button>
       </div>
     </div>
+    <div class="muted note" style="margin-top:10px">Use email/password login. Admin UID for edits: <code>fRpLuiBgU0ZE1AtVmkGaA1RhBJk2</code></div>
   </div>
 
   <!-- Main content (hidden until login) -->
@@ -180,18 +184,29 @@
 
     <!-- Top summary -->
     <div class="card">
-      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-        <div>
-          <div style="font-weight:700;color:var(--primary-red)">Invitees</div>
-          <div id="summary-invitees" class="muted">—</div>
+      <div class="stats">
+        <div class="stat-card">
+          <div style="font-size:13px;color:var(--muted)">Invitees</div>
+          <div class="stat-value" id="summary-invitees">—</div>
+          <div class="stat-label">Invitation list summary</div>
         </div>
-        <div>
-          <div style="font-weight:700;color:var(--primary-red)">Members</div>
-          <div id="summary-members" class="muted">—</div>
+
+        <div class="stat-card">
+          <div style="font-size:13px;color:var(--muted)">Members</div>
+          <div class="stat-value" id="summary-members">—</div>
+          <div class="stat-label">Members in registry</div>
         </div>
-        <div style="margin-left:auto">
-          <div style="font-weight:700;color:var(--primary-red)">Total Collected</div>
-          <div id="summary-collection" class="muted">₹0</div>
+
+        <div class="stat-card">
+          <div style="font-size:13px;color:var(--muted)">Total Collected</div>
+          <div class="stat-value" id="summary-collection">₹0 (0 Paid Members)</div>
+          <div class="stat-label">Membership + Donations (selected year)</div>
+        </div>
+
+        <div style="flex:1 1 160px" class="stat-card center">
+          <div style="font-size:13px;color:var(--muted)">Pending Fees</div>
+          <div class="stat-value" id="summary-pending">—</div>
+          <div class="stat-label">Unpaid months</div>
         </div>
       </div>
     </div>
@@ -249,82 +264,13 @@
         </div>
       </div>
 
-      <!-- START Duplicate Remover (glassmorphic UI) -->
-      <!-- 🧹 Admin-only duplicate remover -->
-      <div id="removeDuplicatesDiv" style="display:none; margin:20px 0;">
-        <button id="removeDuplicatesBtn" class="action-btn"
-          style="background:linear-gradient(135deg,#d32f2f,#b71c1c);
-                 color:#fff;border:none;padding:10px 20px;
-                 border-radius:8px;cursor:pointer;font-weight:600;
-                 box-shadow:0 2px 6px rgba(0,0,0,0.2);
-                 transition:all 0.2s ease;">
-          🧹 Remove Duplicate Members
-        </button>
-
-        <!-- Progress Bar -->
-        <div id="removeProgress" style="display:none;margin-top:10px;height:6px;
-             background:#fce8b2;border-radius:4px;overflow:hidden;">
-          <div id="removeProgressBar" style="width:0%;height:6px;
-               background:linear-gradient(90deg,#fdd835,#f57f17);"></div>
-        </div>
-
-        <!-- Toast Message -->
-        <div id="toastMsg" style="display:none;position:fixed;bottom:25px;right:25px;
-             background:linear-gradient(135deg,#b71c1c,#fdd835);
-             color:white;padding:12px 18px;border-radius:8px;
-             box-shadow:0 3px 8px rgba(0,0,0,0.3);font-size:15px;
-             font-weight:500;letter-spacing:0.5px;z-index:9999;
-             backdrop-filter:blur(6px);">
-        </div>
-
-        <!-- Glassmorphic Popup -->
-        <div id="duplicatesPopup" style="display:none;position:fixed;top:50%;left:50%;
-             transform:translate(-50%,-50%);background:rgba(255,255,255,0.15);
-             backdrop-filter:blur(18px) saturate(180%);
-             -webkit-backdrop-filter:blur(18px) saturate(180%);
-             padding:25px;border-radius:16px;
-             border:1px solid rgba(255,255,255,0.3);
-             box-shadow:0 8px 32px rgba(31,38,135,0.37);
-             width:90%;max-width:480px;z-index:10000;
-             font-family:"Inter", "Poppins", sans-serif;
-             color:#333;">
-          <h3 style="margin-top:0;margin-bottom:10px;
-              color:#b71c1c;font-weight:700;font-size:20px;
-              text-shadow:0 1px 1px rgba(255,255,255,0.6);">
-            ⚠️ Duplicates Found
-          </h3>
-          <p style="font-size:14px;color:#222;margin-top:0;">
-            The following entries seem duplicated. Please confirm before deleting.
-          </p>
-          <div id="duplicateList" style="max-height:280px;overflow-y:auto;
-               border:1px solid rgba(255,255,255,0.3);
-               padding:10px;margin:10px 0;
-               background:rgba(255,255,255,0.35);
-               border-radius:8px;font-size:14px;
-               box-shadow:inset 0 0 6px rgba(0,0,0,0.1);">
-          </div>
-          <div style="text-align:right;">
-            <button id="confirmDeleteBtn"
-              style="background:linear-gradient(135deg,#b71c1c,#d32f2f);
-                     color:#fff;border:none;padding:8px 16px;border-radius:6px;
-                     margin-right:10px;cursor:pointer;font-weight:600;
-                     box-shadow:0 2px 6px rgba(0,0,0,0.3);
-                     transition:all 0.2s ease;">
-              ✅ Confirm Delete
-            </button>
-            <button id="cancelDeleteBtn"
-              style="background:rgba(255,255,255,0.25);
-                     border:1px solid rgba(255,255,255,0.3);
-                     padding:8px 16px;border-radius:6px;cursor:pointer;
-                     font-weight:600;color:#333;
-                     backdrop-filter:blur(6px);
-                     transition:all 0.2s ease;">
-              ❌ Cancel
-            </button>
-          </div>
+      <!-- Duplicate remover area (admin only) -->
+      <div id="removeDuplicatesDiv" style="display:none; margin-top:18px;">
+        <button id="removeDuplicatesBtn" class="btn small" style="background:linear-gradient(135deg,#d32f2f,#b71c1c);">🧹 Remove Duplicate Members</button>
+        <div id="removeProgress" style="display:none;margin-top:10px;height:6px;background:#fce8b2;border-radius:4px;overflow:hidden;">
+          <div id="removeProgressBar" style="width:0%;height:6px;background:linear-gradient(90deg,#fdd835,#f57f17);"></div>
         </div>
       </div>
-      <!-- END Duplicate Remover -->
 
     </div>
 
@@ -380,7 +326,7 @@
     <!-- Collectors -->
     <div class="card" id="collectors">
       <h2>📬 Donation Collectors</h2>
-      <div class="subtitle">Assign areas and track bills</div>
+      <div class="subtitle">Assign areas and track bills (amounts count towards Total Collected)</div>
 
       <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
         <input id="search-collectors" type="text" placeholder="Search collectors..." style="flex:1" />
@@ -388,7 +334,7 @@
       </div>
 
       <table id="collector-table" style="margin-top:12px">
-        <thead><tr><th>Name</th><th>Assigned Area</th><th>Bill No</th><th>Mobile No</th><th>Remarks</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>Assigned Area</th><th>Bill No</th><th>Mobile No</th><th>Collected (₹)</th><th>Remarks</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
 
@@ -398,6 +344,7 @@
           <input id="col-area" type="text" placeholder="Assigned Area (comma separated)" style="min-width:160px" />
           <input id="col-bill" type="text" placeholder="Bill No" style="min-width:120px" />
           <input id="col-mobile" type="text" placeholder="Mobile No" style="min-width:120px" />
+          <input id="col-amount" type="number" placeholder="Collected Amount (₹)" style="min-width:140px" />
           <input id="col-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
           <button id="add-col-btn" class="btn small">Add Collector</button>
         </div>
@@ -460,13 +407,13 @@ let selectedFeeYear = parseInt(feeYearSmall.value || 2025);
   }
   sel.addEventListener('change', ()=> {
     selectedFeeYear = parseInt(sel.value);
-    loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary();
+    loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
   });
 })();
 
 feeYearSmall.addEventListener('change', ()=> {
   selectedFeeYear = parseInt(feeYearSmall.value);
-  loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary();
+  loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
 });
 
 /* ---------------- UI elements ---------------- */
@@ -501,7 +448,7 @@ auth.onAuthStateChanged(user => {
     mainContent.classList.remove("hidden");
     userInfo.textContent = `${user.email} (${currentRole})`;
     applyRoleToUI();
-    setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); }, 120);
+    setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); updateTotalCollectedSummary(); }, 120);
   } else {
     document.getElementById("email").style.display="";
     document.getElementById("password").style.display="";
@@ -515,9 +462,11 @@ auth.onAuthStateChanged(user => {
 
 /* ui role enforcement */
 function applyRoleToUI(){
-  ["add-inv-btn","add-mem-btn","add-col-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn"].forEach(id=>{
+  ["add-inv-btn","add-mem-btn","add-col-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","removeDuplicatesBtn"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.disabled = (currentRole !== "admin");
   });
+  // show duplicate remover only to admin
+  document.getElementById("removeDuplicatesDiv").style.display = (currentRole === "admin") ? "block" : "none";
 }
 
 /* helpers */
@@ -532,9 +481,10 @@ function clearAllTables(){
     const tb=document.getElementById(id)?.querySelector("tbody");
     if(tb) tb.innerHTML="";
   });
-  document.getElementById("summary-invitees").textContent="Invitees: —";
-  document.getElementById("summary-members").textContent="Members: —";
-  document.getElementById("summary-collection").textContent="Total Collected: ₹0";
+  document.getElementById("summary-invitees").textContent="—";
+  document.getElementById("summary-members").textContent="—";
+  document.getElementById("summary-collection").textContent="₹0 (0 Paid Members)";
+  document.getElementById("summary-pending").textContent="—";
 }
 
 /* ---------------- Load all static data ---------------- */
@@ -618,6 +568,7 @@ async function loadInvitations(){
               const update = {}; update[fieldMap[idx]] = val;
               await doc.ref.update(update);
             } catch(e) { console.error("Save edit error:", e); alert("Save failed: "+(e.message||e)); }
+            loadInvitations();
           };
         });
       }
@@ -647,7 +598,7 @@ document.getElementById("add-mem-btn").addEventListener("click", async () => {
     if(!dup.empty && !confirm("Possible duplicate member. Add anyway?")) return;
     await membersCol.add({name,village,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
     ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");
-    loadMembers(); loadFeeMembersDropdown();
+    loadMembers(); loadFeeMembersDropdown(); updateTotalCollectedSummary();
   } catch(e){
     console.error("Add member error:", e);
     alert("Failed to add member: " + (e.message || e));
@@ -678,7 +629,7 @@ async function loadMembers(){
         const del = document.createElement("button");
         del.textContent = "Delete";
         del.className = "btn small ghost";
-        del.onclick = () => { if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ loadMembers(); loadFeeMembersDropdown(); }); };
+        del.onclick = () => { if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ loadMembers(); loadFeeMembersDropdown(); updateTotalCollectedSummary(); }); };
         actionsTd.appendChild(del);
 
         const editable = tr.querySelectorAll("td[contenteditable='true']");
@@ -698,21 +649,23 @@ async function loadMembers(){
 }
 document.getElementById("search-members").addEventListener("input",(e)=> filterTable("members-table", e.target.value));
 
-/* ---------------- Collectors (with bill no, mobile, remarks) ---------------- */
+/* ---------------- Collectors (with bill no, mobile, remarks, collected amount) ---------------- */
 document.getElementById("add-col-btn").addEventListener("click", async ()=>{
   if(currentRole!=="admin") return alert("Only admin can add");
   const name=document.getElementById("col-name").value.trim();
   const area=document.getElementById("col-area").value.trim();
   const bill=document.getElementById("col-bill").value.trim();
   const mobile=document.getElementById("col-mobile").value.trim();
+  const amount = Number(document.getElementById("col-amount").value) || 0;
   const remarks=document.getElementById("col-remarks").value.trim();
   if(!name||!area) return alert("Name & area required");
   try{
     const dup=await collectorsCol.where("name","==",name).where("area","==",area).get();
     if(!dup.empty && !confirm("Possible duplicate. Add anyway?")) return;
-    await collectorsCol.add({name,area,bill,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
-    ["col-name","col-area","col-bill","col-mobile","col-remarks"].forEach(id=>document.getElementById(id).value="");
+    await collectorsCol.add({name,area,bill,mobile,amount,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
+    ["col-name","col-area","col-bill","col-mobile","col-amount","col-remarks"].forEach(id=>document.getElementById(id).value="");
     loadCollectors();
+    updateTotalCollectedSummary();
   }catch(e){ console.error(e); alert("Add collector failed: "+(e.message||e)); }
 });
 
@@ -723,12 +676,39 @@ async function loadCollectors(){
     snap.forEach(docSnap=>{
       const d=docSnap.data();
       const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${escapeHtml(d.name||"")}</td><td>${escapeHtml(d.area||"")}</td><td>${escapeHtml(d.bill||"")}</td><td>${escapeHtml(d.mobile||"")}</td><td>${escapeHtml(d.remarks||"")}</td><td></td>`;
+      tr.innerHTML=`<td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.name||"")}</td>
+                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.area||"")}</td>
+                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.bill||"")}</td>
+                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
+                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">₹${Number(d.amount||0)}</td>
+                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.remarks||"")}</td>
+                    <td></td>`;
       tbody.appendChild(tr);
       if(currentRole==="admin"){
         const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick=()=>{ if(confirm("Delete collector?")) docSnap.ref.delete().then(loadCollectors); };
+        del.onclick=()=>{ if(confirm("Delete collector?")) docSnap.ref.delete().then(()=>{ loadCollectors(); updateTotalCollectedSummary(); }); };
         tr.querySelector("td:last-child").appendChild(del);
+
+        const editable = tr.querySelectorAll("td[contenteditable='true']");
+        editable.forEach((cell, idx)=>{
+          // mapping: name, area, bill, mobile, amount (displayed with ₹), remarks
+          cell.onblur = async () => {
+            try {
+              const raw = cell.textContent.trim();
+              const map = ["name","area","bill","mobile","amount","remarks"];
+              let val = raw;
+              if(map[idx] === "amount"){
+                // remove non-numeric chars like ₹ and commas
+                const numeric = raw.replace(/[^\d.-]/g,'').trim();
+                val = numeric === "" ? 0 : Number(numeric);
+              }
+              const upd = {}; upd[map[idx]] = val;
+              await collectorsCol.doc(docSnap.id).update(upd);
+              loadCollectors();
+              updateTotalCollectedSummary();
+            } catch(e){ console.error("Save collector edit error:", e); alert("Save failed: "+(e.message||e)); }
+          };
+        });
       }
     });
   }catch(e){ console.error(e); alert("Load collectors failed: "+(e.message||e)); }
@@ -737,7 +717,7 @@ document.getElementById("search-collectors").addEventListener("input",(e)=> filt
 
 /* ---------------- Monthly summary placeholder ---------------- */
 async function updateMonthlySummary(){
-  // placeholder for backward compatibility if members.fees used previously
+  // placeholder (backwards compatibility)
 }
 
 /* ---------------- Membership Fees (flat per-year collections) ---------------- */
@@ -746,7 +726,7 @@ async function updateMonthlySummary(){
 const feeMemberSelect = document.getElementById('feeMemberSelect');
 async function loadFeeMembersDropdown(){
   feeMemberSelect.innerHTML = '<option value="">-- Select member --</option>';
-  const seen = new Set(); // Track duplicates using name or mobile
+  const seen = new Set(); // Track duplicates using mobile+name
   try {
     const snap = await membersCol.orderBy("name").get();
     snap.forEach(docSnap => {
@@ -760,13 +740,9 @@ async function loadFeeMembersDropdown(){
         feeMemberSelect.appendChild(opt);
       }
     });
-
-    if (seen.size < (await membersCol.get()).size) {
-      console.warn("⚠️ Duplicate members detected in Firestore. Consider merging them.");
-    }
-
+    // No alert by default; duplicate remover available for admin.
   } catch (e) {
-    console.error("❌ Failed to load member list for fees tracker:", e);
+    console.error("Load fee members failed:", e);
   }
 }
 
@@ -817,6 +793,7 @@ async function loadFeeMonthsTable(){
           await docRef.update(updatePaidAt);
           loadFeeMonthsTable();
           loadFeeYearlySummary();
+          updateTotalCollectedSummary();
         }catch(err){ console.error("Toggle paid error:", err); alert("Failed to update: "+(err.message||err)); cb.checked = !cb.checked; }
       });
       actionTd.appendChild(cb);
@@ -842,7 +819,7 @@ document.getElementById("saveFeeConfigBtn").addEventListener("click", async ()=>
       await docRef.update({ feeAmount });
     }
     alert("Fee configuration saved");
-    loadFeeMonthsTable(); loadFeeYearlySummary();
+    loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
   }catch(e){ console.error("Save fee config error:", e); alert("Failed to save fee config: "+(e.message||e)); }
 });
 
@@ -856,7 +833,7 @@ document.getElementById("clearFeeRecordBtn").addEventListener("click", async ()=
     const snap = await docRef.get();
     if(snap.exists) await docRef.delete();
     alert("Cleared");
-    loadFeeMonthsTable(); loadFeeYearlySummary();
+    loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
   }catch(e){ console.error(e); alert("Failed to clear: "+(e.message||e)); }
 });
 
@@ -879,7 +856,58 @@ async function loadFeeYearlySummary(){
       tr.innerHTML = `<td>${m}</td><td class="center">${monthCounts[m].paid}</td><td class="center">₹${monthCounts[m].total}</td>`;
       tbody.appendChild(tr);
     });
+    // update total collected summary as well
+    updateTotalCollectedSummary();
   }catch(e){ console.error("Fee yearly summary error:", e); }
+}
+
+/* ---------------- NEW: compute total collected and paid members for selected year
+   - totalCollected = sum_over_members( feeAmount * number_of_paid_months ) + sum_over_collectors(amount)
+   - paidMembersCount = count_members_with_at_least_one_paid_month
+*/
+async function updateTotalCollectedSummary(){
+  try{
+    const feesCol = membershipFeesCollectionFor(selectedFeeYear);
+    const [feeSnap, collectorsSnap, membersSnap] = await Promise.all([feesCol.get(), collectorsCol.get(), membersCol.get()]);
+    let totalCollected = 0;
+    let paidMembersCount = 0;
+    let totalPaidMonthsAcrossAll = 0;
+
+    feeSnap.forEach(docSnap=>{
+      const d = docSnap.data() || {};
+      const feeAmt = d.feeAmount || Number(document.getElementById("feeAmountInput").value) || 100;
+      const months = d.months || {};
+      let paidMonths = 0;
+      for(const m of MONTHS){
+        if(months[m] && months[m].paid) paidMonths++;
+      }
+      if(paidMonths > 0) paidMembersCount++;
+      totalCollected += paidMonths * feeAmt;
+      totalPaidMonthsAcrossAll += paidMonths;
+    });
+
+    // sum collectors amounts
+    let collectorsTotal = 0;
+    collectorsSnap.forEach(cs => {
+      const a = Number(cs.data().amount || 0);
+      if(!isNaN(a)) collectorsTotal += a;
+    });
+
+    totalCollected += collectorsTotal;
+
+    // Format currency with comma separators (IN)
+    const formatted = totalCollected.toLocaleString('en-IN');
+    document.getElementById("summary-collection").textContent = `₹${formatted} (${paidMembersCount} Paid Member${paidMembersCount===1?'':'s'})`;
+
+    const totalMembers = membersSnap.size;
+    const unpaidMonths = (totalMembers * 12) - totalPaidMonthsAcrossAll;
+    document.getElementById("summary-pending").textContent = `${unpaidMonths} unpaid months`;
+
+  }catch(e){
+    console.error("Update total collected error:", e);
+    document.getElementById("summary-collection").textContent = "₹0 (0 Paid Members)";
+    document.getElementById("summary-pending").textContent = "—";
+  }
 }
 
 /* ---------------- Export CSV for selected fees year (all members) ---------------- */
@@ -893,24 +921,29 @@ document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
     const feeSnap = await feesCol.get();
     const feeMap = {};
     feeSnap.forEach(fs => feeMap[fs.id] = fs.data());
-    // assemble CSV rows: Name, Village, Mobile, Remarks, Paid (Yes/No), Paid Date
+    // assemble CSV rows: Name, Village, Mobile, Remarks, Paid Months Count, Total Paid (₹), Last Paid Date
     const rows = [];
-    rows.push(["Name","Village","Mobile","Remarks","Paid (Yes/No)","Paid Date"]);
+    rows.push(["Name","Village","Mobile","Remarks","Paid Months Count","Total Paid (₹)","Last Paid Date"]);
     membersSnap.forEach(mDoc=>{
       const m = mDoc.data();
       const memberId = mDoc.id;
-      const feeRec = feeMap[memberId] || { months: {} };
+      const feeRec = feeMap[memberId] || { months: {} , feeAmount: Number(document.getElementById("feeAmountInput").value) || 100};
       const monthsObj = feeRec.months || {};
-      const paidAny = Object.values(monthsObj).some(x => x && x.paid);
+      let paidCount = 0;
       let latestPaidAt = null;
-      Object.values(monthsObj).forEach(x => {
-        if(x && x.paidAt){
-          const t = x.paidAt.seconds ? x.paidAt.seconds*1000 : x.paidAt;
-          if(!latestPaidAt || t > latestPaidAt) latestPaidAt = t;
+      for(const mm of MONTHS){
+        if(monthsObj[mm] && monthsObj[mm].paid){
+          paidCount++;
+          if(monthsObj[mm].paidAt){
+            const t = monthsObj[mm].paidAt.seconds ? monthsObj[mm].paidAt.seconds*1000 : monthsObj[mm].paidAt;
+            if(!latestPaidAt || t > latestPaidAt) latestPaidAt = t;
+          }
         }
-      });
+      }
+      const feeAmt = feeRec.feeAmount || Number(document.getElementById("feeAmountInput").value) || 100;
+      const totalPaid = paidCount * feeAmt;
       const paidDateStr = latestPaidAt ? new Date(latestPaidAt).toLocaleString() : "";
-      rows.push([m.name || "", m.village || "", m.mobile || "", m.remarks || "", paidAny ? "Yes" : "No", paidDateStr]);
+      rows.push([m.name || "", m.village || "", m.mobile || "", m.remarks || "", paidCount, totalPaid, paidDateStr]);
     });
 
     // convert to CSV text
@@ -939,7 +972,7 @@ document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
 loadFeeMembersDropdown();
 
 /* initial loads if already logged in */
-setTimeout(()=>{ if(auth.currentUser){ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); } }, 200);
+setTimeout(()=>{ if(auth.currentUser){ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); updateTotalCollectedSummary(); } }, 200);
 
 /* small feature: navigation links scroll to sections and highlight */
 function clearActiveNav(){ document.querySelectorAll('nav.topbar a').forEach(a=>a.classList.remove('active')); }
@@ -948,123 +981,64 @@ document.getElementById("nav-members").addEventListener("click", (e)=>{ e.preven
 document.getElementById("nav-collectors").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("collectors").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-collectors").classList.add('active'); });
 document.getElementById("nav-fees").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("fees").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-fees").classList.add('active'); });
 
-/* ---------------- Duplicate remover (glass popup) logic ---------------- */
+/* ---------------- Duplicate remover (simple) logic (admin only) ---------------- */
 document.addEventListener("DOMContentLoaded", () => {
-  // Elements are already on page (we added them in Members)
   const adminUID = "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2";
-  const btn = document.getElementById("removeDuplicatesBtn");
-  const div = document.getElementById("removeDuplicatesDiv");
+  const removeBtn = document.getElementById("removeDuplicatesBtn");
+  const removeDiv = document.getElementById("removeDuplicatesDiv");
   const progress = document.getElementById("removeProgress");
-  const bar = document.getElementById("removeProgressBar");
-  const toast = document.getElementById("toastMsg");
-  const popup = document.getElementById("duplicatesPopup");
-  const listBox = document.getElementById("duplicateList");
-  const confirmBtn = document.getElementById("confirmDeleteBtn");
-  const cancelBtn = document.getElementById("cancelDeleteBtn");
+  const progressBar = document.getElementById("removeProgressBar");
   let duplicates = [];
 
-  // Show only for admin
   firebase.auth().onAuthStateChanged(user => {
-    div.style.display = user && user.uid === adminUID ? "block" : "none";
+    removeDiv.style.display = user && user.uid === adminUID ? "block" : "none";
   });
 
-  function showToast(msg, color) {
-    toast.textContent = msg;
-    toast.style.display = "block";
-    toast.style.background = color || "linear-gradient(135deg,#b71c1c,#fdd835)";
-    setTimeout(() => (toast.style.display = "none"), 3500);
-  }
-
-  btn.addEventListener("mouseover", () => {
-    btn.style.transform = "scale(1.03)";
-    btn.style.boxShadow = "0 4px 10px rgba(183,28,28,0.4)";
-  });
-  btn.addEventListener("mouseout", () => {
-    btn.style.transform = "scale(1)";
-    btn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-  });
-
-  btn.addEventListener("click", async () => {
-    const db = firebase.firestore();
-    const seen = new Set();
-    duplicates = [];
-    bar.style.width = "0%";
-    progress.style.display = "block";
-
-    try {
-      const snapshot = await db.collection("members").get();
+  removeBtn && removeBtn.addEventListener("click", async ()=>{
+    if(currentRole !== "admin") return alert("Only admin can run duplicate remover");
+    try{
+      progress.style.display = "block";
+      progressBar.style.width = "0%";
+      const snap = await membersCol.get();
+      const seen = new Map();
+      duplicates = [];
       let processed = 0;
-      snapshot.forEach(doc => {
+      snap.forEach(doc => {
         const d = doc.data();
-        const key = (d.name + "_" + d.mobile).toLowerCase().trim();
-        if (seen.has(key)) duplicates.push({ id: doc.id, ...d });
-        else seen.add(key);
+        const key = ((d.name||"").trim().toLowerCase() + "|" + (d.mobile||"").trim().toLowerCase());
+        if(seen.has(key)){
+          duplicates.push({ id: doc.id, ...d });
+        } else {
+          seen.set(key, doc.id);
+        }
         processed++;
-        bar.style.width = ((processed / snapshot.size) * 100).toFixed(1) + "%";
+        progressBar.style.width = ((processed / snap.size) * 100).toFixed(1) + "%";
       });
-
       progress.style.display = "none";
-
-      if (duplicates.length === 0) {
-        showToast("✨ No duplicates found.",
-          "linear-gradient(135deg,#4caf50,#8bc34a)");
+      if(duplicates.length === 0){
+        alert("No duplicates found.");
         return;
       }
-
-      // Build list HTML
-      listBox.innerHTML = duplicates.map(d => `
-        <div style='margin-bottom:10px;padding:6px 8px;
-          background:rgba(255,255,255,0.45);
-          border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);'>
-          <b>${escapeHtml(d.name)}</b> — ${escapeHtml(d.mobile)}<br>
-          <span style='color:#555;font-size:13px;'>${escapeHtml(d.village || "")}</span>
-        </div>
-      `).join("");
-      popup.style.display = "block";
-      popup.style.animation = "fadeIn 0.25s ease";
-
-    } catch (err) {
-      console.error(err);
-      showToast("❌ Error checking duplicates.",
-        "linear-gradient(135deg,#d32f2f,#ff6f00)");
+      // Show simple confirmation listing (string)
+      const list = duplicates.map(d => `${d.name} — ${d.mobile} (${d.village||''})`).join("\n");
+      if(confirm("Found duplicates:\n\n" + list + "\n\nDelete these duplicates?")){
+        // delete duplicates
+        const batch = db.batch();
+        duplicates.forEach(d => batch.delete(membersCol.doc(d.id)));
+        await batch.commit();
+        alert(`Deleted ${duplicates.length} duplicates.`);
+        loadMembers();
+        loadFeeMembersDropdown();
+        updateTotalCollectedSummary();
+      }
+    }catch(e){
       progress.style.display = "none";
+      console.error(e);
+      alert("Duplicate check failed: " + (e.message||e));
     }
   });
-
-  cancelBtn.onclick = () => {
-    popup.style.display = "none";
-    duplicates = [];
-  };
-
-  confirmBtn.onclick = async () => {
-    const db = firebase.firestore();
-    popup.style.display = "none";
-    progress.style.display = "block";
-    bar.style.width = "0%";
-
-    try {
-      const batch = db.batch();
-      let processed = 0;
-      for (const d of duplicates) {
-        batch.delete(db.collection("members").doc(d.id));
-        processed++;
-        bar.style.width = ((processed / duplicates.length) * 100).toFixed(1) + "%";
-      }
-      await batch.commit();
-      showToast(`✅ Deleted ${duplicates.length} duplicate member(s).`);
-      // reload members lists and fee dropdowns after deletion
-      loadMembers();
-      loadFeeMembersDropdown();
-    } catch (e) {
-      console.error(e);
-      showToast("❌ Error deleting.",
-        "linear-gradient(135deg,#d32f2f,#ff6f00)");
-    } finally {
-      progress.style.display = "none";
-      duplicates = [];
-    }
-  };
 });
+
 </script>
 </body>
 </html>
