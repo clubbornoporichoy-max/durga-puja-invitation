@@ -41,7 +41,7 @@
 
   /* Header / nav (fixed) */
   header {
-    position: fixed; top:0; left:0; right:0; z-index:100;
+    position: fixed; top:0; left:0; right:0; z-index:120;
     background: linear-gradient(90deg, rgba(255,255,255,0.96), rgba(255,250,240,0.96));
     border-bottom: 1px solid rgba(0,0,0,0.04);
     padding: 12px 18px;
@@ -68,8 +68,28 @@
 
   .auth-area { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
+  /* sticky summary bar (fixed below header) */
+  #sticky-summary {
+    position: fixed;
+    top: 68px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1200px, calc(100% - 36px));
+    z-index:110;
+    background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,250,245,0.95));
+    border-radius: 10px;
+    padding: 8px 14px;
+    box-shadow: 0 10px 30px rgba(17,17,17,0.06);
+    display: flex;
+    gap:12px;
+    align-items:center;
+    border: 1px solid rgba(0,0,0,0.03);
+  }
+  #sticky-summary .stat { font-size:14px; color:var(--muted); }
+  #sticky-summary .stat strong { color:var(--deep-red); margin-left:6px; }
+
   /* Container + cards */
-  .spacer { height:86px } /* to offset fixed header */
+  .spacer { height:124px } /* to offset fixed header + sticky summary */
   .container { max-width:1200px; margin:22px auto; padding:0 18px 80px; }
   .card { background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); margin-bottom:18px; border:1px solid rgba(0,0,0,0.03); transition: transform 160ms ease, box-shadow 160ms ease; }
   .card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(17,17,17,0.08); }
@@ -95,12 +115,6 @@
   .muted { color:var(--muted); font-size:13px; }
   .note { font-size:13px; color:var(--muted); margin-top:8px; }
 
-  /* Cards for stats */
-  .stats { display:flex; gap:14px; align-items:stretch; flex-wrap:wrap; }
-  .stat-card { flex:1 1 200px; padding:14px; border-radius:12px; background:linear-gradient(180deg, #fff, #fffefb); box-shadow:0 8px 24px rgba(183,28,28,0.04); border:1px solid rgba(0,0,0,0.03); }
-  .stat-value { font-size:20px; font-weight:700; color:var(--deep-red); }
-  .stat-label { font-size:13px; color:var(--muted); margin-top:6px; }
-
   /* Tables */
   table { width:100%; border-collapse:collapse; font-size:14px; margin-top:12px; }
   thead th {
@@ -109,19 +123,60 @@
   tbody td { padding:12px 14px; border-bottom:1px solid rgba(0,0,0,0.04); vertical-align:middle; }
   tbody tr:hover { background: rgba(183,28,28,0.02); }
   .editable { background: linear-gradient(180deg,#fff8e6,#fffdf7); border-radius:6px; padding:8px; }
-  .badge { display:inline-block; padding:6px 8px; border-radius:8px; font-weight:700; font-size:13px; }
+  .badge { display:inline-block; padding:6px 8px; border-radius:8px; font-weight:700; font-size:13px; transition: transform 250ms ease, opacity 220ms ease; }
   .badge.ok { background:#28a745; color:#fff; }
   .badge.warn { background:#ff8c00; color:#fff; }
+  .badge.sent { background: linear-gradient(90deg,#4caf50,#2e7d32); color:#fff; }
+  .badge.pending { background: linear-gradient(90deg,#ff9800,#f57c00); color:#fff; }
+  .badge.pulse { animation: badgePulse 1s ease; }
+
+  @keyframes badgePulse {
+    0% { transform: scale(1); opacity: 0.9; }
+    40% { transform: scale(1.12); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
 
   .center { text-align:center; }
   .right { margin-left:auto; }
+
+  /* toasts (bottom-right) */
+  #toast-container {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 9999;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    align-items:flex-end;
+  }
+  .toast {
+    min-width: 220px;
+    max-width: 360px;
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    display:flex;
+    gap:10px;
+    align-items:center;
+    opacity:0;
+    transform: translateY(12px);
+    transition: opacity 260ms ease, transform 260ms ease;
+    font-size:14px;
+  }
+  .toast.show { opacity:1; transform: translateY(0); }
+  .toast.success { background: linear-gradient(90deg,#2ecc71,#27ae60); }
+  .toast.error { background: linear-gradient(90deg,#e74c3c,#c0392b); }
+  .toast.info { background: linear-gradient(90deg,#f39c12,#d35400); }
 
   /* responsive */
   @media (max-width:980px){
     .header-inner{flex-direction:column; gap:10px; align-items:flex-start}
     nav.topbar{flex-wrap:wrap}
     .flex{flex-direction:column; align-items:stretch}
-    .spacer{height:120px}
+    .spacer{height:160px}
+    #sticky-summary { left: 12px; transform: none; width: calc(100% - 24px); }
   }
 </style>
 </head>
@@ -150,6 +205,14 @@
     </div>
   </div>
 </header>
+
+<!-- Sticky summary bar -->
+<div id="sticky-summary" aria-hidden="false">
+  <div class="stat">Invitees: <strong id="sticky-invitees">—</strong></div>
+  <div class="stat">Members: <strong id="sticky-members">—</strong></div>
+  <div class="stat">Total Collected: <strong id="sticky-collected">₹0</strong></div>
+  <div class="stat">Paid Members: <strong id="sticky-paid">0</strong></div>
+</div>
 
 <div class="spacer"></div>
 
@@ -182,31 +245,27 @@
   <!-- Main content (hidden until login) -->
   <div id="main-content" class="hidden">
 
-    <!-- Top summary -->
-    <div class="card">
-      <div class="stats">
-        <div class="stat-card">
-          <div style="font-size:13px;color:var(--muted)">Invitees</div>
-          <div class="stat-value" id="summary-invitees">—</div>
-          <div class="stat-label">Invitation list summary</div>
+    <!-- Top summary (main) -->
+    <div class="card" style="margin-top:0">
+      <div class="stats" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1 1 200px">
+          <div style="font-weight:700;color:var(--primary-red)">Invitees</div>
+          <div id="summary-invitees" class="muted">—</div>
         </div>
 
-        <div class="stat-card">
-          <div style="font-size:13px;color:var(--muted)">Members</div>
-          <div class="stat-value" id="summary-members">—</div>
-          <div class="stat-label">Members in registry</div>
+        <div style="flex:1 1 200px">
+          <div style="font-weight:700;color:var(--primary-red)">Members</div>
+          <div id="summary-members" class="muted">—</div>
         </div>
 
-        <div class="stat-card">
-          <div style="font-size:13px;color:var(--muted)">Total Collected</div>
-          <div class="stat-value" id="summary-collection">₹0 (0 Paid Members)</div>
-          <div class="stat-label">Membership + Donations (selected year)</div>
+        <div style="flex:1 1 300px">
+          <div style="font-weight:700;color:var(--primary-red)">Total Collected</div>
+          <div id="summary-collection" class="muted">₹0 (0 Paid Members)</div>
         </div>
 
-        <div style="flex:1 1 160px" class="stat-card center">
-          <div style="font-size:13px;color:var(--muted)">Pending Fees</div>
-          <div class="stat-value" id="summary-pending">—</div>
-          <div class="stat-label">Unpaid months</div>
+        <div style="flex:1 1 160px">
+          <div style="font-weight:700;color:var(--primary-red)">Pending Fees</div>
+          <div id="summary-pending" class="muted">—</div>
         </div>
       </div>
     </div>
@@ -354,6 +413,9 @@
   </div> <!-- main-content -->
 </div> <!-- container -->
 
+<!-- Toast container -->
+<div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
 <script>
 /* ---------------- Firebase config (hardcoded) ---------------- */
 const firebaseConfig = {
@@ -384,6 +446,29 @@ const collectorsCol = db.collection("collectors");
 /* membership_fees flat per-year: membership_fees_2025, membership_fees_2026, ... */
 function membershipFeesCollectionFor(year){ return db.collection(`membership_fees_${year}`); }
 
+/* ---------------- Toast helper (bottom-right) ---------------- */
+const toastContainer = document.getElementById('toast-container');
+function showToast(type='info', message='') {
+  try {
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<div style="font-weight:700;margin-right:4px">${type==='success'?'✅':type==='error'?'❌':'⚠️'}</div><div style="flex:1">${message}</div>`;
+    toastContainer.appendChild(t);
+    // small delay to allow transition
+    setTimeout(()=> t.classList.add('show'), 10);
+    // remove after 3.5s
+    setTimeout(()=> {
+      t.classList.remove('show');
+      setTimeout(()=> t.remove(), 300);
+    }, 3500);
+  } catch(e) { console.error("Toast error", e); }
+}
+
+/* small convenience for success & error */
+function toastSuccess(msg){ showToast('success', msg); }
+function toastError(msg){ showToast('error', msg); }
+function toastInfo(msg){ showToast('info', msg); }
+
 /* ---------------- fee-year dropdown two selectors (2025-2050) ---------------- */
 const feeYearSmall = document.getElementById('feeYearSelectSmall');
 const feeYearSmall2 = document.getElementById('feeYearSelectSmall2');
@@ -408,12 +493,14 @@ let selectedFeeYear = parseInt(feeYearSmall.value || 2025);
   sel.addEventListener('change', ()=> {
     selectedFeeYear = parseInt(sel.value);
     loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
+    toastInfo('Fees year changed to ' + selectedFeeYear);
   });
 })();
 
 feeYearSmall.addEventListener('change', ()=> {
   selectedFeeYear = parseInt(feeYearSmall.value);
   loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
+  toastInfo('Fees year changed to ' + selectedFeeYear);
 });
 
 /* ---------------- UI elements ---------------- */
@@ -426,15 +513,16 @@ const mainContent = document.getElementById("main-content");
 loginBtn.addEventListener("click", () => {
   const email = document.getElementById("email").value.trim();
   const pw = document.getElementById("password").value;
-  if(!email || !pw) return alert("Enter email and password");
+  if(!email || !pw) { toastError("Enter email and password"); return; }
   loginBtn.disabled = true;
   auth.signInWithEmailAndPassword(email,pw)
-    .catch(e => alert("Login error: "+e.message))
+    .then(()=> toastSuccess("Logged in"))
+    .catch(e => { console.error(e); toastError("Login error: "+e.message); })
     .finally(()=> loginBtn.disabled = false);
 });
 logoutBtn.addEventListener("click", () => {
   logoutBtn.disabled = true;
-  auth.signOut().catch(e => alert("Logout error: "+e.message)).finally(()=> logoutBtn.disabled = false);
+  auth.signOut().then(()=> toastSuccess("Logged out")).catch(e => { console.error(e); toastError("Logout error: "+e.message); }).finally(()=> logoutBtn.disabled = false);
 });
 
 /* auth state listener */
@@ -485,6 +573,12 @@ function clearAllTables(){
   document.getElementById("summary-members").textContent="—";
   document.getElementById("summary-collection").textContent="₹0 (0 Paid Members)";
   document.getElementById("summary-pending").textContent="—";
+
+  // sticky
+  document.getElementById("sticky-invitees").textContent = "—";
+  document.getElementById("sticky-members").textContent = "—";
+  document.getElementById("sticky-collected").textContent = "₹0";
+  document.getElementById("sticky-paid").textContent = "0";
 }
 
 /* ---------------- Load all static data ---------------- */
@@ -497,12 +591,12 @@ function loadAllData(){
 
 /* ---------------- INVITATIONS ---------------- */
 document.getElementById("add-inv-btn").addEventListener("click", async () => {
-  if(currentRole !== "admin") return alert("Only admin can add");
+  if(currentRole !== "admin") return toastError("Only admin can add");
   const name = document.getElementById("inv-name").value.trim();
   const village = document.getElementById("inv-village").value.trim();
   const mobile = document.getElementById("inv-mobile").value.trim();
   const remarks = document.getElementById("inv-remarks").value.trim();
-  if(!name || !village) return alert("Name & Village required");
+  if(!name || !village) return toastError("Name & Village required");
   try {
     let dupQuery = invitationCol.where("name","==",name);
     if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
@@ -515,10 +609,11 @@ document.getElementById("add-inv-btn").addEventListener("click", async () => {
       dateAdded: firebase.firestore.FieldValue.serverTimestamp()
     });
     ["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");
+    toastSuccess("Invitation added");
     loadInvitations();
   } catch(err){
     console.error("Add invitation error:", err);
-    alert("Failed to add invitation: " + (err.message || err));
+    toastError("Failed to add invitation: " + (err.message || err));
   }
 });
 
@@ -533,12 +628,13 @@ async function loadInvitations(){
       const d = doc.data();
       if(d.sent) sent++;
       const tr = document.createElement("tr");
+      const sentHtml = d.sent ? '<span class="badge sent">Sent</span>' : '<span class="badge pending">Pending</span>';
       tr.innerHTML = `
         <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.name||"")}</td>
         <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.village||"")}</td>
         <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.mobile||"")}</td>
         <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.remarks||"")}</td>
-        <td class="center">${d.sent?'<span class="badge ok">Sent</span>':'<span class="badge warn">Pending</span>'}</td>
+        <td class="center">${sentHtml}</td>
         <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
         <td></td>
       `;
@@ -549,14 +645,26 @@ async function loadInvitations(){
         const toggleBtn = document.createElement("button");
         toggleBtn.textContent = d.sent ? "Mark Pending" : "Mark Sent";
         toggleBtn.className = "btn small";
-        toggleBtn.onclick = () => doc.ref.update({sent: !d.sent}).then(loadInvitations).catch(err=>alert(err.message));
+        toggleBtn.onclick = async () => {
+          try {
+            await doc.ref.update({sent: !d.sent});
+            // animate badge: find badge cell and add pulse
+            const badgeCell = tr.querySelector("td:nth-child(5) .badge");
+            if(badgeCell){
+              badgeCell.classList.add('pulse');
+              setTimeout(()=> badgeCell.classList.remove('pulse'), 1000);
+            }
+            toastSuccess(d.sent ? "Marked pending" : "Marked sent");
+            loadInvitations();
+          } catch(err) { console.error(err); toastError("Update failed: "+(err.message||err)); }
+        };
         actionsTd.appendChild(toggleBtn);
 
         const delBtn = document.createElement("button");
         delBtn.style.marginLeft = "8px";
         delBtn.textContent = "Delete";
         delBtn.className = "btn small ghost";
-        delBtn.onclick = () => { if(confirm("Delete invitation?")) doc.ref.delete().then(loadInvitations); };
+        delBtn.onclick = () => { if(confirm("Delete invitation?")) { doc.ref.delete().then(()=>{ toastSuccess("Invitation deleted"); loadInvitations(); }); } };
         actionsTd.appendChild(delBtn);
 
         const editableCells = tr.querySelectorAll("td[contenteditable='true']");
@@ -567,16 +675,18 @@ async function loadInvitations(){
               const val = cell.textContent.trim();
               const update = {}; update[fieldMap[idx]] = val;
               await doc.ref.update(update);
-            } catch(e) { console.error("Save edit error:", e); alert("Save failed: "+(e.message||e)); }
+              toastSuccess("Saved");
+            } catch(e) { console.error("Save edit error:", e); toastError("Save failed: "+(e.message||e)); }
             loadInvitations();
           };
         });
       }
     });
     document.getElementById("summary-invitees").textContent = `Invitees: ${total} | Sent: ${sent} | Pending: ${total-sent}`;
+    document.getElementById("sticky-invitees").textContent = `${total} (Sent: ${sent})`;
   } catch(e){
     console.error("Load invitations error:", e);
-    alert("Failed to load invitations: " + (e.message || e));
+    toastError("Failed to load invitations: " + (e.message || e));
   }
 }
 
@@ -587,21 +697,22 @@ document.getElementById("search-invite").addEventListener("input", (e)=>{
 
 /* ---------------- MEMBERS ---------------- */
 document.getElementById("add-mem-btn").addEventListener("click", async () => {
-  if(currentRole !== "admin") return alert("Only admin can add members");
+  if(currentRole !== "admin") return toastError("Only admin can add members");
   const name = document.getElementById("mem-name").value.trim();
   const village = document.getElementById("mem-village").value.trim();
   const mobile = document.getElementById("mem-mobile").value.trim();
   const remarks = document.getElementById("mem-remarks").value.trim();
-  if(!name || !mobile) return alert("Name & Mobile required");
+  if(!name || !mobile) return toastError("Name & Mobile required");
   try {
     const dup = await membersCol.where("name","==",name).where("mobile","==",mobile).get();
     if(!dup.empty && !confirm("Possible duplicate member. Add anyway?")) return;
     await membersCol.add({name,village,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
     ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");
+    toastSuccess("Member added");
     loadMembers(); loadFeeMembersDropdown(); updateTotalCollectedSummary();
   } catch(e){
     console.error("Add member error:", e);
-    alert("Failed to add member: " + (e.message || e));
+    toastError("Failed to add member: " + (e.message || e));
   }
 });
 
@@ -629,36 +740,37 @@ async function loadMembers(){
         const del = document.createElement("button");
         del.textContent = "Delete";
         del.className = "btn small ghost";
-        del.onclick = () => { if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ loadMembers(); loadFeeMembersDropdown(); updateTotalCollectedSummary(); }); };
+        del.onclick = () => { if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ toastSuccess("Member deleted"); loadMembers(); loadFeeMembersDropdown(); updateTotalCollectedSummary(); }); };
         actionsTd.appendChild(del);
 
         const editable = tr.querySelectorAll("td[contenteditable='true']");
         editable.forEach((cell, idx) => {
           const map = ["name","village","mobile","remarks"];
           cell.onblur = async () => {
-            try { const val = cell.textContent.trim(); const upd = {}; upd[map[idx]] = val; await membersCol.doc(docSnap.id).update(upd); loadFeeMembersDropdown(); } catch(e) { console.error(e); alert("Save failed: "+(e.message||e)); }
+            try { const val = cell.textContent.trim(); const upd = {}; upd[map[idx]] = val; await membersCol.doc(docSnap.id).update(upd); loadFeeMembersDropdown(); toastSuccess("Saved"); } catch(e) { console.error(e); toastError("Save failed: "+(e.message||e)); }
           };
         });
       }
     });
     document.getElementById("summary-members").textContent = `Members: ${total}`;
+    document.getElementById("sticky-members").textContent = `${total}`;
   } catch(e){
     console.error("Load members error:", e);
-    alert("Failed to load members: " + (e.message || e));
+    toastError("Failed to load members: " + (e.message || e));
   }
 }
 document.getElementById("search-members").addEventListener("input",(e)=> filterTable("members-table", e.target.value));
 
 /* ---------------- Collectors (with bill no, mobile, remarks, collected amount) ---------------- */
 document.getElementById("add-col-btn").addEventListener("click", async ()=>{
-  if(currentRole!=="admin") return alert("Only admin can add");
+  if(currentRole!=="admin") return toastError("Only admin can add");
   const name=document.getElementById("col-name").value.trim();
   const area=document.getElementById("col-area").value.trim();
   const bill=document.getElementById("col-bill").value.trim();
   const mobile=document.getElementById("col-mobile").value.trim();
   const amount = Number(document.getElementById("col-amount").value) || 0;
   const remarks=document.getElementById("col-remarks").value.trim();
-  if(!name||!area) return alert("Name & area required");
+  if(!name||!area) return toastError("Name & area required");
   try{
     const dup=await collectorsCol.where("name","==",name).where("area","==",area).get();
     if(!dup.empty && !confirm("Possible duplicate. Add anyway?")) return;
@@ -666,7 +778,8 @@ document.getElementById("add-col-btn").addEventListener("click", async ()=>{
     ["col-name","col-area","col-bill","col-mobile","col-amount","col-remarks"].forEach(id=>document.getElementById(id).value="");
     loadCollectors();
     updateTotalCollectedSummary();
-  }catch(e){ console.error(e); alert("Add collector failed: "+(e.message||e)); }
+    toastSuccess("Collector added");
+  }catch(e){ console.error(e); toastError("Add collector failed: "+(e.message||e)); }
 });
 
 async function loadCollectors(){
@@ -686,7 +799,7 @@ async function loadCollectors(){
       tbody.appendChild(tr);
       if(currentRole==="admin"){
         const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick=()=>{ if(confirm("Delete collector?")) docSnap.ref.delete().then(()=>{ loadCollectors(); updateTotalCollectedSummary(); }); };
+        del.onclick=()=>{ if(confirm("Delete collector?")) docSnap.ref.delete().then(()=>{ loadCollectors(); updateTotalCollectedSummary(); toastSuccess("Collector deleted"); }); };
         tr.querySelector("td:last-child").appendChild(del);
 
         const editable = tr.querySelectorAll("td[contenteditable='true']");
@@ -706,12 +819,13 @@ async function loadCollectors(){
               await collectorsCol.doc(docSnap.id).update(upd);
               loadCollectors();
               updateTotalCollectedSummary();
-            } catch(e){ console.error("Save collector edit error:", e); alert("Save failed: "+(e.message||e)); }
+              toastSuccess("Collector saved");
+            } catch(e){ console.error("Save collector edit error:", e); toastError("Save failed: "+(e.message||e)); }
           };
         });
       }
     });
-  }catch(e){ console.error(e); alert("Load collectors failed: "+(e.message||e)); }
+  }catch(e){ console.error(e); toastError("Load collectors failed: "+(e.message||e)); }
 }
 document.getElementById("search-collectors").addEventListener("input",(e)=> filterTable("collector-table", e.target.value));
 
@@ -743,6 +857,7 @@ async function loadFeeMembersDropdown(){
     // No alert by default; duplicate remover available for admin.
   } catch (e) {
     console.error("Load fee members failed:", e);
+    toastError("Failed to load fee members");
   }
 }
 
@@ -772,7 +887,7 @@ async function loadFeeMonthsTable(){
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${m}</td>
-        <td class="center">${info.paid ? '✅ Paid' : '—'}</td>
+        <td class="center">${info.paid ? '<span class="badge sent">✅ Paid</span>' : '<span class="badge pending">—</span>'}</td>
         <td class="center">${info.paid && info.paidAt ? new Date(info.paidAt.seconds ? info.paidAt.seconds*1000 : info.paidAt).toLocaleString() : ''}</td>
         <td class="center"></td>
       `;
@@ -781,7 +896,7 @@ async function loadFeeMonthsTable(){
       const actionTd = tr.querySelector("td:last-child");
       const cb = document.createElement("input"); cb.type="checkbox"; cb.checked = !!info.paid; cb.disabled = (currentRole!=="admin");
       cb.addEventListener("change", async ()=>{
-        if(currentRole!=="admin"){ cb.checked = !cb.checked; return alert("Only admin can change payments"); }
+        if(currentRole!=="admin"){ cb.checked = !cb.checked; return toastError("Only admin can change payments"); }
         try{
           if(!docSnap.exists){
             const monthsInit = {}; MONTHS.forEach(mm=> monthsInit[mm] = { paid:false, paidAt:null });
@@ -791,23 +906,23 @@ async function loadFeeMonthsTable(){
           const updatePaidAt = {}; updatePaidAt[`months.${m}.paidAt`] = cb.checked ? firebase.firestore.FieldValue.serverTimestamp() : null;
           await docRef.update(updatePaid);
           await docRef.update(updatePaidAt);
-          loadFeeMonthsTable();
-          loadFeeYearlySummary();
-          updateTotalCollectedSummary();
-        }catch(err){ console.error("Toggle paid error:", err); alert("Failed to update: "+(err.message||err)); cb.checked = !cb.checked; }
+          // animate the badge in this row
+          setTimeout(()=> { loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary(); }, 120);
+          toastSuccess(cb.checked ? `Marked ${m} paid` : `Marked ${m} unpaid`);
+        }catch(err){ console.error("Toggle paid error:", err); toastError("Failed to update: "+(err.message||err)); cb.checked = !cb.checked; }
       });
       actionTd.appendChild(cb);
     });
 
     const totalPaid = paidCount * feeAmount;
     document.getElementById("fee-member-summary").textContent = `Paid months: ${paidCount}/12 — Total: ₹${totalPaid}`;
-  }catch(e){ console.error("Load fee months error:", e); alert("Failed to load fees: "+(e.message||e)); }
+  }catch(e){ console.error("Load fee months error:", e); toastError("Failed to load fees: "+(e.message||e)); }
 }
 
 /* Save fee config (create or update feeAmount) */
 document.getElementById("saveFeeConfigBtn").addEventListener("click", async ()=>{
   const memberId = feeMemberSelect.value; const feeAmount = Number(document.getElementById("feeAmountInput").value) || 100;
-  if(!memberId) return alert("Select a member");
+  if(!memberId) return toastError("Select a member");
   try{
     const feesCol = membershipFeesCollectionFor(selectedFeeYear);
     const docRef = feesCol.doc(memberId);
@@ -818,23 +933,23 @@ document.getElementById("saveFeeConfigBtn").addEventListener("click", async ()=>
     } else {
       await docRef.update({ feeAmount });
     }
-    alert("Fee configuration saved");
+    toastSuccess("Fee configuration saved");
     loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
-  }catch(e){ console.error("Save fee config error:", e); alert("Failed to save fee config: "+(e.message||e)); }
+  }catch(e){ console.error("Save fee config error:", e); toastError("Failed to save fee config: "+(e.message||e)); }
 });
 
 /* Clear member fee record */
 document.getElementById("clearFeeRecordBtn").addEventListener("click", async ()=>{
-  if(currentRole!=="admin") return alert("Only admin can clear fees");
-  const memberId = feeMemberSelect.value; if(!memberId) return alert("Select a member");
+  if(currentRole!=="admin") return toastError("Only admin can clear fees");
+  const memberId = feeMemberSelect.value; if(!memberId) return toastError("Select a member");
   if(!confirm("Clear all fee records for this member and year?")) return;
   try{
     const docRef = membershipFeesCollectionFor(selectedFeeYear).doc(memberId);
     const snap = await docRef.get();
     if(snap.exists) await docRef.delete();
-    alert("Cleared");
+    toastSuccess("Cleared");
     loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
-  }catch(e){ console.error(e); alert("Failed to clear: "+(e.message||e)); }
+  }catch(e){ console.error(e); toastError("Failed to clear: "+(e.message||e)); }
 });
 
 /* Yearly aggregated summary for fees (selected year) */
@@ -858,7 +973,7 @@ async function loadFeeYearlySummary(){
     });
     // update total collected summary as well
     updateTotalCollectedSummary();
-  }catch(e){ console.error("Fee yearly summary error:", e); }
+  }catch(e){ console.error("Fee yearly summary error:", e); toastError("Fees summary failed"); }
 }
 
 /* ---------------- NEW: compute total collected and paid members for selected year
@@ -903,10 +1018,17 @@ async function updateTotalCollectedSummary(){
     const unpaidMonths = (totalMembers * 12) - totalPaidMonthsAcrossAll;
     document.getElementById("summary-pending").textContent = `${unpaidMonths} unpaid months`;
 
+    // update sticky
+    document.getElementById("sticky-collected").textContent = `₹${formatted}`;
+    document.getElementById("sticky-paid").textContent = `${paidMembersCount}`;
+    // update small sticky invite / members values as well (if empty)
+    if(document.getElementById("sticky-invitees").textContent.trim() === '—') document.getElementById("sticky-invitees").textContent = document.getElementById("summary-invitees").textContent || '—';
+    if(document.getElementById("sticky-members").textContent.trim() === '—') document.getElementById("sticky-members").textContent = document.getElementById("summary-members").textContent || '—';
   }catch(e){
     console.error("Update total collected error:", e);
     document.getElementById("summary-collection").textContent = "₹0 (0 Paid Members)";
     document.getElementById("summary-pending").textContent = "—";
+    toastError("Failed to update total collected");
   }
 }
 
@@ -962,9 +1084,10 @@ document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
       document.body.removeChild(link);
       setTimeout(()=> URL.revokeObjectURL(url), 1000);
     }
+    toastSuccess("CSV exported");
   }catch(e){
     console.error("Export CSV error:", e);
-    alert("Failed to export CSV: " + (e.message || e));
+    toastError("Failed to export CSV: " + (e.message || e));
   }
 });
 
@@ -995,7 +1118,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   removeBtn && removeBtn.addEventListener("click", async ()=>{
-    if(currentRole !== "admin") return alert("Only admin can run duplicate remover");
+    if(currentRole !== "admin") return toastError("Only admin can run duplicate remover");
     try{
       progress.style.display = "block";
       progressBar.style.width = "0%";
@@ -1016,17 +1139,16 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       progress.style.display = "none";
       if(duplicates.length === 0){
-        alert("No duplicates found.");
+        toastInfo("No duplicates found.");
         return;
       }
-      // Show simple confirmation listing (string)
       const list = duplicates.map(d => `${d.name} — ${d.mobile} (${d.village||''})`).join("\n");
       if(confirm("Found duplicates:\n\n" + list + "\n\nDelete these duplicates?")){
         // delete duplicates
         const batch = db.batch();
         duplicates.forEach(d => batch.delete(membersCol.doc(d.id)));
         await batch.commit();
-        alert(`Deleted ${duplicates.length} duplicates.`);
+        toastSuccess(`Deleted ${duplicates.length} duplicates.`);
         loadMembers();
         loadFeeMembersDropdown();
         updateTotalCollectedSummary();
@@ -1034,7 +1156,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }catch(e){
       progress.style.display = "none";
       console.error(e);
-      alert("Duplicate check failed: " + (e.message||e));
+      toastError("Duplicate check failed: " + (e.message||e));
     }
   });
 });
