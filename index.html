@@ -1,17 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
+"<!DOCTYPE html>
+<html lang=\"en\">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Club Bornoporichoy — Durga Puja Dashboard</title>
+<meta charset=\"utf-8\" />
+<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />
+<title>Club Bornoporichoy — Enhanced Durga Puja Dashboard</title>
 
 <!-- Google Font -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href=\"https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap\" rel=\"stylesheet\">
 
 <!-- Firebase compat SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src=\"https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js\"></script>
+<script src=\"https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js\"></script>
+<script src=\"https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js\"></script>
+
+<!-- Chart.js for analytics -->
+<script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js\"></script>
 
 <style>
   :root{
@@ -19,24 +22,63 @@
     --deep-red: #a31313;
     --accent-gold: #D4AF37;
     --bg-start: #ffffff;
-    --bg-end: #f7f0e8; /* soft beige */
+    --bg-end: #f7f0e8;
     --card: #ffffff;
     --muted: #6b6b6b;
     --text: #2f2f2f;
     --radius: 12px;
     --shadow: 0 10px 30px rgba(17,17,17,0.06);
     --glass-overlay: rgba(255,255,255,0.15);
+    --success: #28a745;
+    --warning: #ff8c00;
+    --danger: #dc3545;
   }
-  *{box-sizing:border-box}
+  *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body {
     margin: 0;
     background: linear-gradient(180deg, var(--bg-start), var(--bg-end));
     color: var(--text);
-    font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    font-family: 'Poppins', system-ui, -apple-system, \"Segoe UI\", Roboto, Arial;
     -webkit-font-smoothing:antialiased;
     -moz-osx-font-smoothing:grayscale;
-    line-height:1.45;
+    line-height:1.6;
+  }
+
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideIn {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .fade-in { animation: fadeIn 0.5s ease-out; }
+  .slide-in { animation: slideIn 0.5s ease-out; }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .spinner-lg {
+    width: 40px;
+    height: 40px;
+    border-width: 4px;
   }
 
   /* Header / nav (fixed) */
@@ -48,17 +90,18 @@
     box-shadow: 0 6px 20px rgba(0,0,0,0.05);
     backdrop-filter: blur(6px);
   }
-  .header-inner { max-width:1200px; margin:0 auto; display:flex; gap:12px; align-items:center; }
+  .header-inner { max-width:1200px; margin:0 auto; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
   .brand { display:flex; align-items:center; gap:12px; }
   .logo {
     width:44px; height:44px; border-radius:10px;
     background: linear-gradient(135deg, var(--primary-red), #e34b4b);
-    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(183,28,28,0.12);
+    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; 
+    box-shadow:0 4px 14px rgba(183,28,28,0.12);
   }
   .brand h1 { margin:0; font-size:16px; color:var(--deep-red); font-weight:700; letter-spacing:0.2px; }
   .brand .sub { font-size:12px; color:var(--muted); margin-top:2px; }
 
-  nav.topbar { margin-left:20px; display:flex; gap:10px; align-items:center; flex:1; }
+  nav.topbar { margin-left:20px; display:flex; gap:10px; align-items:center; flex:1; flex-wrap:wrap; }
   nav.topbar a {
     padding:8px 12px; border-radius:10px; text-decoration:none; color:var(--deep-red);
     font-weight:600; font-size:14px; transition: all 160ms ease;
@@ -68,7 +111,7 @@
 
   .auth-area { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
-  /* sticky summary bar (fixed below header) */
+  /* sticky summary bar */
   #sticky-summary {
     position: fixed;
     top: 68px;
@@ -84,62 +127,213 @@
     gap:12px;
     align-items:center;
     border: 1px solid rgba(0,0,0,0.03);
+    flex-wrap:wrap;
   }
-  #sticky-summary .stat { font-size:14px; color:var(--muted); }
+  #sticky-summary .stat { font-size:14px; color:var(--muted); white-space:nowrap; }
   #sticky-summary .stat strong { color:var(--deep-red); margin-left:6px; }
 
   /* Container + cards */
-  .spacer { height:124px } /* to offset fixed header + sticky summary */
+  .spacer { height:140px }
   .container { max-width:1200px; margin:22px auto; padding:0 18px 80px; }
-  .card { background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); margin-bottom:18px; border:1px solid rgba(0,0,0,0.03); transition: transform 160ms ease, box-shadow 160ms ease; }
+  .card { 
+    background:var(--card); 
+    border-radius:var(--radius); 
+    padding:18px; 
+    box-shadow:var(--shadow); 
+    margin-bottom:18px; 
+    border:1px solid rgba(0,0,0,0.03); 
+    transition: transform 160ms ease, box-shadow 160ms ease;
+  }
   .card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(17,17,17,0.08); }
-  .card h2 { margin:0 0 8px 0; color:var(--primary-red); font-size:18px; display:flex; align-items:center; gap:8px; }
+  .card h2 { 
+    margin:0 0 8px 0; 
+    color:var(--primary-red); 
+    font-size:18px; 
+    display:flex; 
+    align-items:center; 
+    gap:8px; 
+  }
   .subtitle { color:var(--muted); font-size:13px; margin-bottom:10px; }
 
-  .flex { display:flex; gap:12px; align-items:center; }
+  /* Stats grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: linear-gradient(135deg, #fff, #fafafa);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.03);
+    transition: all 0.3s ease;
+  }
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  }
+  .stat-card .stat-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .stat-card .stat-label {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .stat-card .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--deep-red);
+    margin-bottom: 4px;
+  }
+  .stat-card .stat-detail {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Charts */
+  .chart-container {
+    position: relative;
+    height: 300px;
+    margin: 20px 0;
+  }
+  .chart-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+  }
+
+  .flex { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
   .flex.space { justify-content:space-between; }
 
-  input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
-    padding:10px 12px; border-radius:10px; border:1px solid rgba(0,0,0,0.06); background:#fff;
-    font-size:14px; color:var(--text); outline:none;
+  input[type=\"text\"], input[type=\"email\"], input[type=\"password\"], input[type=\"number\"], select, textarea {
+    padding:10px 12px; 
+    border-radius:10px; 
+    border:1px solid rgba(0,0,0,0.06); 
+    background:#fff;
+    font-size:14px; 
+    color:var(--text); 
+    outline:none;
+    transition: all 0.2s ease;
   }
-  input:focus, select:focus, textarea:focus { box-shadow: 0 8px 24px rgba(183,28,28,0.06); border-color: rgba(183,28,28,0.18); }
+  input:focus, select:focus, textarea:focus { 
+    box-shadow: 0 8px 24px rgba(183,28,28,0.06); 
+    border-color: rgba(183,28,28,0.18); 
+  }
 
   /* Buttons */
-  .btn { background:var(--primary-red); color:#fff; border:none; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600; box-shadow: 0 8px 20px rgba(183,28,28,0.08); transition: transform 120ms ease, box-shadow 120ms ease; }
+  .btn { 
+    background:var(--primary-red); 
+    color:#fff; 
+    border:none; 
+    padding:10px 16px; 
+    border-radius:10px; 
+    cursor:pointer; 
+    font-weight:600; 
+    box-shadow: 0 8px 20px rgba(183,28,28,0.08); 
+    transition: all 120ms ease;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
   .btn:hover{ transform: translateY(-2px); box-shadow: 0 14px 28px rgba(183,28,28,0.12); }
+  .btn:active{ transform: translateY(0); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
   .btn.small { padding:7px 10px; font-size:13px; border-radius:8px; }
   .btn.secondary { background:var(--accent-gold); color:#222; box-shadow:none; }
+  .btn.success { background:var(--success); }
+  .btn.danger { background:var(--danger); }
   .btn.ghost { background:transparent; color:var(--deep-red); border:1px solid rgba(0,0,0,0.06); box-shadow:none; }
+  .btn.icon-only { padding: 8px; }
 
   .muted { color:var(--muted); font-size:13px; }
   .note { font-size:13px; color:var(--muted); margin-top:8px; }
 
   /* Tables */
-  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:12px; }
-  thead th {
-    text-align:left; padding:12px 14px; background:linear-gradient(0deg,var(--accent-gold), #f6e9a8); color:var(--text); border-bottom:2px solid rgba(0,0,0,0.04);
+  .table-wrapper {
+    overflow-x: auto;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
   }
-  tbody td { padding:12px 14px; border-bottom:1px solid rgba(0,0,0,0.04); vertical-align:middle; }
-  tbody tr:hover { background: rgba(183,28,28,0.02); }
-  .editable { background: linear-gradient(180deg,#fff8e6,#fffdf7); border-radius:6px; padding:8px; }
-  .badge { display:inline-block; padding:6px 8px; border-radius:8px; font-weight:700; font-size:13px; transition: transform 250ms ease, opacity 220ms ease; }
+  table { 
+    width:100%; 
+    border-collapse:collapse; 
+    font-size:14px; 
+    margin-top:12px;
+    background: #fff;
+  }
+  thead th {
+    text-align:left; 
+    padding:12px 14px; 
+    background:linear-gradient(0deg,var(--accent-gold), #f6e9a8); 
+    color:var(--text); 
+    border-bottom:2px solid rgba(0,0,0,0.04);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  thead th:hover { background:linear-gradient(0deg,#d4af37, #e8d885); }
+  thead th .sort-icon {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10px;
+    opacity: 0.5;
+  }
+  tbody td { 
+    padding:12px 14px; 
+    border-bottom:1px solid rgba(0,0,0,0.04); 
+    vertical-align:middle; 
+  }
+  tbody tr { transition: all 0.2s ease; }
+  tbody tr:hover { background: rgba(183,28,28,0.02); transform: scale(1.01); }
+  .editable { 
+    background: linear-gradient(180deg,#fff8e6,#fffdf7); 
+    border-radius:6px; 
+    padding:8px;
+    transition: all 0.2s ease;
+  }
+  .editable:focus {
+    background: #fffacd;
+    outline: 2px solid var(--accent-gold);
+  }
+
+  .badge { 
+    display:inline-block; 
+    padding:6px 10px; 
+    border-radius:8px; 
+    font-weight:700; 
+    font-size:12px; 
+    transition: transform 250ms ease, opacity 220ms ease;
+    white-space: nowrap;
+  }
   .badge.ok { background:#28a745; color:#fff; }
   .badge.warn { background:#ff8c00; color:#fff; }
   .badge.sent { background: linear-gradient(90deg,#4caf50,#2e7d32); color:#fff; }
   .badge.pending { background: linear-gradient(90deg,#ff9800,#f57c00); color:#fff; }
-  .badge.pulse { animation: badgePulse 1s ease; }
+  .badge.pulse { animation: pulse 0.6s ease; }
 
-  @keyframes badgePulse {
-    0% { transform: scale(1); opacity: 0.9; }
-    40% { transform: scale(1.12); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
+  /* Action buttons in tables */
+  .action-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
   .center { text-align:center; }
   .right { margin-left:auto; }
+  .hidden { display: none !important; }
 
-  /* toasts (bottom-right) */
+  /* toasts */
   #toast-container {
     position: fixed;
     right: 18px;
@@ -154,7 +348,7 @@
     min-width: 220px;
     max-width: 360px;
     border-radius: 10px;
-    padding: 10px 12px;
+    padding: 12px 14px;
     color: #fff;
     box-shadow: 0 8px 24px rgba(0,0,0,0.12);
     display:flex;
@@ -170,242 +364,588 @@
   .toast.error { background: linear-gradient(90deg,#e74c3c,#c0392b); }
   .toast.info { background: linear-gradient(90deg,#f39c12,#d35400); }
 
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .modal-overlay.show { opacity: 1; }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+  }
+  .modal-overlay.show .modal { transform: scale(1); }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 12px;
+  }
+  .modal-header h3 {
+    margin: 0;
+    color: var(--deep-red);
+    font-size: 20px;
+  }
+  .close-modal {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+  .close-modal:hover {
+    background: rgba(0,0,0,0.05);
+    color: var(--text);
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 12px 0;
+    flex-wrap: wrap;
+  }
+  .toolbar input[type=\"text\"] {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  /* Filters */
+  .filter-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+  }
+  .filter-tag {
+    padding: 6px 12px;
+    background: rgba(183,28,28,0.08);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--deep-red);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(183,28,28,0.2);
+  }
+  .filter-tag:hover {
+    background: rgba(183,28,28,0.15);
+  }
+  .filter-tag.active {
+    background: var(--primary-red);
+    color: #fff;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-red), var(--accent-gold));
+    transition: width 0.3s ease;
+  }
+
+  /* Checkbox */
+  .checkbox-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  input[type=\"checkbox\"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+
+  /* Bulk actions bar */
+  .bulk-actions {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--deep-red);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    z-index: 100;
+    transition: transform 0.3s ease;
+  }
+  .bulk-actions.show {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Quick actions */
+  .quick-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* Contact buttons */
+  .contact-btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+  }
+  .whatsapp-btn {
+    background: #25D366;
+    color: #fff;
+  }
+  .whatsapp-btn:hover {
+    background: #20BA5A;
+    transform: translateY(-2px);
+  }
+  .email-btn {
+    background: #EA4335;
+    color: #fff;
+  }
+  .email-btn:hover {
+    background: #D33426;
+    transform: translateY(-2px);
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+  }
+  .empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
   /* responsive */
   @media (max-width:980px){
     .header-inner{flex-direction:column; gap:10px; align-items:flex-start}
     nav.topbar{flex-wrap:wrap}
-    .flex{flex-direction:column; align-items:stretch}
-    .spacer{height:160px}
-    #sticky-summary { left: 12px; transform: none; width: calc(100% - 24px); }
+    .spacer{height:180px}
+    #sticky-summary { 
+      left: 12px; 
+      transform: none; 
+      width: calc(100% - 24px); 
+      top: auto;
+      bottom: 0;
+    }
+    .chart-row {
+      grid-template-columns: 1fr;
+    }
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Print styles */
+  @media print {
+    header, #sticky-summary, .btn, .toolbar, .quick-actions, #toast-container {
+      display: none !important;
+    }
+    .card {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    body {
+      background: #fff;
+    }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="header-inner">
-    <div class="brand">
-      <div class="logo">CB</div>
+  <div class=\"header-inner\">
+    <div class=\"brand\">
+      <div class=\"logo\">CB</div>
       <div>
         <h1>Club Bornoporichoy</h1>
-        <div class="sub">Durga Puja Dashboard</div>
+        <div class=\"sub\">Enhanced Durga Puja Dashboard</div>
       </div>
     </div>
 
-    <nav class="topbar" role="navigation" aria-label="Main navigation">
-      <a href="#invitations" id="nav-invitations" class="active">Manage Invitations</a>
-      <a href="#members" id="nav-members">Members</a>
-      <a href="#collectors" id="nav-collectors">Donation Collectors</a>
-      <a href="#fees" id="nav-fees">Membership Fees</a>
+    <nav class=\"topbar\" role=\"navigation\" aria-label=\"Main navigation\">
+      <a href=\"#dashboard\" id=\"nav-dashboard\" class=\"active\">📊 Dashboard</a>
+      <a href=\"#invitations\" id=\"nav-invitations\">🪔 Invitations</a>
+      <a href=\"#members\" id=\"nav-members\">🌸 Members</a>
+      <a href=\"#collectors\" id=\"nav-collectors\">📬 Collectors</a>
+      <a href=\"#fees\" id=\"nav-fees\">💰 Fees</a>
     </nav>
 
-    <div class="auth-area">
-      <div id="user-info" class="muted" style="font-size:13px"></div>
-      <button id="logout-btn" class="btn small hidden">Logout</button>
+    <div class=\"auth-area\">
+      <div id=\"user-info\" class=\"muted\" style=\"font-size:13px\"></div>
+      <button id=\"logout-btn\" class=\"btn small hidden\">Logout</button>
     </div>
   </div>
 </header>
 
 <!-- Sticky summary bar -->
-<div id="sticky-summary" aria-hidden="false">
-  <div class="stat">Invitees: <strong id="sticky-invitees">—</strong></div>
-  <div class="stat">Members: <strong id="sticky-members">—</strong></div>
-  <div class="stat">Total Collected: <strong id="sticky-collected">₹0</strong></div>
-  <div class="stat">Paid Members: <strong id="sticky-paid">0</strong></div>
+<div id=\"sticky-summary\" aria-hidden=\"false\">
+  <div class=\"stat\">Invitees: <strong id=\"sticky-invitees\">—</strong></div>
+  <div class=\"stat\">Members: <strong id=\"sticky-members\">—</strong></div>
+  <div class=\"stat\">Collected: <strong id=\"sticky-collected\">₹0</strong></div>
+  <div class=\"stat\">Paid: <strong id=\"sticky-paid\">0</strong></div>
 </div>
 
-<div class="spacer"></div>
+<div class=\"spacer\"></div>
 
-<div class="container">
+<div class=\"container\">
 
   <!-- Auth / Login Card -->
-  <div class="card" id="auth-card">
-    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-      <div style="min-width:240px;flex:1">
-        <label class="muted">Email</label>
-        <input id="email" type="email" placeholder="admin@example.com" />
+  <div class=\"card fade-in\" id=\"auth-card\">
+    <h2>🔐 Login</h2>
+    <div style=\"display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:12px\">
+      <div style=\"min-width:240px;flex:1\">
+        <label class=\"muted\">Email</label>
+        <input id=\"email\" type=\"email\" placeholder=\"admin@example.com\" />
       </div>
-      <div style="min-width:220px;flex:1">
-        <label class="muted">Password</label>
-        <input id="password" type="password" placeholder="password" />
-      </div>
-
-      <div style="min-width:160px">
-        <label class="muted">Fees Year</label>
-        <select id="feeYearSelectSmall" style="width:100%;"></select>
+      <div style=\"min-width:220px;flex:1\">
+        <label class=\"muted\">Password</label>
+        <input id=\"password\" type=\"password\" placeholder=\"password\" />
       </div>
 
-      <div style="display:flex;gap:8px;align-items:center">
-        <button id="login-btn" class="btn">Login</button>
+      <div style=\"min-width:160px\">
+        <label class=\"muted\">Fees Year</label>
+        <select id=\"feeYearSelectSmall\" style=\"width:100%;\"></select>
+      </div>
+
+      <div style=\"display:flex;gap:8px;align-items:center\">
+        <button id=\"login-btn\" class=\"btn\">
+          <span id=\"login-text\">Login</span>
+          <span id=\"login-spinner\" class=\"spinner hidden\"></span>
+        </button>
       </div>
     </div>
-    <div class="muted note" style="margin-top:10px">Use email/password login. Admin UID for edits: <code>fRpLuiBgU0ZE1AtVmkGaA1RhBJk2</code></div>
+    <div class=\"muted note\" style=\"margin-top:10px\">Use email/password login. Admin UID: <code>fRpLuiBgU0ZE1AtVmkGaA1RhBJk2</code></div>
   </div>
 
-  <!-- Main content (hidden until login) -->
-  <div id="main-content" class="hidden">
+  <!-- Main content -->
+  <div id=\"main-content\" class=\"hidden\">
 
-    <!-- Top summary (main) -->
-    <div class="card" style="margin-top:0">
-      <div class="stats" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-        <div style="flex:1 1 200px">
-          <div style="font-weight:700;color:var(--primary-red)">Invitees</div>
-          <div id="summary-invitees" class="muted">—</div>
+    <!-- Dashboard Analytics Section -->
+    <div class=\"card fade-in\" id=\"dashboard\">
+      <h2>📊 Dashboard Overview</h2>
+      <div class=\"subtitle\">Visual analytics and insights</div>
+
+      <!-- Stats Grid -->
+      <div class=\"stats-grid\">
+        <div class=\"stat-card\">
+          <span class=\"stat-icon\">🪔</span>
+          <div class=\"stat-label\">Total Invitees</div>
+          <div class=\"stat-value\" id=\"dash-invitees\">0</div>
+          <div class=\"stat-detail\" id=\"dash-invitees-detail\">Loading...</div>
         </div>
-
-        <div style="flex:1 1 200px">
-          <div style="font-weight:700;color:var(--primary-red)">Members</div>
-          <div id="summary-members" class="muted">—</div>
+        
+        <div class=\"stat-card\">
+          <span class=\"stat-icon\">🌸</span>
+          <div class=\"stat-label\">Total Members</div>
+          <div class=\"stat-value\" id=\"dash-members\">0</div>
+          <div class=\"stat-detail\" id=\"dash-members-detail\">Active members</div>
         </div>
-
-        <div style="flex:1 1 300px">
-          <div style="font-weight:700;color:var(--primary-red)">Total Collected</div>
-          <div id="summary-collection" class="muted">₹0 (0 Paid Members)</div>
+        
+        <div class=\"stat-card\">
+          <span class=\"stat-icon\">💰</span>
+          <div class=\"stat-label\">Total Collection</div>
+          <div class=\"stat-value\" id=\"dash-collection\">₹0</div>
+          <div class=\"stat-detail\" id=\"dash-collection-detail\">From fees & donations</div>
         </div>
+        
+        <div class=\"stat-card\">
+          <span class=\"stat-icon\">📬</span>
+          <div class=\"stat-label\">Collectors</div>
+          <div class=\"stat-value\" id=\"dash-collectors\">0</div>
+          <div class=\"stat-detail\" id=\"dash-collectors-detail\">Active collectors</div>
+        </div>
+      </div>
 
-        <div style="flex:1 1 160px">
-          <div style="font-weight:700;color:var(--primary-red)">Pending Fees</div>
-          <div id="summary-pending" class="muted">—</div>
+      <!-- Charts Row -->
+      <div class=\"chart-row\">
+        <div class=\"card\">
+          <h3 style=\"margin:0 0 10px 0; font-size:16px\">📨 Invitation Status</h3>
+          <div class=\"chart-container\">
+            <canvas id=\"invitationChart\"></canvas>
+          </div>
+        </div>
+        
+        <div class=\"card\">
+          <h3 style=\"margin:0 0 10px 0; font-size:16px\">💵 Monthly Collections</h3>
+          <div class=\"chart-container\">
+            <canvas id=\"collectionChart\"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class=\"card\">
+        <h3 style=\"margin:0 0 10px 0; font-size:16px\">📊 Payment Completion Rate</h3>
+        <div class=\"chart-container\" style=\"height:200px\">
+          <canvas id=\"paymentChart\"></canvas>
         </div>
       </div>
     </div>
 
     <!-- Invitations -->
-    <div class="card" id="invitations">
-      <h2>🪔 Invitation List</h2>
-      <div class="subtitle">Add, search and track invitation card distribution</div>
+    <div class=\"card fade-in\" id=\"invitations\">
+      <h2>🪔 Invitation Management</h2>
+      <div class=\"subtitle\">Track and manage invitation cards distribution</div>
 
-      <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
-        <input id="search-invite" type="text" placeholder="Search invitations (name / village / mobile)..." style="flex:1" />
-        <div class="muted">Admin can add/edit/delete</div>
+      <div class=\"toolbar\">
+        <input id=\"search-invite\" type=\"text\" placeholder=\"🔍 Search invitations (name / village / mobile)...\" />
+        <select id=\"filter-invite-status\" style=\"min-width:150px\">
+          <option value=\"\">All Status</option>
+          <option value=\"sent\">Sent</option>
+          <option value=\"pending\">Pending</option>
+        </select>
+        <button id=\"bulk-mark-sent-btn\" class=\"btn small secondary\" style=\"display:none\">
+          ✓ Mark Selected as Sent
+        </button>
+        <button id=\"print-invitations-btn\" class=\"btn small ghost\">
+          🖨️ Print
+        </button>
       </div>
 
-      <table id="invitation-table" style="margin-top:12px">
-        <thead>
-          <tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Sent</th><th>Date Added</th><th>Actions</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class=\"table-wrapper\">
+        <table id=\"invitation-table\">
+          <thead>
+            <tr>
+              <th style=\"width:40px\">
+                <input type=\"checkbox\" id=\"select-all-invites\" />
+              </th>
+              <th data-sort=\"name\">Name <span class=\"sort-icon\">⇅</span></th>
+              <th data-sort=\"village\">Village <span class=\"sort-icon\">⇅</span></th>
+              <th data-sort=\"mobile\">Mobile <span class=\"sort-icon\">⇅</span></th>
+              <th>Remarks</th>
+              <th data-sort=\"sent\">Status <span class=\"sort-icon\">⇅</span></th>
+              <th>Date Added</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
 
-      <div style="margin-top:12px">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <input id="inv-name" type="text" placeholder="Name" style="min-width:180px" />
-          <input id="inv-village" type="text" placeholder="Village" style="min-width:160px" />
-          <input id="inv-mobile" type="text" placeholder="Mobile No" style="min-width:140px" />
-          <input id="inv-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
-          <button id="add-inv-btn" class="btn small">Add Invitation</button>
+      <div style=\"margin-top:16px\">
+        <h3 style=\"font-size:15px; margin-bottom:10px; color:var(--deep-red)\">➕ Add New Invitation</h3>
+        <div class=\"flex\">
+          <input id=\"inv-name\" type=\"text\" placeholder=\"Name *\" style=\"min-width:180px\" />
+          <input id=\"inv-village\" type=\"text\" placeholder=\"Village *\" style=\"min-width:160px\" />
+          <input id=\"inv-mobile\" type=\"text\" placeholder=\"Mobile No\" style=\"min-width:140px\" />
+          <input id=\"inv-remarks\" type=\"text\" placeholder=\"Remarks\" style=\"min-width:200px\" />
+          <button id=\"add-inv-btn\" class=\"btn small\">
+            <span>➕ Add</span>
+          </button>
         </div>
       </div>
     </div>
 
     <!-- Members -->
-    <div class="card" id="members">
-      <h2>🌸 Members List</h2>
-      <div class="subtitle">Manage members — linked to membership fee tracker</div>
+    <div class=\"card fade-in\" id=\"members\">
+      <h2>🌸 Members Management</h2>
+      <div class=\"subtitle\">Manage club members and track membership</div>
 
-      <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
-        <input id="search-members" type="text" placeholder="Search members (name/mobile)..." style="flex:1" />
-        <div class="muted">Admin can add/edit/delete</div>
+      <div class=\"toolbar\">
+        <input id=\"search-members\" type=\"text\" placeholder=\"🔍 Search members (name/mobile)...\" />
+        <button id=\"export-members-csv\" class=\"btn small secondary\">
+          📤 Export CSV
+        </button>
+        <button id=\"print-members-btn\" class=\"btn small ghost\">
+          🖨️ Print
+        </button>
       </div>
 
-      <table id="members-table" style="margin-top:12px">
-        <thead><tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Actions</th></tr></thead>
-        <tbody></tbody>
-      </table>
-
-      <div style="margin-top:12px">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <input id="mem-name" type="text" placeholder="Name" style="min-width:180px" />
-          <input id="mem-village" type="text" placeholder="Village" style="min-width:160px" />
-          <input id="mem-mobile" type="text" placeholder="Mobile No" style="min-width:140px" />
-          <input id="mem-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
-          <button id="add-mem-btn" class="btn small">Add Member</button>
-        </div>
-      </div>
-
-      <!-- Duplicate remover area (admin only) -->
-      <div id="removeDuplicatesDiv" style="display:none; margin-top:18px;">
-        <button id="removeDuplicatesBtn" class="btn small" style="background:linear-gradient(135deg,#d32f2f,#b71c1c);">🧹 Remove Duplicate Members</button>
-        <div id="removeProgress" style="display:none;margin-top:10px;height:6px;background:#fce8b2;border-radius:4px;overflow:hidden;">
-          <div id="removeProgressBar" style="width:0%;height:6px;background:linear-gradient(90deg,#fdd835,#f57f17);"></div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Membership Fees -->
-    <div class="card" id="fees">
-      <h2>💰 Membership Fees Tracker (per Year)</h2>
-      <div class="subtitle">Track monthly payments (₹ per month configurable)</div>
-
-      <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
-        <div style="min-width:160px">
-          <label class="muted">Year</label>
-          <select id="feeYearSelectSmall2" style="width:100%"></select>
-        </div>
-
-        <div style="min-width:260px">
-          <label class="muted">Member</label>
-          <select id="feeMemberSelect" style="width:100%"><option value="">-- Select member --</option></select>
-        </div>
-
-        <div style="min-width:140px">
-          <label class="muted">Monthly Fee (₹)</label>
-          <input id="feeAmountInput" type="number" min="1" value="100" />
-        </div>
-
-        <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
-          <button id="loadMemberFeeBtn" class="btn small">Load</button>
-          <button id="exportCsvBtn" class="btn small secondary">Export CSV</button>
-        </div>
-      </div>
-
-      <table id="fee-months-table" style="margin-top:12px">
-        <thead><tr><th>Month</th><th>Status</th><th>Paid On</th><th>Toggle (Admin)</th></tr></thead>
-        <tbody></tbody>
-      </table>
-
-      <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
-        <div id="fee-member-summary" class="muted">Select member to load fees</div>
-        <div style="margin-left:auto;display:flex;gap:8px">
-          <button id="saveFeeConfigBtn" class="btn small">Save Config</button>
-          <button id="clearFeeRecordBtn" class="btn small ghost">Clear</button>
-        </div>
-      </div>
-
-      <div style="margin-top:12px">
-        <h3 style="margin:0 0 8px 0;color:var(--primary-red);font-size:15px">Yearly Summary</h3>
-        <table id="fees-yearly-summary">
-          <thead><tr><th>Month</th><th>Paid Members</th><th>Total Collected (₹)</th></tr></thead>
+      <div class=\"table-wrapper\">
+        <table id=\"members-table\">
+          <thead>
+            <tr>
+              <th data-sort=\"name\">Name <span class=\"sort-icon\">⇅</span></th>
+              <th data-sort=\"village\">Village <span class=\"sort-icon\">⇅</span></th>
+              <th data-sort=\"mobile\">Mobile <span class=\"sort-icon\">⇅</span></th>
+              <th>Remarks</th>
+              <th>Quick Contact</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
           <tbody></tbody>
         </table>
+      </div>
+
+      <div style=\"margin-top:16px\">
+        <h3 style=\"font-size:15px; margin-bottom:10px; color:var(--deep-red)\">➕ Add New Member</h3>
+        <div class=\"flex\">
+          <input id=\"mem-name\" type=\"text\" placeholder=\"Name *\" style=\"min-width:180px\" />
+          <input id=\"mem-village\" type=\"text\" placeholder=\"Village\" style=\"min-width:160px\" />
+          <input id=\"mem-mobile\" type=\"text\" placeholder=\"Mobile No *\" style=\"min-width:140px\" />
+          <input id=\"mem-remarks\" type=\"text\" placeholder=\"Remarks\" style=\"min-width:200px\" />
+          <button id=\"add-mem-btn\" class=\"btn small\">
+            <span>➕ Add</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Duplicate remover -->
+      <div id=\"removeDuplicatesDiv\" style=\"display:none; margin-top:18px; border-top:1px solid #f0f0f0; padding-top:18px\">
+        <h3 style=\"font-size:15px; margin-bottom:10px; color:var(--deep-red)\">🧹 Data Cleanup</h3>
+        <button id=\"removeDuplicatesBtn\" class=\"btn small danger\">
+          🧹 Remove Duplicate Members
+        </button>
+        <div id=\"removeProgress\" class=\"progress-bar\" style=\"display:none;margin-top:10px;\">
+          <div id=\"removeProgressBar\" class=\"progress-fill\" style=\"width:0%\"></div>
+        </div>
       </div>
     </div>
 
     <!-- Collectors -->
-    <div class="card" id="collectors">
+    <div class=\"card fade-in\" id=\"collectors\">
       <h2>📬 Donation Collectors</h2>
-      <div class="subtitle">Assign areas and track bills (amounts count towards Total Collected)</div>
+      <div class=\"subtitle\">Track donation collection by area and collector</div>
 
-      <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
-        <input id="search-collectors" type="text" placeholder="Search collectors..." style="flex:1" />
-        <div class="muted">Admin can add/edit/delete</div>
+      <div class=\"toolbar\">
+        <input id=\"search-collectors\" type=\"text\" placeholder=\"🔍 Search collectors...\" />
+        <button id=\"print-collectors-btn\" class=\"btn small ghost\">
+          🖨️ Print
+        </button>
       </div>
 
-      <table id="collector-table" style="margin-top:12px">
-        <thead><tr><th>Name</th><th>Assigned Area</th><th>Bill No</th><th>Mobile No</th><th>Collected (₹)</th><th>Remarks</th><th>Actions</th></tr></thead>
-        <tbody></tbody>
-      </table>
+      <div class=\"table-wrapper\">
+        <table id=\"collector-table\">
+          <thead>
+            <tr>
+              <th data-sort=\"name\">Name <span class=\"sort-icon\">⇅</span></th>
+              <th data-sort=\"area\">Assigned Area <span class=\"sort-icon\">⇅</span></th>
+              <th data-sort=\"bill\">Bill No <span class=\"sort-icon\">⇅</span></th>
+              <th data-sort=\"mobile\">Mobile <span class=\"sort-icon\">⇅</span></th>
+              <th data-sort=\"amount\">Collected (₹) <span class=\"sort-icon\">⇅</span></th>
+              <th>Remarks</th>
+              <th>Contact</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
 
-      <div style="margin-top:12px">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <input id="col-name" type="text" placeholder="Name" style="min-width:160px" />
-          <input id="col-area" type="text" placeholder="Assigned Area (comma separated)" style="min-width:160px" />
-          <input id="col-bill" type="text" placeholder="Bill No" style="min-width:120px" />
-          <input id="col-mobile" type="text" placeholder="Mobile No" style="min-width:120px" />
-          <input id="col-amount" type="number" placeholder="Collected Amount (₹)" style="min-width:140px" />
-          <input id="col-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
-          <button id="add-col-btn" class="btn small">Add Collector</button>
+      <div style=\"margin-top:16px\">
+        <h3 style=\"font-size:15px; margin-bottom:10px; color:var(--deep-red)\">➕ Add New Collector</h3>
+        <div class=\"flex\">
+          <input id=\"col-name\" type=\"text\" placeholder=\"Name *\" style=\"min-width:160px\" />
+          <input id=\"col-area\" type=\"text\" placeholder=\"Assigned Area *\" style=\"min-width:160px\" />
+          <input id=\"col-bill\" type=\"text\" placeholder=\"Bill No\" style=\"min-width:120px\" />
+          <input id=\"col-mobile\" type=\"text\" placeholder=\"Mobile No\" style=\"min-width:120px\" />
+          <input id=\"col-amount\" type=\"number\" placeholder=\"Amount (₹)\" style=\"min-width:140px\" />
+          <input id=\"col-remarks\" type=\"text\" placeholder=\"Remarks\" style=\"min-width:200px\" />
+          <button id=\"add-col-btn\" class=\"btn small\">
+            <span>➕ Add</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Membership Fees -->
+    <div class=\"card fade-in\" id=\"fees\">
+      <h2>💰 Membership Fees Tracker</h2>
+      <div class=\"subtitle\">Track monthly membership fee payments per year</div>
+
+      <div class=\"toolbar\">
+        <div style=\"min-width:160px\">
+          <label class=\"muted\">Year</label>
+          <select id=\"feeYearSelectSmall2\" style=\"width:100%\"></select>
+        </div>
+
+        <div style=\"min-width:260px; flex:1\">
+          <label class=\"muted\">Member</label>
+          <select id=\"feeMemberSelect\" style=\"width:100%\">
+            <option value=\"\">-- Select member --</option>
+          </select>
+        </div>
+
+        <div style=\"min-width:140px\">
+          <label class=\"muted\">Monthly Fee (₹)</label>
+          <input id=\"feeAmountInput\" type=\"number\" min=\"1\" value=\"100\" />
+        </div>
+
+        <div style=\"display:flex;gap:8px;align-items:flex-end\">
+          <button id=\"loadMemberFeeBtn\" class=\"btn small\">Load</button>
+          <button id=\"exportCsvBtn\" class=\"btn small secondary\">📤 Export CSV</button>
+        </div>
+      </div>
+
+      <div class=\"table-wrapper\">
+        <table id=\"fee-months-table\">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Status</th>
+              <th>Paid On</th>
+              <th class=\"center\">Toggle (Admin)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div style=\"display:flex;align-items:center;gap:12px;margin-top:12px; flex-wrap:wrap\">
+        <div id=\"fee-member-summary\" class=\"muted\">Select member to load fees</div>
+        <div style=\"margin-left:auto;display:flex;gap:8px\">
+          <button id=\"saveFeeConfigBtn\" class=\"btn small\">💾 Save Config</button>
+          <button id=\"clearFeeRecordBtn\" class=\"btn small ghost\">🗑️ Clear</button>
+        </div>
+      </div>
+
+      <div style=\"margin-top:20px; border-top:1px solid #f0f0f0; padding-top:20px\">
+        <h3 style=\"margin:0 0 12px 0;color:var(--primary-red);font-size:16px\">📊 Yearly Summary</h3>
+        <div class=\"table-wrapper\">
+          <table id=\"fees-yearly-summary\">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th class=\"center\">Paid Members</th>
+                <th class=\"center\">Total Collected (₹)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -414,77 +954,82 @@
 </div> <!-- container -->
 
 <!-- Toast container -->
-<div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+<div id=\"toast-container\" aria-live=\"polite\" aria-atomic=\"true\"></div>
+
+<!-- Bulk actions bar -->
+<div id=\"bulk-actions-bar\" class=\"bulk-actions\">
+  <span id=\"bulk-count\">0 selected</span>
+  <button class=\"btn small\" id=\"bulk-delete-invite\">🗑️ Delete</button>
+  <button class=\"btn small ghost\" id=\"bulk-cancel\" style=\"color:#fff; border-color:#fff\">Cancel</button>
+</div>
 
 <script>
-/* ---------------- Firebase config (hardcoded) ---------------- */
+/* ==================== Firebase Config ==================== */
 const firebaseConfig = {
-  apiKey: "AIzaSyCuVs6jx7HiNIx25lzLgoq1B6nQqaHLHm0",
-  authDomain: "guestandcollection.firebaseapp.com",
-  projectId: "guestandcollection",
-  storageBucket: "guestandcollection.firebasestorage.app",
-  messagingSenderId: "272278233160",
-  appId: "1:272278233160:web:d6d1e6a7d58be260d9b87d",
-  measurementId: "G-B5783XTFSP"
+  apiKey: \"AIzaSyCuVs6jx7HiNIx25lzLgoq1B6nQqaHLHm0\",
+  authDomain: \"guestandcollection.firebaseapp.com\",
+  projectId: \"guestandcollection\",
+  storageBucket: \"guestandcollection.firebasestorage.app\",
+  messagingSenderId: \"272278233160\",
+  appId: \"1:272278233160:web:d6d1e6a7d58be260d9b87d\",
+  measurementId: \"G-B5783XTFSP\"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* ---------------- Roles & constants ---------------- */
+/* ==================== Global State ==================== */
 const ROLES = {
-  "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin",
-  "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer"
+  \"fRpLuiBgU0ZE1AtVmkGaA1RhBJk2\": \"admin\",
+  \"898Fi5sPKHY01GUgI4iu1xS4TBR2\": \"viewer\"
 };
-let currentRole = "viewer";
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+let currentRole = \"viewer\";
+const MONTHS = [\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\",\"Jun\",\"Jul\",\"Aug\",\"Sep\",\"Oct\",\"Nov\",\"Dec\"];
 
-/* ---------------- collections (static) ---------------- */
-const invitationCol = db.collection("invitations");
-const membersCol = db.collection("members");
-const collectorsCol = db.collection("collectors");
-/* membership_fees flat per-year: membership_fees_2025, membership_fees_2026, ... */
+const invitationCol = db.collection(\"invitations\");
+const membersCol = db.collection(\"members\");
+const collectorsCol = db.collection(\"collectors\");
 function membershipFeesCollectionFor(year){ return db.collection(`membership_fees_${year}`); }
 
-/* ---------------- Toast helper (bottom-right) ---------------- */
+let selectedInvites = new Set();
+let allInvitations = [];
+let allMembers = [];
+let allCollectors = [];
+
+/* ==================== Toast System ==================== */
 const toastContainer = document.getElementById('toast-container');
 function showToast(type='info', message='') {
   try {
+    const icons = { success: '✅', error: '❌', info: '⚠️' };
     const t = document.createElement('div');
     t.className = `toast ${type}`;
-    t.innerHTML = `<div style="font-weight:700;margin-right:4px">${type==='success'?'✅':type==='error'?'❌':'⚠️'}</div><div style="flex:1">${message}</div>`;
+    t.innerHTML = `<div style=\"font-weight:700;margin-right:4px\">${icons[type]}</div><div style=\"flex:1\">${message}</div>`;
     toastContainer.appendChild(t);
-    // small delay to allow transition
     setTimeout(()=> t.classList.add('show'), 10);
-    // remove after 3.5s
     setTimeout(()=> {
       t.classList.remove('show');
       setTimeout(()=> t.remove(), 300);
     }, 3500);
-  } catch(e) { console.error("Toast error", e); }
+  } catch(e) { console.error(\"Toast error\", e); }
 }
-
-/* small convenience for success & error */
 function toastSuccess(msg){ showToast('success', msg); }
 function toastError(msg){ showToast('error', msg); }
 function toastInfo(msg){ showToast('info', msg); }
 
-/* ---------------- fee-year dropdown two selectors (2025-2050) ---------------- */
+/* ==================== Fee Year Management ==================== */
 const feeYearSmall = document.getElementById('feeYearSelectSmall');
 const feeYearSmall2 = document.getElementById('feeYearSelectSmall2');
 const now = new Date().getFullYear();
 for(let y=2025;y<=2050;y++){
   const o=document.createElement('option'); o.value=y; o.textContent=y;
-  if(y===now){ o.selected=true; }
+  if(y===now) o.selected=true;
   feeYearSmall.appendChild(o);
 }
-let selectedFeeYear = parseInt(feeYearSmall.value || 2025);
+let selectedFeeYear = parseInt(feeYearSmall.value || now);
 
-/* connect second year select used inside fees card */
 (function populateFeeYearSelect2(){
-  const sel = document.getElementById('feeYearSelectSmall2');
+  const sel = feeYearSmall2;
   if(!sel) return;
-  sel.innerHTML = '';
   for(let y=2025;y<=2050;y++){
     const o=document.createElement('option'); o.value=y; o.textContent=y;
     if(y===now) o.selected=true;
@@ -492,391 +1037,1000 @@ let selectedFeeYear = parseInt(feeYearSmall.value || 2025);
   }
   sel.addEventListener('change', ()=> {
     selectedFeeYear = parseInt(sel.value);
-    loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
+    loadFeeMembersDropdown(); 
+    loadFeeMonthsTable(); 
+    loadFeeYearlySummary(); 
+    updateTotalCollectedSummary();
+    updateDashboard();
     toastInfo('Fees year changed to ' + selectedFeeYear);
   });
 })();
 
 feeYearSmall.addEventListener('change', ()=> {
   selectedFeeYear = parseInt(feeYearSmall.value);
-  loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
+  feeYearSmall2.value = selectedFeeYear;
+  loadFeeMembersDropdown(); 
+  loadFeeMonthsTable(); 
+  loadFeeYearlySummary(); 
+  updateTotalCollectedSummary();
+  updateDashboard();
   toastInfo('Fees year changed to ' + selectedFeeYear);
 });
 
-/* ---------------- UI elements ---------------- */
-const loginBtn = document.getElementById("login-btn");
-const logoutBtn = document.getElementById("logout-btn");
-const userInfo = document.getElementById("user-info");
-const mainContent = document.getElementById("main-content");
+/* ==================== UI Elements ==================== */
+const loginBtn = document.getElementById(\"login-btn\");
+const logoutBtn = document.getElementById(\"logout-btn\");
+const userInfo = document.getElementById(\"user-info\");
+const mainContent = document.getElementById(\"main-content\");
+const authCard = document.getElementById(\"auth-card\");
 
-/* ---------------- Auth handlers ---------------- */
-loginBtn.addEventListener("click", () => {
-  const email = document.getElementById("email").value.trim();
-  const pw = document.getElementById("password").value;
-  if(!email || !pw) { toastError("Enter email and password"); return; }
+/* ==================== Auth Handlers ==================== */
+loginBtn.addEventListener(\"click\", async () => {
+  const email = document.getElementById(\"email\").value.trim();
+  const pw = document.getElementById(\"password\").value;
+  if(!email || !pw) { toastError(\"Enter email and password\"); return; }
+  
+  document.getElementById(\"login-text\").textContent = \"Logging in...\";
+  document.getElementById(\"login-spinner\").classList.remove(\"hidden\");
   loginBtn.disabled = true;
-  auth.signInWithEmailAndPassword(email,pw)
-    .then(()=> toastSuccess("Logged in"))
-    .catch(e => { console.error(e); toastError("Login error: "+e.message); })
-    .finally(()=> loginBtn.disabled = false);
-});
-logoutBtn.addEventListener("click", () => {
-  logoutBtn.disabled = true;
-  auth.signOut().then(()=> toastSuccess("Logged out")).catch(e => { console.error(e); toastError("Logout error: "+e.message); }).finally(()=> logoutBtn.disabled = false);
-});
-
-/* auth state listener */
-auth.onAuthStateChanged(user => {
-  if(user){
-    currentRole = ROLES[user.uid] || "viewer";
-    document.getElementById("email").style.display="none";
-    document.getElementById("password").style.display="none";
-    loginBtn.style.display="none";
-    logoutBtn.classList.remove("hidden");
-    mainContent.classList.remove("hidden");
-    userInfo.textContent = `${user.email} (${currentRole})`;
-    applyRoleToUI();
-    setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); updateTotalCollectedSummary(); }, 120);
-  } else {
-    document.getElementById("email").style.display="";
-    document.getElementById("password").style.display="";
-    loginBtn.style.display="";
-    logoutBtn.classList.add("hidden");
-    mainContent.classList.add("hidden");
-    userInfo.textContent = "";
-    clearAllTables();
+  
+  try {
+    await auth.signInWithEmailAndPassword(email, pw);
+    toastSuccess(\"Logged in successfully!\");
+  } catch(e) {
+    console.error(e);
+    toastError(\"Login error: \" + e.message);
+  } finally {
+    document.getElementById(\"login-text\").textContent = \"Login\";
+    document.getElementById(\"login-spinner\").classList.add(\"hidden\");
+    loginBtn.disabled = false;
   }
 });
 
-/* ui role enforcement */
-function applyRoleToUI(){
-  ["add-inv-btn","add-mem-btn","add-col-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","removeDuplicatesBtn"].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.disabled = (currentRole !== "admin");
-  });
-  // show duplicate remover only to admin
-  document.getElementById("removeDuplicatesDiv").style.display = (currentRole === "admin") ? "block" : "none";
-}
-
-/* helpers */
-function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-function filterTable(tableId, term){
-  const rows=document.getElementById(tableId).querySelectorAll("tbody tr");
-  const q=(term||"").toLowerCase();
-  rows.forEach(r=> r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none");
-}
-function clearAllTables(){
-  ["invitation-table","members-table","collector-table","monthly-summary-table","fee-months-table","fees-yearly-summary"].forEach(id=>{
-    const tb=document.getElementById(id)?.querySelector("tbody");
-    if(tb) tb.innerHTML="";
-  });
-  document.getElementById("summary-invitees").textContent="—";
-  document.getElementById("summary-members").textContent="—";
-  document.getElementById("summary-collection").textContent="₹0 (0 Paid Members)";
-  document.getElementById("summary-pending").textContent="—";
-
-  // sticky
-  document.getElementById("sticky-invitees").textContent = "—";
-  document.getElementById("sticky-members").textContent = "—";
-  document.getElementById("sticky-collected").textContent = "₹0";
-  document.getElementById("sticky-paid").textContent = "0";
-}
-
-/* ---------------- Load all static data ---------------- */
-function loadAllData(){
-  loadInvitations();
-  loadMembers();
-  loadCollectors();
-  updateMonthlySummary();
-}
-
-/* ---------------- INVITATIONS ---------------- */
-document.getElementById("add-inv-btn").addEventListener("click", async () => {
-  if(currentRole !== "admin") return toastError("Only admin can add");
-  const name = document.getElementById("inv-name").value.trim();
-  const village = document.getElementById("inv-village").value.trim();
-  const mobile = document.getElementById("inv-mobile").value.trim();
-  const remarks = document.getElementById("inv-remarks").value.trim();
-  if(!name || !village) return toastError("Name & Village required");
+logoutBtn.addEventListener(\"click\", async () => {
+  logoutBtn.disabled = true;
   try {
-    let dupQuery = invitationCol.where("name","==",name);
-    if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
+    await auth.signOut();
+    toastSuccess(\"Logged out\");
+  } catch(e) {
+    console.error(e);
+    toastError(\"Logout error: \" + e.message);
+  } finally {
+    logoutBtn.disabled = false;
+  }
+});
+
+auth.onAuthStateChanged(user => {
+  if(user){
+    currentRole = ROLES[user.uid] || \"viewer\";
+    authCard.style.display = \"none\";
+    logoutBtn.classList.remove(\"hidden\");
+    mainContent.classList.remove(\"hidden\");
+    userInfo.textContent = `${user.email} (${currentRole})`;
+    applyRoleToUI();
+    setTimeout(()=> { 
+      loadAllData(); 
+      loadFeeMembersDropdown(); 
+      loadFeeYearlySummary(); 
+      updateTotalCollectedSummary();
+      updateDashboard();
+    }, 120);
+  } else {
+    authCard.style.display = \"\";
+    logoutBtn.classList.add(\"hidden\");
+    mainContent.classList.add(\"hidden\");
+    userInfo.textContent = \"\";
+    clearAllData();
+  }
+});
+
+function applyRoleToUI(){
+  const adminBtns = [\"add-inv-btn\",\"add-mem-btn\",\"add-col-btn\",\"loadMemberFeeBtn\",\"saveFeeConfigBtn\",\"clearFeeRecordBtn\",\"removeDuplicatesBtn\",\"bulk-mark-sent-btn\"];
+  adminBtns.forEach(id=>{
+    const el=document.getElementById(id); 
+    if(el) el.disabled = (currentRole !== \"admin\");
+  });
+  document.getElementById(\"removeDuplicatesDiv\").style.display = (currentRole === \"admin\") ? \"block\" : \"none\";
+}
+
+/* ==================== Utility Functions ==================== */
+function escapeHtml(s){ 
+  return String(s||\"\").replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\"); 
+}
+
+function clearAllData(){
+  [\"invitation-table\",\"members-table\",\"collector-table\",\"fee-months-table\",\"fees-yearly-summary\"].forEach(id=>{
+    const tb=document.getElementById(id)?.querySelector(\"tbody\");
+    if(tb) tb.innerHTML=\"\";
+  });
+  document.getElementById(\"sticky-invitees\").textContent = \"—\";
+  document.getElementById(\"sticky-members\").textContent = \"—\";
+  document.getElementById(\"sticky-collected\").textContent = \"₹0\";
+  document.getElementById(\"sticky-paid\").textContent = \"0\";
+  
+  allInvitations = [];
+  allMembers = [];
+  allCollectors = [];
+  selectedInvites.clear();
+}
+
+/* ==================== Load All Data ==================== */
+async function loadAllData(){
+  await Promise.all([
+    loadInvitations(),
+    loadMembers(),
+    loadCollectors()
+  ]);
+  updateDashboard();
+}
+
+/* ==================== Dashboard Charts ==================== */
+let invitationChart, collectionChart, paymentChart;
+
+async function updateDashboard(){
+  try {
+    // Update stat cards
+    const [inviteSnap, memberSnap, collectorSnap, feeSnap] = await Promise.all([
+      invitationCol.get(),
+      membersCol.get(),
+      collectorsCol.get(),
+      membershipFeesCollectionFor(selectedFeeYear).get()
+    ]);
+    
+    let inviteSent = 0, inviteTotal = 0;
+    inviteSnap.forEach(doc => {
+      inviteTotal++;
+      if(doc.data().sent) inviteSent++;
+    });
+    
+    let totalCollected = 0;
+    let paidMembersCount = 0;
+    
+    feeSnap.forEach(doc => {
+      const d = doc.data() || {};
+      const feeAmt = d.feeAmount || 100;
+      const months = d.months || {};
+      let paidMonths = 0;
+      MONTHS.forEach(m => {
+        if(months[m] && months[m].paid) paidMonths++;
+      });
+      if(paidMonths > 0) paidMembersCount++;
+      totalCollected += paidMonths * feeAmt;
+    });
+    
+    collectorSnap.forEach(doc => {
+      totalCollected += Number(doc.data().amount || 0);
+    });
+    
+    // Update cards
+    document.getElementById('dash-invitees').textContent = inviteTotal;
+    document.getElementById('dash-invitees-detail').textContent = `${inviteSent} sent, ${inviteTotal - inviteSent} pending`;
+    
+    document.getElementById('dash-members').textContent = memberSnap.size;
+    document.getElementById('dash-members-detail').textContent = 'Active members';
+    
+    document.getElementById('dash-collection').textContent = `₹${totalCollected.toLocaleString('en-IN')}`;
+    document.getElementById('dash-collection-detail').textContent = `${paidMembersCount} paid members`;
+    
+    document.getElementById('dash-collectors').textContent = collectorSnap.size;
+    document.getElementById('dash-collectors-detail').textContent = 'Active collectors';
+    
+    // Update charts
+    updateInvitationChart(inviteSent, inviteTotal - inviteSent);
+    updateCollectionChart(feeSnap);
+    updatePaymentChart(feeSnap, memberSnap.size);
+    
+  } catch(e) {
+    console.error(\"Dashboard update error:\", e);
+  }
+}
+
+function updateInvitationChart(sent, pending){
+  const ctx = document.getElementById('invitationChart');
+  if(!ctx) return;
+  
+  if(invitationChart) {
+    invitationChart.data.datasets[0].data = [sent, pending];
+    invitationChart.update();
+    return;
+  }
+  
+  invitationChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Sent', 'Pending'],
+      datasets: [{
+        data: [sent, pending],
+        backgroundColor: ['#4caf50', '#ff9800'],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+}
+
+function updateCollectionChart(feeSnap){
+  const ctx = document.getElementById('collectionChart');
+  if(!ctx) return;
+  
+  const monthlyData = {};
+  MONTHS.forEach(m => monthlyData[m] = 0);
+  
+  feeSnap.forEach(doc => {
+    const d = doc.data() || {};
+    const feeAmt = d.feeAmount || 100;
+    const months = d.months || {};
+    MONTHS.forEach(m => {
+      if(months[m] && months[m].paid) {
+        monthlyData[m] += feeAmt;
+      }
+    });
+  });
+  
+  const data = MONTHS.map(m => monthlyData[m]);
+  
+  if(collectionChart) {
+    collectionChart.data.datasets[0].data = data;
+    collectionChart.update();
+    return;
+  }
+  
+  collectionChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [{
+        label: 'Collection (₹)',
+        data: data,
+        backgroundColor: 'rgba(183, 28, 28, 0.7)',
+        borderColor: 'rgba(183, 28, 28, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+function updatePaymentChart(feeSnap, totalMembers){
+  const ctx = document.getElementById('paymentChart');
+  if(!ctx) return;
+  
+  let totalPossiblePayments = totalMembers * 12;
+  let totalActualPayments = 0;
+  
+  feeSnap.forEach(doc => {
+    const d = doc.data() || {};
+    const months = d.months || {};
+    MONTHS.forEach(m => {
+      if(months[m] && months[m].paid) totalActualPayments++;
+    });
+  });
+  
+  const completionRate = totalPossiblePayments > 0 ? (totalActualPayments / totalPossiblePayments * 100) : 0;
+  const remaining = 100 - completionRate;
+  
+  if(paymentChart) {
+    paymentChart.data.datasets[0].data = [completionRate, remaining];
+    paymentChart.update();
+    return;
+  }
+  
+  paymentChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Paid', 'Pending'],
+      datasets: [{
+        data: [completionRate, remaining],
+        backgroundColor: ['#28a745', '#ffc107'],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return context.label + ': ' + context.parsed.toFixed(1) + '%';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+/* ==================== INVITATIONS ==================== */
+document.getElementById(\"add-inv-btn\").addEventListener(\"click\", async () => {
+  if(currentRole !== \"admin\") return toastError(\"Only admin can add\");
+  const name = document.getElementById(\"inv-name\").value.trim();
+  const village = document.getElementById(\"inv-village\").value.trim();
+  const mobile = document.getElementById(\"inv-mobile\").value.trim();
+  const remarks = document.getElementById(\"inv-remarks\").value.trim();
+  if(!name || !village) return toastError(\"Name & Village required\");
+  
+  try {
+    let dupQuery = invitationCol.where(\"name\",\"==\",name);
+    if(mobile) dupQuery = dupQuery.where(\"mobile\",\"==\",mobile);
     const dup = await dupQuery.get();
-    if(!dup.empty && !confirm("Possible duplicate found. Add anyway?")) return;
+    if(!dup.empty && !confirm(\"Possible duplicate found. Add anyway?\")) return;
 
     await invitationCol.add({
       name, village, mobile, remarks,
       sent: false,
       dateAdded: firebase.firestore.FieldValue.serverTimestamp()
     });
-    ["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");
-    toastSuccess("Invitation added");
+    [\"inv-name\",\"inv-village\",\"inv-mobile\",\"inv-remarks\"].forEach(id=>document.getElementById(id).value=\"\");
+    toastSuccess(\"Invitation added\");
     loadInvitations();
+    updateDashboard();
   } catch(err){
-    console.error("Add invitation error:", err);
-    toastError("Failed to add invitation: " + (err.message || err));
+    console.error(\"Add invitation error:\", err);
+    toastError(\"Failed to add: \" + (err.message || err));
   }
 });
 
 async function loadInvitations(){
-  const tbody = document.querySelector("#invitation-table tbody");
-  tbody.innerHTML = "";
+  const tbody = document.querySelector(\"#invitation-table tbody\");
+  tbody.innerHTML = \"\";
+  allInvitations = [];
+  
   try {
-    const snapshot = await invitationCol.orderBy("dateAdded","desc").get();
+    const snapshot = await invitationCol.orderBy(\"dateAdded\",\"desc\").get();
     let total=0, sent=0;
+    
     snapshot.forEach(doc => {
       total++;
       const d = doc.data();
       if(d.sent) sent++;
-      const tr = document.createElement("tr");
-      const sentHtml = d.sent ? '<span class="badge sent">Sent</span>' : '<span class="badge pending">Pending</span>';
-      tr.innerHTML = `
-        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.name||"")}</td>
-        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.village||"")}</td>
-        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.mobile||"")}</td>
-        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.remarks||"")}</td>
-        <td class="center">${sentHtml}</td>
-        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
-        <td></td>
-      `;
-      tbody.appendChild(tr);
-
-      const actionsTd = tr.querySelector("td:last-child");
-      if(currentRole==="admin"){
-        const toggleBtn = document.createElement("button");
-        toggleBtn.textContent = d.sent ? "Mark Pending" : "Mark Sent";
-        toggleBtn.className = "btn small";
-        toggleBtn.onclick = async () => {
-          try {
-            await doc.ref.update({sent: !d.sent});
-            // animate badge: find badge cell and add pulse
-            const badgeCell = tr.querySelector("td:nth-child(5) .badge");
-            if(badgeCell){
-              badgeCell.classList.add('pulse');
-              setTimeout(()=> badgeCell.classList.remove('pulse'), 1000);
-            }
-            toastSuccess(d.sent ? "Marked pending" : "Marked sent");
-            loadInvitations();
-          } catch(err) { console.error(err); toastError("Update failed: "+(err.message||err)); }
-        };
-        actionsTd.appendChild(toggleBtn);
-
-        const delBtn = document.createElement("button");
-        delBtn.style.marginLeft = "8px";
-        delBtn.textContent = "Delete";
-        delBtn.className = "btn small ghost";
-        delBtn.onclick = () => { if(confirm("Delete invitation?")) { doc.ref.delete().then(()=>{ toastSuccess("Invitation deleted"); loadInvitations(); }); } };
-        actionsTd.appendChild(delBtn);
-
-        const editableCells = tr.querySelectorAll("td[contenteditable='true']");
-        editableCells.forEach((cell, idx) => {
-          const fieldMap = ["name","village","mobile","remarks"];
-          cell.onblur = async () => {
-            try {
-              const val = cell.textContent.trim();
-              const update = {}; update[fieldMap[idx]] = val;
-              await doc.ref.update(update);
-              toastSuccess("Saved");
-            } catch(e) { console.error("Save edit error:", e); toastError("Save failed: "+(e.message||e)); }
-            loadInvitations();
-          };
-        });
-      }
+      allInvitations.push({ id: doc.id, ...d, ref: doc.ref });
     });
-    document.getElementById("summary-invitees").textContent = `Invitees: ${total} | Sent: ${sent} | Pending: ${total-sent}`;
-    document.getElementById("sticky-invitees").textContent = `${total} (Sent: ${sent})`;
+    
+    renderInvitations(allInvitations);
+    
+    document.getElementById(\"sticky-invitees\").textContent = `${total} (Sent: ${sent})`;
   } catch(e){
-    console.error("Load invitations error:", e);
-    toastError("Failed to load invitations: " + (e.message || e));
+    console.error(\"Load invitations error:\", e);
+    toastError(\"Failed to load invitations\");
   }
 }
 
-/* invitation search */
-document.getElementById("search-invite").addEventListener("input", (e)=>{
-  filterTable("invitation-table", e.target.value);
+function renderInvitations(invitations){
+  const tbody = document.querySelector(\"#invitation-table tbody\");
+  tbody.innerHTML = \"\";
+  
+  invitations.forEach(inv => {
+    const tr = document.createElement(\"tr\");
+    const sentBadge = inv.sent ? '<span class=\"badge sent\">✓ Sent</span>' : '<span class=\"badge pending\">Pending</span>';
+    
+    tr.innerHTML = `
+      <td class=\"center\">
+        <input type=\"checkbox\" class=\"invite-checkbox\" data-id=\"${inv.id}\" ${selectedInvites.has(inv.id) ? 'checked' : ''} />
+      </td>
+      <td class=\"${currentRole==='admin'?'editable':''}\" contenteditable=\"${currentRole==='admin'}\">${escapeHtml(inv.name||\"\")}</td>
+      <td class=\"${currentRole==='admin'?'editable':''}\" contenteditable=\"${currentRole==='admin'}\">${escapeHtml(inv.village||\"\")}</td>
+      <td class=\"${currentRole==='admin'?'editable':''}\" contenteditable=\"${currentRole==='admin'}\">${escapeHtml(inv.mobile||\"\")}</td>
+      <td class=\"${currentRole==='admin'?'editable':''}\" contenteditable=\"${currentRole==='admin'}\">${escapeHtml(inv.remarks||\"\")}</td>
+      <td class=\"center\">${sentBadge}</td>
+      <td>${inv.dateAdded && inv.dateAdded.toDate ? inv.dateAdded.toDate().toLocaleString() : \"\"}</td>
+      <td></td>
+    `;
+    tbody.appendChild(tr);
+
+    // Checkbox handler
+    const checkbox = tr.querySelector('.invite-checkbox');
+    checkbox.addEventListener('change', (e) => {
+      if(e.target.checked) {
+        selectedInvites.add(inv.id);
+      } else {
+        selectedInvites.delete(inv.id);
+      }
+      updateBulkActionsBar();
+    });
+
+    const actionsTd = tr.querySelector(\"td:last-child\");
+    const actionsDiv = document.createElement(\"div\");
+    actionsDiv.className = \"action-btns\";
+    
+    if(currentRole===\"admin\"){
+      const toggleBtn = document.createElement(\"button\");
+      toggleBtn.textContent = inv.sent ? \"Mark Pending\" : \"✓ Mark Sent\";
+      toggleBtn.className = \"btn small\";
+      toggleBtn.onclick = async () => {
+        try {
+          await inv.ref.update({sent: !inv.sent});
+          toastSuccess(inv.sent ? \"Marked pending\" : \"Marked sent\");
+          loadInvitations();
+          updateDashboard();
+        } catch(err) { 
+          console.error(err); 
+          toastError(\"Update failed\"); 
+        }
+      };
+      actionsDiv.appendChild(toggleBtn);
+
+      const delBtn = document.createElement(\"button\");
+      delBtn.textContent = \"🗑️\";
+      delBtn.className = \"btn small ghost icon-only\";
+      delBtn.title = \"Delete\";
+      delBtn.onclick = () => { 
+        if(confirm(\"Delete invitation?\")) { 
+          inv.ref.delete().then(()=>{ 
+            toastSuccess(\"Deleted\"); 
+            loadInvitations(); 
+            updateDashboard();
+          }); 
+        } 
+      };
+      actionsDiv.appendChild(delBtn);
+
+      // Editable cells
+      const editableCells = tr.querySelectorAll(\"td[contenteditable='true']\");
+      editableCells.forEach((cell, idx) => {
+        const fieldMap = [\"name\",\"village\",\"mobile\",\"remarks\"];
+        cell.onblur = async () => {
+          try {
+            const val = cell.textContent.trim();
+            const update = {}; 
+            update[fieldMap[idx]] = val;
+            await inv.ref.update(update);
+            toastSuccess(\"Saved\");
+          } catch(e) { 
+            console.error(e); 
+            toastError(\"Save failed\"); 
+          }
+        };
+      });
+    }
+    
+    actionsTd.appendChild(actionsDiv);
+  });
+}
+
+// Search & Filter
+document.getElementById(\"search-invite\").addEventListener(\"input\", (e)=>{
+  filterInvitations();
 });
 
-/* ---------------- MEMBERS ---------------- */
-document.getElementById("add-mem-btn").addEventListener("click", async () => {
-  if(currentRole !== "admin") return toastError("Only admin can add members");
-  const name = document.getElementById("mem-name").value.trim();
-  const village = document.getElementById("mem-village").value.trim();
-  const mobile = document.getElementById("mem-mobile").value.trim();
-  const remarks = document.getElementById("mem-remarks").value.trim();
-  if(!name || !mobile) return toastError("Name & Mobile required");
+document.getElementById(\"filter-invite-status\").addEventListener(\"change\", ()=>{
+  filterInvitations();
+});
+
+function filterInvitations(){
+  const searchTerm = document.getElementById(\"search-invite\").value.toLowerCase();
+  const statusFilter = document.getElementById(\"filter-invite-status\").value;
+  
+  let filtered = allInvitations.filter(inv => {
+    const matchSearch = !searchTerm || 
+      (inv.name||\"\").toLowerCase().includes(searchTerm) ||
+      (inv.village||\"\").toLowerCase().includes(searchTerm) ||
+      (inv.mobile||\"\").toLowerCase().includes(searchTerm);
+    
+    const matchStatus = !statusFilter || 
+      (statusFilter === 'sent' && inv.sent) ||
+      (statusFilter === 'pending' && !inv.sent);
+    
+    return matchSearch && matchStatus;
+  });
+  
+  renderInvitations(filtered);
+}
+
+// Select all checkbox
+document.getElementById(\"select-all-invites\").addEventListener(\"change\", (e) => {
+  const checkboxes = document.querySelectorAll('.invite-checkbox');
+  checkboxes.forEach(cb => {
+    cb.checked = e.target.checked;
+    const id = cb.getAttribute('data-id');
+    if(e.target.checked) {
+      selectedInvites.add(id);
+    } else {
+      selectedInvites.delete(id);
+    }
+  });
+  updateBulkActionsBar();
+});
+
+function updateBulkActionsBar(){
+  const count = selectedInvites.size;
+  const bar = document.getElementById('bulk-actions-bar');
+  const countEl = document.getElementById('bulk-count');
+  const bulkMarkBtn = document.getElementById('bulk-mark-sent-btn');
+  
+  countEl.textContent = `${count} selected`;
+  
+  if(count > 0) {
+    bar.classList.add('show');
+    if(currentRole === 'admin') {
+      bulkMarkBtn.style.display = 'inline-flex';
+    }
+  } else {
+    bar.classList.remove('show');
+    bulkMarkBtn.style.display = 'none';
+  }
+}
+
+document.getElementById('bulk-mark-sent-btn').addEventListener('click', async () => {
+  if(currentRole !== 'admin') return toastError(\"Admin only\");
+  if(selectedInvites.size === 0) return;
+  
+  if(!confirm(`Mark ${selectedInvites.size} invitations as sent?`)) return;
+  
   try {
-    const dup = await membersCol.where("name","==",name).where("mobile","==",mobile).get();
-    if(!dup.empty && !confirm("Possible duplicate member. Add anyway?")) return;
-    await membersCol.add({name,village,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
-    ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");
-    toastSuccess("Member added");
-    loadMembers(); loadFeeMembersDropdown(); updateTotalCollectedSummary();
+    const batch = db.batch();
+    selectedInvites.forEach(id => {
+      const inv = allInvitations.find(i => i.id === id);
+      if(inv && inv.ref) {
+        batch.update(inv.ref, { sent: true });
+      }
+    });
+    await batch.commit();
+    toastSuccess(`Marked ${selectedInvites.size} as sent`);
+    selectedInvites.clear();
+    updateBulkActionsBar();
+    loadInvitations();
+    updateDashboard();
+  } catch(e) {
+    console.error(e);
+    toastError(\"Bulk update failed\");
+  }
+});
+
+document.getElementById('bulk-delete-invite').addEventListener('click', async () => {
+  if(currentRole !== 'admin') return toastError(\"Admin only\");
+  if(selectedInvites.size === 0) return;
+  
+  if(!confirm(`Delete ${selectedInvites.size} invitations permanently?`)) return;
+  
+  try {
+    const batch = db.batch();
+    selectedInvites.forEach(id => {
+      const inv = allInvitations.find(i => i.id === id);
+      if(inv && inv.ref) {
+        batch.delete(inv.ref);
+      }
+    });
+    await batch.commit();
+    toastSuccess(`Deleted ${selectedInvites.size} invitations`);
+    selectedInvites.clear();
+    updateBulkActionsBar();
+    loadInvitations();
+    updateDashboard();
+  } catch(e) {
+    console.error(e);
+    toastError(\"Bulk delete failed\");
+  }
+});
+
+document.getElementById('bulk-cancel').addEventListener('click', () => {
+  selectedInvites.clear();
+  document.getElementById('select-all-invites').checked = false;
+  document.querySelectorAll('.invite-checkbox').forEach(cb => cb.checked = false);
+  updateBulkActionsBar();
+});
+
+// Print invitations
+document.getElementById('print-invitations-btn').addEventListener('click', () => {
+  window.print();
+});
+
+/* ==================== MEMBERS ==================== */
+document.getElementById(\"add-mem-btn\").addEventListener(\"click\", async () => {
+  if(currentRole !== \"admin\") return toastError(\"Only admin can add\");
+  const name = document.getElementById(\"mem-name\").value.trim();
+  const village = document.getElementById(\"mem-village\").value.trim();
+  const mobile = document.getElementById(\"mem-mobile\").value.trim();
+  const remarks = document.getElementById(\"mem-remarks\").value.trim();
+  if(!name || !mobile) return toastError(\"Name & Mobile required\");
+  
+  try {
+    const dup = await membersCol.where(\"name\",\"==\",name).where(\"mobile\",\"==\",mobile).get();
+    if(!dup.empty && !confirm(\"Possible duplicate. Add anyway?\")) return;
+    
+    await membersCol.add({
+      name, village, mobile, remarks,
+      dateAdded: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    [\"mem-name\",\"mem-village\",\"mem-mobile\",\"mem-remarks\"].forEach(id=>document.getElementById(id).value=\"\");
+    toastSuccess(\"Member added\");
+    loadMembers(); 
+    loadFeeMembersDropdown(); 
+    updateTotalCollectedSummary();
+    updateDashboard();
   } catch(e){
-    console.error("Add member error:", e);
-    toastError("Failed to add member: " + (e.message || e));
+    console.error(e);
+    toastError(\"Failed to add member\");
   }
 });
 
 async function loadMembers(){
-  const tbody = document.querySelector("#members-table tbody");
-  tbody.innerHTML = "";
+  const tbody = document.querySelector(\"#members-table tbody\");
+  tbody.innerHTML = \"\";
+  allMembers = [];
+  
   try {
-    const snapshot = await membersCol.orderBy("name").get();
-    let total=0;
-    snapshot.forEach(docSnap => {
-      total++;
-      const d = docSnap.data();
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.name||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.village||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.remarks||"")}</td>
-        <td></td>
-      `;
-      tbody.appendChild(tr);
-
-      const actionsTd = tr.querySelector("td:last-child");
-      if(currentRole==="admin"){
-        const del = document.createElement("button");
-        del.textContent = "Delete";
-        del.className = "btn small ghost";
-        del.onclick = () => { if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ toastSuccess("Member deleted"); loadMembers(); loadFeeMembersDropdown(); updateTotalCollectedSummary(); }); };
-        actionsTd.appendChild(del);
-
-        const editable = tr.querySelectorAll("td[contenteditable='true']");
-        editable.forEach((cell, idx) => {
-          const map = ["name","village","mobile","remarks"];
-          cell.onblur = async () => {
-            try { const val = cell.textContent.trim(); const upd = {}; upd[map[idx]] = val; await membersCol.doc(docSnap.id).update(upd); loadFeeMembersDropdown(); toastSuccess("Saved"); } catch(e) { console.error(e); toastError("Save failed: "+(e.message||e)); }
-          };
-        });
-      }
+    const snapshot = await membersCol.orderBy(\"name\").get();
+    
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      allMembers.push({ id: doc.id, ...d, ref: doc.ref });
     });
-    document.getElementById("summary-members").textContent = `Members: ${total}`;
-    document.getElementById("sticky-members").textContent = `${total}`;
+    
+    renderMembers(allMembers);
+    
+    document.getElementById(\"sticky-members\").textContent = `${allMembers.length}`;
   } catch(e){
-    console.error("Load members error:", e);
-    toastError("Failed to load members: " + (e.message || e));
+    console.error(e);
+    toastError(\"Failed to load members\");
   }
 }
-document.getElementById("search-members").addEventListener("input",(e)=> filterTable("members-table", e.target.value));
 
-/* ---------------- Collectors (with bill no, mobile, remarks, collected amount) ---------------- */
-document.getElementById("add-col-btn").addEventListener("click", async ()=>{
-  if(currentRole!=="admin") return toastError("Only admin can add");
-  const name=document.getElementById("col-name").value.trim();
-  const area=document.getElementById("col-area").value.trim();
-  const bill=document.getElementById("col-bill").value.trim();
-  const mobile=document.getElementById("col-mobile").value.trim();
-  const amount = Number(document.getElementById("col-amount").value) || 0;
-  const remarks=document.getElementById("col-remarks").value.trim();
-  if(!name||!area) return toastError("Name & area required");
+function renderMembers(members){
+  const tbody = document.querySelector(\"#members-table tbody\");
+  tbody.innerHTML = \"\";
+  
+  members.forEach(mem => {
+    const tr = document.createElement(\"tr\");
+    tr.innerHTML = `
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">${escapeHtml(mem.name||\"\")}</td>
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">${escapeHtml(mem.village||\"\")}</td>
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">${escapeHtml(mem.mobile||\"\")}</td>
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">${escapeHtml(mem.remarks||\"\")}</td>
+      <td></td>
+      <td></td>
+    `;
+    tbody.appendChild(tr);
+
+    // Contact buttons
+    const contactTd = tr.querySelector(\"td:nth-child(5)\");
+    if(mem.mobile) {
+      const whatsappBtn = document.createElement(\"a\");
+      whatsappBtn.href = `https://wa.me/91${mem.mobile}`;
+      whatsappBtn.target = \"_blank\";
+      whatsappBtn.className = \"contact-btn whatsapp-btn\";
+      whatsappBtn.innerHTML = \"📱 WhatsApp\";
+      contactTd.appendChild(whatsappBtn);
+    }
+
+    const actionsTd = tr.querySelector(\"td:last-child\");
+    const actionsDiv = document.createElement(\"div\");
+    actionsDiv.className = \"action-btns\";
+    
+    if(currentRole===\"admin\"){
+      const delBtn = document.createElement(\"button\");
+      delBtn.textContent = \"🗑️ Delete\";
+      delBtn.className = \"btn small ghost\";
+      delBtn.onclick = () => { 
+        if(confirm(\"Delete member?\")) {
+          mem.ref.delete().then(()=>{ 
+            toastSuccess(\"Deleted\"); 
+            loadMembers(); 
+            loadFeeMembersDropdown(); 
+            updateTotalCollectedSummary();
+            updateDashboard();
+          }); 
+        }
+      };
+      actionsDiv.appendChild(delBtn);
+
+      // Editable cells
+      const editableCells = tr.querySelectorAll(\"td[contenteditable='true']\");
+      editableCells.forEach((cell, idx) => {
+        const fieldMap = [\"name\",\"village\",\"mobile\",\"remarks\"];
+        cell.onblur = async () => {
+          try {
+            const val = cell.textContent.trim();
+            const update = {}; 
+            update[fieldMap[idx]] = val;
+            await mem.ref.update(update);
+            toastSuccess(\"Saved\");
+            loadFeeMembersDropdown();
+          } catch(e) { 
+            console.error(e); 
+            toastError(\"Save failed\"); 
+          }
+        };
+      });
+    }
+    
+    actionsTd.appendChild(actionsDiv);
+  });
+}
+
+document.getElementById(\"search-members\").addEventListener(\"input\", ()=>{
+  const term = document.getElementById(\"search-members\").value.toLowerCase();
+  const filtered = allMembers.filter(m => 
+    (m.name||\"\").toLowerCase().includes(term) ||
+    (m.mobile||\"\").toLowerCase().includes(term) ||
+    (m.village||\"\").toLowerCase().includes(term)
+  );
+  renderMembers(filtered);
+});
+
+// Export members CSV
+document.getElementById('export-members-csv').addEventListener('click', () => {
+  const rows = [[\"Name\", \"Village\", \"Mobile\", \"Remarks\"]];
+  allMembers.forEach(m => {
+    rows.push([m.name||\"\", m.village||\"\", m.mobile||\"\", m.remarks||\"\"]);
+  });
+  downloadCSV(rows, `Members_${new Date().toISOString().split('T')[0]}.csv`);
+  toastSuccess(\"CSV exported\");
+});
+
+document.getElementById('print-members-btn').addEventListener('click', () => {
+  window.print();
+});
+
+/* ==================== Duplicate Remover ==================== */
+document.getElementById(\"removeDuplicatesBtn\")?.addEventListener(\"click\", async ()=>{
+  if(currentRole !== \"admin\") return toastError(\"Admin only\");
+  
+  const progress = document.getElementById(\"removeProgress\");
+  const progressBar = document.getElementById(\"removeProgressBar\");
+  
   try{
-    const dup=await collectorsCol.where("name","==",name).where("area","==",area).get();
-    if(!dup.empty && !confirm("Possible duplicate. Add anyway?")) return;
-    await collectorsCol.add({name,area,bill,mobile,amount,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
-    ["col-name","col-area","col-bill","col-mobile","col-amount","col-remarks"].forEach(id=>document.getElementById(id).value="");
+    progress.style.display = \"block\";
+    progressBar.style.width = \"0%\";
+    
+    const snap = await membersCol.get();
+    const seen = new Map();
+    const duplicates = [];
+    let processed = 0;
+    
+    snap.forEach(doc => {
+      const d = doc.data();
+      const key = ((d.name||\"\").trim().toLowerCase() + \"|\" + (d.mobile||\"\").trim().toLowerCase());
+      if(seen.has(key)){
+        duplicates.push({ id: doc.id, ref: doc.ref, ...d });
+      } else {
+        seen.set(key, doc.id);
+      }
+      processed++;
+      progressBar.style.width = ((processed / snap.size) * 100).toFixed(1) + \"%\";
+    });
+    
+    progress.style.display = \"none\";
+    
+    if(duplicates.length === 0){
+      toastInfo(\"No duplicates found\");
+      return;
+    }
+    
+    const list = duplicates.map(d => `${d.name} — ${d.mobile}`).join(\"
+\");
+    if(confirm(`Found ${duplicates.length} duplicates:
+
+${list}
+
+Delete these?`)){
+      const batch = db.batch();
+      duplicates.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      toastSuccess(`Deleted ${duplicates.length} duplicates`);
+      loadMembers();
+      loadFeeMembersDropdown();
+      updateTotalCollectedSummary();
+      updateDashboard();
+    }
+  }catch(e){
+    progress.style.display = \"none\";
+    console.error(e);
+    toastError(\"Duplicate removal failed\");
+  }
+});
+
+/* ==================== COLLECTORS ==================== */
+document.getElementById(\"add-col-btn\").addEventListener(\"click\", async ()=>{
+  if(currentRole!==\"admin\") return toastError(\"Admin only\");
+  const name=document.getElementById(\"col-name\").value.trim();
+  const area=document.getElementById(\"col-area\").value.trim();
+  const bill=document.getElementById(\"col-bill\").value.trim();
+  const mobile=document.getElementById(\"col-mobile\").value.trim();
+  const amount = Number(document.getElementById(\"col-amount\").value) || 0;
+  const remarks=document.getElementById(\"col-remarks\").value.trim();
+  if(!name||!area) return toastError(\"Name & area required\");
+  
+  try{
+    const dup=await collectorsCol.where(\"name\",\"==\",name).where(\"area\",\"==\",area).get();
+    if(!dup.empty && !confirm(\"Possible duplicate. Add anyway?\")) return;
+    
+    await collectorsCol.add({
+      name,area,bill,mobile,amount,remarks,
+      dateAdded:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    [\"col-name\",\"col-area\",\"col-bill\",\"col-mobile\",\"col-amount\",\"col-remarks\"].forEach(id=>document.getElementById(id).value=\"\");
     loadCollectors();
     updateTotalCollectedSummary();
-    toastSuccess("Collector added");
-  }catch(e){ console.error(e); toastError("Add collector failed: "+(e.message||e)); }
+    updateDashboard();
+    toastSuccess(\"Collector added\");
+  }catch(e){ 
+    console.error(e); 
+    toastError(\"Add failed\"); 
+  }
 });
 
 async function loadCollectors(){
-  const tbody=document.querySelector("#collector-table tbody"); tbody.innerHTML="";
+  const tbody=document.querySelector(\"#collector-table tbody\"); 
+  tbody.innerHTML=\"\";
+  allCollectors = [];
+  
   try{
-    const snap=await collectorsCol.orderBy("name").get();
-    snap.forEach(docSnap=>{
-      const d=docSnap.data();
-      const tr=document.createElement("tr");
-      tr.innerHTML=`<td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.name||"")}</td>
-                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.area||"")}</td>
-                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.bill||"")}</td>
-                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
-                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">₹${Number(d.amount||0)}</td>
-                    <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.remarks||"")}</td>
-                    <td></td>`;
-      tbody.appendChild(tr);
-      if(currentRole==="admin"){
-        const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick=()=>{ if(confirm("Delete collector?")) docSnap.ref.delete().then(()=>{ loadCollectors(); updateTotalCollectedSummary(); toastSuccess("Collector deleted"); }); };
-        tr.querySelector("td:last-child").appendChild(del);
-
-        const editable = tr.querySelectorAll("td[contenteditable='true']");
-        editable.forEach((cell, idx)=>{
-          // mapping: name, area, bill, mobile, amount (displayed with ₹), remarks
-          cell.onblur = async () => {
-            try {
-              const raw = cell.textContent.trim();
-              const map = ["name","area","bill","mobile","amount","remarks"];
-              let val = raw;
-              if(map[idx] === "amount"){
-                // remove non-numeric chars like ₹ and commas
-                const numeric = raw.replace(/[^\d.-]/g,'').trim();
-                val = numeric === "" ? 0 : Number(numeric);
-              }
-              const upd = {}; upd[map[idx]] = val;
-              await collectorsCol.doc(docSnap.id).update(upd);
-              loadCollectors();
-              updateTotalCollectedSummary();
-              toastSuccess("Collector saved");
-            } catch(e){ console.error("Save collector edit error:", e); toastError("Save failed: "+(e.message||e)); }
-          };
-        });
-      }
+    const snap=await collectorsCol.orderBy(\"name\").get();
+    
+    snap.forEach(doc=>{
+      const d=doc.data();
+      allCollectors.push({ id: doc.id, ...d, ref: doc.ref });
     });
-  }catch(e){ console.error(e); toastError("Load collectors failed: "+(e.message||e)); }
+    
+    renderCollectors(allCollectors);
+    
+  }catch(e){ 
+    console.error(e); 
+    toastError(\"Failed to load collectors\"); 
+  }
 }
-document.getElementById("search-collectors").addEventListener("input",(e)=> filterTable("collector-table", e.target.value));
 
-/* ---------------- Monthly summary placeholder ---------------- */
-async function updateMonthlySummary(){
-  // placeholder (backwards compatibility)
+function renderCollectors(collectors){
+  const tbody=document.querySelector(\"#collector-table tbody\");
+  tbody.innerHTML=\"\";
+  
+  collectors.forEach(col=>{
+    const tr=document.createElement(\"tr\");
+    tr.innerHTML=`
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">${escapeHtml(col.name||\"\")}</td>
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">${escapeHtml(col.area||\"\")}</td>
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">${escapeHtml(col.bill||\"\")}</td>
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">${escapeHtml(col.mobile||\"\")}</td>
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">₹${Number(col.amount||0).toLocaleString('en-IN')}</td>
+      <td contenteditable=\"${currentRole==='admin'}\" class=\"${currentRole==='admin'?'editable':''}\">${escapeHtml(col.remarks||\"\")}</td>
+      <td></td>
+      <td></td>
+    `;
+    tbody.appendChild(tr);
+    
+    // Contact
+    const contactTd = tr.querySelector(\"td:nth-child(7)\");
+    if(col.mobile) {
+      const whatsappBtn = document.createElement(\"a\");
+      whatsappBtn.href = `https://wa.me/91${col.mobile}`;
+      whatsappBtn.target = \"_blank\";
+      whatsappBtn.className = \"contact-btn whatsapp-btn\";
+      whatsappBtn.innerHTML = \"📱\";
+      contactTd.appendChild(whatsappBtn);
+    }
+    
+    const actionsTd = tr.querySelector(\"td:last-child\");
+    const actionsDiv = document.createElement(\"div\");
+    actionsDiv.className = \"action-btns\";
+    
+    if(currentRole===\"admin\"){
+      const delBtn=document.createElement(\"button\"); 
+      delBtn.textContent=\"🗑️\"; 
+      delBtn.className=\"btn small ghost icon-only\";
+      delBtn.title = \"Delete\";
+      delBtn.onclick=()=>{ 
+        if(confirm(\"Delete collector?\")) {
+          col.ref.delete().then(()=>{ 
+            loadCollectors(); 
+            updateTotalCollectedSummary(); 
+            updateDashboard();
+            toastSuccess(\"Deleted\"); 
+          }); 
+        }
+      };
+      actionsDiv.appendChild(delBtn);
+
+      const editableCells = tr.querySelectorAll(\"td[contenteditable='true']\");
+      editableCells.forEach((cell, idx)=>{
+        const fieldMap = [\"name\",\"area\",\"bill\",\"mobile\",\"amount\",\"remarks\"];
+        cell.onblur = async () => {
+          try {
+            const raw = cell.textContent.trim();
+            let val = raw;
+            if(fieldMap[idx] === \"amount\"){
+              const numeric = raw.replace(/[^\d.-]/g,'').trim();
+              val = numeric === \"\" ? 0 : Number(numeric);
+            }
+            const upd = {}; 
+            upd[fieldMap[idx]] = val;
+            await col.ref.update(upd);
+            loadCollectors();
+            updateTotalCollectedSummary();
+            updateDashboard();
+            toastSuccess(\"Saved\");
+          } catch(e){ 
+            console.error(e); 
+            toastError(\"Save failed\"); 
+          }
+        };
+      });
+    }
+    
+    actionsTd.appendChild(actionsDiv);
+  });
 }
 
-/* ---------------- Membership Fees (flat per-year collections) ---------------- */
+document.getElementById(\"search-collectors\").addEventListener(\"input\",()=>{
+  const term = document.getElementById(\"search-collectors\").value.toLowerCase();
+  const filtered = allCollectors.filter(c => 
+    (c.name||\"\").toLowerCase().includes(term) ||
+    (c.area||\"\").toLowerCase().includes(term) ||
+    (c.mobile||\"\").toLowerCase().includes(term)
+  );
+  renderCollectors(filtered);
+});
 
-/* fee members dropdown (duplicate-safe) */
+document.getElementById('print-collectors-btn').addEventListener('click', () => {
+  window.print();
+});
+
+/* ==================== MEMBERSHIP FEES ==================== */
 const feeMemberSelect = document.getElementById('feeMemberSelect');
+
 async function loadFeeMembersDropdown(){
-  feeMemberSelect.innerHTML = '<option value="">-- Select member --</option>';
-  const seen = new Set(); // Track duplicates using mobile+name
+  feeMemberSelect.innerHTML = '<option value=\"\">-- Select member --</option>';
+  const seen = new Set();
+  
   try {
-    const snap = await membersCol.orderBy("name").get();
-    snap.forEach(docSnap => {
-      const d = docSnap.data();
-      const key = ((d.mobile || "") + "|" + (d.name || "")).trim().toLowerCase();
+    const snap = await membersCol.orderBy(\"name\").get();
+    snap.forEach(doc => {
+      const d = doc.data();
+      const key = ((d.mobile || \"\") + \"|\" + (d.name || \"\")).trim().toLowerCase();
       if (!seen.has(key)) {
         seen.add(key);
         const opt = document.createElement('option');
-        opt.value = docSnap.id;
+        opt.value = doc.id;
         opt.textContent = `${d.name} — ${d.mobile || ''}`;
         feeMemberSelect.appendChild(opt);
       }
     });
-    // No alert by default; duplicate remover available for admin.
   } catch (e) {
-    console.error("Load fee members failed:", e);
-    toastError("Failed to load fee members");
+    console.error(e);
+    toastError(\"Failed to load members\");
   }
 }
 
-/* load member fee months */
-document.getElementById("loadMemberFeeBtn").addEventListener("click", loadFeeMonthsTable);
+document.getElementById(\"loadMemberFeeBtn\").addEventListener(\"click\", loadFeeMonthsTable);
+
 async function loadFeeMonthsTable(){
   const memberId = feeMemberSelect.value;
-  const feeAmount = Number(document.getElementById("feeAmountInput").value) || 100;
-  const tbody = document.querySelector("#fee-months-table tbody");
-  tbody.innerHTML = "";
-  if(!memberId){ document.getElementById("fee-member-summary").textContent = "Select a member"; return; }
+  const feeAmount = Number(document.getElementById(\"feeAmountInput\").value) || 100;
+  const tbody = document.querySelector(\"#fee-months-table tbody\");
+  tbody.innerHTML = \"\";
+  
+  if(!memberId){ 
+    document.getElementById(\"fee-member-summary\").textContent = \"Select a member\"; 
+    return; 
+  }
 
   try{
     const feesCol = membershipFeesCollectionFor(selectedFeeYear);
     const docRef = feesCol.doc(memberId);
     const docSnap = await docRef.get();
     let record = docSnap.exists ? docSnap.data() : null;
+    
     if(!record){
-      const monthsInit = {}; MONTHS.forEach(m=> monthsInit[m] = { paid:false, paidAt:null });
+      const monthsInit = {};
+      MONTHS.forEach(m=> monthsInit[m] = { paid:false, paidAt:null });
       record = { memberId, months: monthsInit, feeAmount };
     }
 
@@ -884,176 +2038,232 @@ async function loadFeeMonthsTable(){
     MONTHS.forEach(m=>{
       const info = record.months && record.months[m] ? record.months[m] : { paid:false, paidAt:null };
       if(info.paid) paidCount++;
-      const tr = document.createElement("tr");
+      
+      const tr = document.createElement(\"tr\");
+      const statusBadge = info.paid ? '<span class=\"badge sent\">✅ Paid</span>' : '<span class=\"badge pending\">—</span>';
+      
       tr.innerHTML = `
-        <td>${m}</td>
-        <td class="center">${info.paid ? '<span class="badge sent">✅ Paid</span>' : '<span class="badge pending">—</span>'}</td>
-        <td class="center">${info.paid && info.paidAt ? new Date(info.paidAt.seconds ? info.paidAt.seconds*1000 : info.paidAt).toLocaleString() : ''}</td>
-        <td class="center"></td>
+        <td><strong>${m}</strong></td>
+        <td class=\"center\">${statusBadge}</td>
+        <td class=\"center\">${info.paid && info.paidAt ? new Date(info.paidAt.seconds ? info.paidAt.seconds*1000 : info.paidAt).toLocaleString() : ''}</td>
+        <td class=\"center\"></td>
       `;
       tbody.appendChild(tr);
 
-      const actionTd = tr.querySelector("td:last-child");
-      const cb = document.createElement("input"); cb.type="checkbox"; cb.checked = !!info.paid; cb.disabled = (currentRole!=="admin");
-      cb.addEventListener("change", async ()=>{
-        if(currentRole!=="admin"){ cb.checked = !cb.checked; return toastError("Only admin can change payments"); }
+      const actionTd = tr.querySelector(\"td:last-child\");
+      const cb = document.createElement(\"input\"); 
+      cb.type=\"checkbox\"; 
+      cb.checked = !!info.paid; 
+      cb.disabled = (currentRole!==\"admin\");
+      
+      cb.addEventListener(\"change\", async ()=>{
+        if(currentRole!==\"admin\"){ 
+          cb.checked = !cb.checked; 
+          return toastError(\"Admin only\"); 
+        }
+        
         try{
           if(!docSnap.exists){
-            const monthsInit = {}; MONTHS.forEach(mm=> monthsInit[mm] = { paid:false, paidAt:null });
+            const monthsInit = {};
+            MONTHS.forEach(mm=> monthsInit[mm] = { paid:false, paidAt:null });
             await docRef.set({ memberId, year: selectedFeeYear, months: monthsInit, feeAmount });
           }
-          const updatePaid = {}; updatePaid[`months.${m}.paid`] = cb.checked;
-          const updatePaidAt = {}; updatePaidAt[`months.${m}.paidAt`] = cb.checked ? firebase.firestore.FieldValue.serverTimestamp() : null;
+          
+          const updatePaid = {}; 
+          updatePaid[`months.${m}.paid`] = cb.checked;
+          const updatePaidAt = {}; 
+          updatePaidAt[`months.${m}.paidAt`] = cb.checked ? firebase.firestore.FieldValue.serverTimestamp() : null;
+          
           await docRef.update(updatePaid);
           await docRef.update(updatePaidAt);
-          // animate the badge in this row
-          setTimeout(()=> { loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary(); }, 120);
-          toastSuccess(cb.checked ? `Marked ${m} paid` : `Marked ${m} unpaid`);
-        }catch(err){ console.error("Toggle paid error:", err); toastError("Failed to update: "+(err.message||err)); cb.checked = !cb.checked; }
+          
+          setTimeout(()=> { 
+            loadFeeMonthsTable(); 
+            loadFeeYearlySummary(); 
+            updateTotalCollectedSummary();
+            updateDashboard();
+          }, 120);
+          
+          toastSuccess(cb.checked ? `${m} marked paid` : `${m} marked unpaid`);
+        }catch(err){ 
+          console.error(err); 
+          toastError(\"Update failed\"); 
+          cb.checked = !cb.checked; 
+        }
       });
+      
       actionTd.appendChild(cb);
     });
 
     const totalPaid = paidCount * feeAmount;
-    document.getElementById("fee-member-summary").textContent = `Paid months: ${paidCount}/12 — Total: ₹${totalPaid}`;
-  }catch(e){ console.error("Load fee months error:", e); toastError("Failed to load fees: "+(e.message||e)); }
+    document.getElementById(\"fee-member-summary\").textContent = `Paid: ${paidCount}/12 months — Total: ₹${totalPaid.toLocaleString('en-IN')}`;
+  }catch(e){ 
+    console.error(e); 
+    toastError(\"Failed to load fees\"); 
+  }
 }
 
-/* Save fee config (create or update feeAmount) */
-document.getElementById("saveFeeConfigBtn").addEventListener("click", async ()=>{
-  const memberId = feeMemberSelect.value; const feeAmount = Number(document.getElementById("feeAmountInput").value) || 100;
-  if(!memberId) return toastError("Select a member");
+document.getElementById(\"saveFeeConfigBtn\").addEventListener(\"click\", async ()=>{
+  const memberId = feeMemberSelect.value; 
+  const feeAmount = Number(document.getElementById(\"feeAmountInput\").value) || 100;
+  if(!memberId) return toastError(\"Select a member\");
+  
   try{
     const feesCol = membershipFeesCollectionFor(selectedFeeYear);
     const docRef = feesCol.doc(memberId);
     const docSnap = await docRef.get();
+    
     if(!docSnap.exists){
-      const monthsInit = {}; MONTHS.forEach(m=> monthsInit[m] = { paid:false, paidAt:null });
+      const monthsInit = {};
+      MONTHS.forEach(m=> monthsInit[m] = { paid:false, paidAt:null });
       await docRef.set({ memberId, year: selectedFeeYear, months: monthsInit, feeAmount });
     } else {
       await docRef.update({ feeAmount });
     }
-    toastSuccess("Fee configuration saved");
-    loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
-  }catch(e){ console.error("Save fee config error:", e); toastError("Failed to save fee config: "+(e.message||e)); }
+    
+    toastSuccess(\"Fee config saved\");
+    loadFeeMonthsTable(); 
+    loadFeeYearlySummary(); 
+    updateTotalCollectedSummary();
+    updateDashboard();
+  }catch(e){ 
+    console.error(e); 
+    toastError(\"Save failed\"); 
+  }
 });
 
-/* Clear member fee record */
-document.getElementById("clearFeeRecordBtn").addEventListener("click", async ()=>{
-  if(currentRole!=="admin") return toastError("Only admin can clear fees");
-  const memberId = feeMemberSelect.value; if(!memberId) return toastError("Select a member");
-  if(!confirm("Clear all fee records for this member and year?")) return;
+document.getElementById(\"clearFeeRecordBtn\").addEventListener(\"click\", async ()=>{
+  if(currentRole!==\"admin\") return toastError(\"Admin only\");
+  const memberId = feeMemberSelect.value; 
+  if(!memberId) return toastError(\"Select a member\");
+  if(!confirm(\"Clear all fee records for this member?\")) return;
+  
   try{
     const docRef = membershipFeesCollectionFor(selectedFeeYear).doc(memberId);
     const snap = await docRef.get();
     if(snap.exists) await docRef.delete();
-    toastSuccess("Cleared");
-    loadFeeMonthsTable(); loadFeeYearlySummary(); updateTotalCollectedSummary();
-  }catch(e){ console.error(e); toastError("Failed to clear: "+(e.message||e)); }
+    toastSuccess(\"Cleared\");
+    loadFeeMonthsTable(); 
+    loadFeeYearlySummary(); 
+    updateTotalCollectedSummary();
+    updateDashboard();
+  }catch(e){ 
+    console.error(e); 
+    toastError(\"Clear failed\"); 
+  }
 });
 
-/* Yearly aggregated summary for fees (selected year) */
 async function loadFeeYearlySummary(){
-  const tbody = document.querySelector("#fees-yearly-summary tbody"); if(!tbody) return; tbody.innerHTML="";
+  const tbody = document.querySelector(\"#fees-yearly-summary tbody\"); 
+  if(!tbody) return; 
+  tbody.innerHTML=\"\";
+  
   try{
     const feesCol = membershipFeesCollectionFor(selectedFeeYear);
     const snap = await feesCol.get();
-    const monthCounts = {}; MONTHS.forEach(m=> monthCounts[m] = { paid:0, total:0 });
-    snap.forEach(docSnap=>{
-      const d = docSnap.data(); const feeAmt = d.feeAmount || Number(document.getElementById("feeAmountInput").value) || 100;
+    const monthCounts = {};
+    MONTHS.forEach(m=> monthCounts[m] = { paid:0, total:0 });
+    
+    snap.forEach(doc=>{
+      const d = doc.data(); 
+      const feeAmt = d.feeAmount || 100;
       const monthsObj = d.months || {};
       MONTHS.forEach(m=>{
-        if(monthsObj[m] && monthsObj[m].paid){ monthCounts[m].paid++; monthCounts[m].total += feeAmt; }
+        if(monthsObj[m] && monthsObj[m].paid){ 
+          monthCounts[m].paid++; 
+          monthCounts[m].total += feeAmt; 
+        }
       });
     });
+    
     MONTHS.forEach(m=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML = `<td>${m}</td><td class="center">${monthCounts[m].paid}</td><td class="center">₹${monthCounts[m].total}</td>`;
+      const tr=document.createElement(\"tr\");
+      tr.innerHTML = `
+        <td><strong>${m}</strong></td>
+        <td class=\"center\">${monthCounts[m].paid}</td>
+        <td class=\"center\">₹${monthCounts[m].total.toLocaleString('en-IN')}</td>
+      `;
       tbody.appendChild(tr);
     });
-    // update total collected summary as well
+    
     updateTotalCollectedSummary();
-  }catch(e){ console.error("Fee yearly summary error:", e); toastError("Fees summary failed"); }
+  }catch(e){ 
+    console.error(e); 
+    toastError(\"Summary failed\"); 
+  }
 }
 
-/* ---------------- NEW: compute total collected and paid members for selected year
-   - totalCollected = sum_over_members( feeAmount * number_of_paid_months ) + sum_over_collectors(amount)
-   - paidMembersCount = count_members_with_at_least_one_paid_month
-*/
 async function updateTotalCollectedSummary(){
   try{
     const feesCol = membershipFeesCollectionFor(selectedFeeYear);
-    const [feeSnap, collectorsSnap, membersSnap] = await Promise.all([feesCol.get(), collectorsCol.get(), membersCol.get()]);
+    const [feeSnap, collectorsSnap, membersSnap] = await Promise.all([
+      feesCol.get(), 
+      collectorsCol.get(), 
+      membersCol.get()
+    ]);
+    
     let totalCollected = 0;
     let paidMembersCount = 0;
-    let totalPaidMonthsAcrossAll = 0;
+    let totalPaidMonths = 0;
 
-    feeSnap.forEach(docSnap=>{
-      const d = docSnap.data() || {};
-      const feeAmt = d.feeAmount || Number(document.getElementById("feeAmountInput").value) || 100;
+    feeSnap.forEach(doc=>{
+      const d = doc.data() || {};
+      const feeAmt = d.feeAmount || 100;
       const months = d.months || {};
       let paidMonths = 0;
-      for(const m of MONTHS){
+      
+      MONTHS.forEach(m=>{
         if(months[m] && months[m].paid) paidMonths++;
-      }
+      });
+      
       if(paidMonths > 0) paidMembersCount++;
       totalCollected += paidMonths * feeAmt;
-      totalPaidMonthsAcrossAll += paidMonths;
+      totalPaidMonths += paidMonths;
     });
 
-    // sum collectors amounts
     let collectorsTotal = 0;
     collectorsSnap.forEach(cs => {
-      const a = Number(cs.data().amount || 0);
-      if(!isNaN(a)) collectorsTotal += a;
+      collectorsTotal += Number(cs.data().amount || 0);
     });
 
     totalCollected += collectorsTotal;
 
-    // Format currency with comma separators (IN)
     const formatted = totalCollected.toLocaleString('en-IN');
-    document.getElementById("summary-collection").textContent = `₹${formatted} (${paidMembersCount} Paid Member${paidMembersCount===1?'':'s'})`;
-
+    
+    document.getElementById(\"sticky-collected\").textContent = `₹${formatted}`;
+    document.getElementById(\"sticky-paid\").textContent = `${paidMembersCount}`;
+    
     const totalMembers = membersSnap.size;
-    const unpaidMonths = (totalMembers * 12) - totalPaidMonthsAcrossAll;
-    document.getElementById("summary-pending").textContent = `${unpaidMonths} unpaid months`;
-
-    // update sticky
-    document.getElementById("sticky-collected").textContent = `₹${formatted}`;
-    document.getElementById("sticky-paid").textContent = `${paidMembersCount}`;
-    // update small sticky invite / members values as well (if empty)
-    if(document.getElementById("sticky-invitees").textContent.trim() === '—') document.getElementById("sticky-invitees").textContent = document.getElementById("summary-invitees").textContent || '—';
-    if(document.getElementById("sticky-members").textContent.trim() === '—') document.getElementById("sticky-members").textContent = document.getElementById("summary-members").textContent || '—';
+    const unpaidMonths = (totalMembers * 12) - totalPaidMonths;
+    
   }catch(e){
-    console.error("Update total collected error:", e);
-    document.getElementById("summary-collection").textContent = "₹0 (0 Paid Members)";
-    document.getElementById("summary-pending").textContent = "—";
-    toastError("Failed to update total collected");
+    console.error(e);
+    document.getElementById(\"sticky-collected\").textContent = \"₹0\";
+    document.getElementById(\"sticky-paid\").textContent = \"0\";
   }
 }
 
-/* ---------------- Export CSV for selected fees year (all members) ---------------- */
-document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
+document.getElementById(\"exportCsvBtn\").addEventListener(\"click\", async ()=>{
   try{
     const year = selectedFeeYear;
     const feesCol = membershipFeesCollectionFor(year);
-    // load all members (master member info)
-    const membersSnap = await membersCol.orderBy("name").get();
-    // load fees for the year (map by memberId)
+    const membersSnap = await membersCol.orderBy(\"name\").get();
     const feeSnap = await feesCol.get();
     const feeMap = {};
+    
     feeSnap.forEach(fs => feeMap[fs.id] = fs.data());
-    // assemble CSV rows: Name, Village, Mobile, Remarks, Paid Months Count, Total Paid (₹), Last Paid Date
-    const rows = [];
-    rows.push(["Name","Village","Mobile","Remarks","Paid Months Count","Total Paid (₹)","Last Paid Date"]);
+    
+    const rows = [[\"Name\",\"Village\",\"Mobile\",\"Remarks\",\"Paid Months\",\"Total Paid (₹)\",\"Last Paid Date\"]];
+    
     membersSnap.forEach(mDoc=>{
       const m = mDoc.data();
       const memberId = mDoc.id;
-      const feeRec = feeMap[memberId] || { months: {} , feeAmount: Number(document.getElementById("feeAmountInput").value) || 100};
+      const feeRec = feeMap[memberId] || { months: {}, feeAmount: 100 };
       const monthsObj = feeRec.months || {};
       let paidCount = 0;
       let latestPaidAt = null;
-      for(const mm of MONTHS){
+      
+      MONTHS.forEach(mm=>{
         if(monthsObj[mm] && monthsObj[mm].paid){
           paidCount++;
           if(monthsObj[mm].paidAt){
@@ -1061,106 +2271,140 @@ document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
             if(!latestPaidAt || t > latestPaidAt) latestPaidAt = t;
           }
         }
-      }
-      const feeAmt = feeRec.feeAmount || Number(document.getElementById("feeAmountInput").value) || 100;
+      });
+      
+      const feeAmt = feeRec.feeAmount || 100;
       const totalPaid = paidCount * feeAmt;
-      const paidDateStr = latestPaidAt ? new Date(latestPaidAt).toLocaleString() : "";
-      rows.push([m.name || "", m.village || "", m.mobile || "", m.remarks || "", paidCount, totalPaid, paidDateStr]);
+      const paidDateStr = latestPaidAt ? new Date(latestPaidAt).toLocaleString() : \"\";
+      
+      rows.push([
+        m.name || \"\", 
+        m.village || \"\", 
+        m.mobile || \"\", 
+        m.remarks || \"\", 
+        paidCount, 
+        totalPaid, 
+        paidDateStr
+      ]);
     });
 
-    // convert to CSV text
-    const csvContent = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const filename = `MembershipFees_${year}.csv`;
-    if (navigator.msSaveBlob) { navigator.msSaveBlob(blob, filename); }
-    else {
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(()=> URL.revokeObjectURL(url), 1000);
-    }
-    toastSuccess("CSV exported");
+    downloadCSV(rows, `MembershipFees_${year}.csv`);
+    toastSuccess(\"CSV exported\");
   }catch(e){
-    console.error("Export CSV error:", e);
-    toastError("Failed to export CSV: " + (e.message || e));
+    console.error(e);
+    toastError(\"Export failed\");
   }
 });
 
-/* ---------------- fee dropdown load */
-loadFeeMembersDropdown();
+function downloadCSV(rows, filename){
+  const csvContent = rows.map(r => r.map(cell => `\"${String(cell).replace(/\"/g,'\"\"')}\"`).join(\",\")).join(\"
+\");
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  
+  if (navigator.msSaveBlob) { 
+    navigator.msSaveBlob(blob, filename); 
+  } else {
+    const link = document.createElement(\"a\");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute(\"href\", url);
+    link.setAttribute(\"download\", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+  }
+}
 
-/* initial loads if already logged in */
-setTimeout(()=>{ if(auth.currentUser){ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); updateTotalCollectedSummary(); } }, 200);
+/* ==================== Navigation ==================== */
+function clearActiveNav(){ 
+  document.querySelectorAll('nav.topbar a').forEach(a=>a.classList.remove('active')); 
+}
 
-/* small feature: navigation links scroll to sections and highlight */
-function clearActiveNav(){ document.querySelectorAll('nav.topbar a').forEach(a=>a.classList.remove('active')); }
-document.getElementById("nav-invitations").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("invitations").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-invitations").classList.add('active'); });
-document.getElementById("nav-members").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("members").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-members").classList.add('active'); });
-document.getElementById("nav-collectors").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("collectors").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-collectors").classList.add('active'); });
-document.getElementById("nav-fees").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("fees").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-fees").classList.add('active'); });
+const navLinks = {
+  'nav-dashboard': 'dashboard',
+  'nav-invitations': 'invitations',
+  'nav-members': 'members',
+  'nav-collectors': 'collectors',
+  'nav-fees': 'fees'
+};
 
-/* ---------------- Duplicate remover (simple) logic (admin only) ---------------- */
-document.addEventListener("DOMContentLoaded", () => {
-  const adminUID = "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2";
-  const removeBtn = document.getElementById("removeDuplicatesBtn");
-  const removeDiv = document.getElementById("removeDuplicatesDiv");
-  const progress = document.getElementById("removeProgress");
-  const progressBar = document.getElementById("removeProgressBar");
-  let duplicates = [];
-
-  firebase.auth().onAuthStateChanged(user => {
-    removeDiv.style.display = user && user.uid === adminUID ? "block" : "none";
-  });
-
-  removeBtn && removeBtn.addEventListener("click", async ()=>{
-    if(currentRole !== "admin") return toastError("Only admin can run duplicate remover");
-    try{
-      progress.style.display = "block";
-      progressBar.style.width = "0%";
-      const snap = await membersCol.get();
-      const seen = new Map();
-      duplicates = [];
-      let processed = 0;
-      snap.forEach(doc => {
-        const d = doc.data();
-        const key = ((d.name||"").trim().toLowerCase() + "|" + (d.mobile||"").trim().toLowerCase());
-        if(seen.has(key)){
-          duplicates.push({ id: doc.id, ...d });
-        } else {
-          seen.set(key, doc.id);
-        }
-        processed++;
-        progressBar.style.width = ((processed / snap.size) * 100).toFixed(1) + "%";
-      });
-      progress.style.display = "none";
-      if(duplicates.length === 0){
-        toastInfo("No duplicates found.");
-        return;
-      }
-      const list = duplicates.map(d => `${d.name} — ${d.mobile} (${d.village||''})`).join("\n");
-      if(confirm("Found duplicates:\n\n" + list + "\n\nDelete these duplicates?")){
-        // delete duplicates
-        const batch = db.batch();
-        duplicates.forEach(d => batch.delete(membersCol.doc(d.id)));
-        await batch.commit();
-        toastSuccess(`Deleted ${duplicates.length} duplicates.`);
-        loadMembers();
-        loadFeeMembersDropdown();
-        updateTotalCollectedSummary();
-      }
-    }catch(e){
-      progress.style.display = "none";
-      console.error(e);
-      toastError("Duplicate check failed: " + (e.message||e));
-    }
+Object.entries(navLinks).forEach(([navId, sectionId]) => {
+  document.getElementById(navId).addEventListener(\"click\", (e)=>{ 
+    e.preventDefault(); 
+    document.getElementById(sectionId).scrollIntoView({behavior:\"smooth\"}); 
+    clearActiveNav(); 
+    document.getElementById(navId).classList.add('active'); 
   });
 });
 
+/* ==================== Table Sorting ==================== */
+function setupTableSorting(tableId){
+  const table = document.getElementById(tableId);
+  if(!table) return;
+  
+  const headers = table.querySelectorAll('thead th[data-sort]');
+  let sortDirection = {};
+  
+  headers.forEach(header => {
+    const field = header.getAttribute('data-sort');
+    sortDirection[field] = 'asc';
+    
+    header.addEventListener('click', () => {
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      
+      const colIndex = Array.from(header.parentElement.children).indexOf(header);
+      
+      rows.sort((a, b) => {
+        let aVal = a.children[colIndex]?.textContent.trim() || '';
+        let bVal = b.children[colIndex]?.textContent.trim() || '';
+        
+        // Handle numeric values
+        if(!isNaN(aVal) && !isNaN(bVal)){
+          aVal = Number(aVal);
+          bVal = Number(bVal);
+        }
+        
+        if(aVal < bVal) return sortDirection[field] === 'asc' ? -1 : 1;
+        if(aVal > bVal) return sortDirection[field] === 'asc' ? 1 : -1;
+        return 0;
+      });
+      
+      sortDirection[field] = sortDirection[field] === 'asc' ? 'desc' : 'asc';
+      
+      rows.forEach(row => tbody.appendChild(row));
+      
+      // Update sort icon
+      headers.forEach(h => {
+        const icon = h.querySelector('.sort-icon');
+        if(icon) icon.textContent = '⇅';
+      });
+      const icon = header.querySelector('.sort-icon');
+      if(icon) icon.textContent = sortDirection[field] === 'asc' ? '↓' : '↑';
+    });
+  });
+}
+
+// Setup sorting for all tables
+setTimeout(() => {
+  setupTableSorting('invitation-table');
+  setupTableSorting('members-table');
+  setupTableSorting('collector-table');
+}, 1000);
+
+/* ==================== Initial Load ==================== */
+setTimeout(()=>{ 
+  if(auth.currentUser){ 
+    loadAllData(); 
+    loadFeeMembersDropdown(); 
+    loadFeeYearlySummary(); 
+    updateTotalCollectedSummary();
+    updateDashboard();
+  } 
+}, 200);
+
+console.log(\"✅ Enhanced Club Bornoporichoy Dashboard loaded successfully!\");
 </script>
 </body>
-</html>
+</html>"
