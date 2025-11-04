@@ -25,7 +25,7 @@
     --text: #2f2f2f;
     --radius: 12px;
     --shadow: 0 10px 30px rgba(17,17,17,0.06);
-    --glass: rgba(255,255,255,0.6);
+    --glass-overlay: rgba(255,255,255,0.15);
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -109,6 +109,9 @@
 
   .center { text-align:center; }
   .right { margin-left:auto; }
+
+  /* Duplicate remover popup animation */
+  @keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
 
   /* responsive */
   @media (max-width:980px){
@@ -245,6 +248,84 @@
           <button id="add-mem-btn" class="btn small">Add Member</button>
         </div>
       </div>
+
+      <!-- START Duplicate Remover (glassmorphic UI) -->
+      <!-- 🧹 Admin-only duplicate remover -->
+      <div id="removeDuplicatesDiv" style="display:none; margin:20px 0;">
+        <button id="removeDuplicatesBtn" class="action-btn"
+          style="background:linear-gradient(135deg,#d32f2f,#b71c1c);
+                 color:#fff;border:none;padding:10px 20px;
+                 border-radius:8px;cursor:pointer;font-weight:600;
+                 box-shadow:0 2px 6px rgba(0,0,0,0.2);
+                 transition:all 0.2s ease;">
+          🧹 Remove Duplicate Members
+        </button>
+
+        <!-- Progress Bar -->
+        <div id="removeProgress" style="display:none;margin-top:10px;height:6px;
+             background:#fce8b2;border-radius:4px;overflow:hidden;">
+          <div id="removeProgressBar" style="width:0%;height:6px;
+               background:linear-gradient(90deg,#fdd835,#f57f17);"></div>
+        </div>
+
+        <!-- Toast Message -->
+        <div id="toastMsg" style="display:none;position:fixed;bottom:25px;right:25px;
+             background:linear-gradient(135deg,#b71c1c,#fdd835);
+             color:white;padding:12px 18px;border-radius:8px;
+             box-shadow:0 3px 8px rgba(0,0,0,0.3);font-size:15px;
+             font-weight:500;letter-spacing:0.5px;z-index:9999;
+             backdrop-filter:blur(6px);">
+        </div>
+
+        <!-- Glassmorphic Popup -->
+        <div id="duplicatesPopup" style="display:none;position:fixed;top:50%;left:50%;
+             transform:translate(-50%,-50%);background:rgba(255,255,255,0.15);
+             backdrop-filter:blur(18px) saturate(180%);
+             -webkit-backdrop-filter:blur(18px) saturate(180%);
+             padding:25px;border-radius:16px;
+             border:1px solid rgba(255,255,255,0.3);
+             box-shadow:0 8px 32px rgba(31,38,135,0.37);
+             width:90%;max-width:480px;z-index:10000;
+             font-family:"Inter", "Poppins", sans-serif;
+             color:#333;">
+          <h3 style="margin-top:0;margin-bottom:10px;
+              color:#b71c1c;font-weight:700;font-size:20px;
+              text-shadow:0 1px 1px rgba(255,255,255,0.6);">
+            ⚠️ Duplicates Found
+          </h3>
+          <p style="font-size:14px;color:#222;margin-top:0;">
+            The following entries seem duplicated. Please confirm before deleting.
+          </p>
+          <div id="duplicateList" style="max-height:280px;overflow-y:auto;
+               border:1px solid rgba(255,255,255,0.3);
+               padding:10px;margin:10px 0;
+               background:rgba(255,255,255,0.35);
+               border-radius:8px;font-size:14px;
+               box-shadow:inset 0 0 6px rgba(0,0,0,0.1);">
+          </div>
+          <div style="text-align:right;">
+            <button id="confirmDeleteBtn"
+              style="background:linear-gradient(135deg,#b71c1c,#d32f2f);
+                     color:#fff;border:none;padding:8px 16px;border-radius:6px;
+                     margin-right:10px;cursor:pointer;font-weight:600;
+                     box-shadow:0 2px 6px rgba(0,0,0,0.3);
+                     transition:all 0.2s ease;">
+              ✅ Confirm Delete
+            </button>
+            <button id="cancelDeleteBtn"
+              style="background:rgba(255,255,255,0.25);
+                     border:1px solid rgba(255,255,255,0.3);
+                     padding:8px 16px;border-radius:6px;cursor:pointer;
+                     font-weight:600;color:#333;
+                     backdrop-filter:blur(6px);
+                     transition:all 0.2s ease;">
+              ❌ Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+      <!-- END Duplicate Remover -->
+
     </div>
 
     <!-- Membership Fees -->
@@ -402,11 +483,11 @@ loginBtn.addEventListener("click", () => {
   loginBtn.disabled = true;
   auth.signInWithEmailAndPassword(email,pw)
     .catch(e => alert("Login error: "+e.message))
-    .finally(()=> loginBtn.disabled=false);
+    .finally(()=> loginBtn.disabled = false);
 });
 logoutBtn.addEventListener("click", () => {
   logoutBtn.disabled = true;
-  auth.signOut().catch(e => alert("Logout error: "+e.message)).finally(()=> logoutBtn.disabled=false);
+  auth.signOut().catch(e => alert("Logout error: "+e.message)).finally(()=> logoutBtn.disabled = false);
 });
 
 /* auth state listener */
@@ -464,94 +545,126 @@ function loadAllData(){
   updateMonthlySummary();
 }
 
-/* ---------------- Invitations ---------------- */
-document.getElementById("add-inv-btn").addEventListener("click", async ()=>{
-  if(currentRole!=="admin") return alert("Only admin can add");
-  const name=document.getElementById("inv-name").value.trim();
-  const village=document.getElementById("inv-village").value.trim();
-  const mobile=document.getElementById("inv-mobile").value.trim();
-  const remarks=document.getElementById("inv-remarks").value.trim();
-  if(!name||!village) return alert("Name & Village required");
-  try{
-    let q=invitationCol.where("name","==",name);
-    if(mobile) q=q.where("mobile","==",mobile);
-    const dup=await q.get();
-    if(!dup.empty && !confirm("Possible duplicate. Add anyway?")) return;
-    await invitationCol.add({name,village,mobile,remarks,sent:false,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
+/* ---------------- INVITATIONS ---------------- */
+document.getElementById("add-inv-btn").addEventListener("click", async () => {
+  if(currentRole !== "admin") return alert("Only admin can add");
+  const name = document.getElementById("inv-name").value.trim();
+  const village = document.getElementById("inv-village").value.trim();
+  const mobile = document.getElementById("inv-mobile").value.trim();
+  const remarks = document.getElementById("inv-remarks").value.trim();
+  if(!name || !village) return alert("Name & Village required");
+  try {
+    let dupQuery = invitationCol.where("name","==",name);
+    if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
+    const dup = await dupQuery.get();
+    if(!dup.empty && !confirm("Possible duplicate found. Add anyway?")) return;
+
+    await invitationCol.add({
+      name, village, mobile, remarks,
+      sent: false,
+      dateAdded: firebase.firestore.FieldValue.serverTimestamp()
+    });
     ["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");
     loadInvitations();
-  }catch(e){ console.error(e); alert("Add invitation failed: "+(e.message||e)); }
+  } catch(err){
+    console.error("Add invitation error:", err);
+    alert("Failed to add invitation: " + (err.message || err));
+  }
 });
 
 async function loadInvitations(){
-  const tbody=document.querySelector("#invitation-table tbody"); tbody.innerHTML="";
-  try{
-    const snap=await invitationCol.orderBy("dateAdded","desc").get();
+  const tbody = document.querySelector("#invitation-table tbody");
+  tbody.innerHTML = "";
+  try {
+    const snapshot = await invitationCol.orderBy("dateAdded","desc").get();
     let total=0, sent=0;
-    snap.forEach(doc=>{
-      total++; const d=doc.data(); if(d.sent) sent++;
-      const tr=document.createElement("tr");
-      tr.innerHTML=`
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.name||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.village||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.remarks||"")}</td>
+    snapshot.forEach(doc => {
+      total++;
+      const d = doc.data();
+      if(d.sent) sent++;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.name||"")}</td>
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.village||"")}</td>
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.mobile||"")}</td>
+        <td class="${currentRole==='admin'?'editable':''}" contenteditable="${currentRole==='admin'}">${escapeHtml(d.remarks||"")}</td>
         <td class="center">${d.sent?'<span class="badge ok">Sent</span>':'<span class="badge warn">Pending</span>'}</td>
         <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
         <td></td>
       `;
       tbody.appendChild(tr);
 
-      const actionsTd=tr.querySelector("td:last-child");
+      const actionsTd = tr.querySelector("td:last-child");
       if(currentRole==="admin"){
-        const toggle=document.createElement("button"); toggle.textContent=d.sent?"Mark Pending":"Mark Sent"; toggle.className="btn small";
-        toggle.onclick=()=>doc.ref.update({sent:!d.sent}).then(loadInvitations).catch(err=>alert(err.message));
-        actionsTd.appendChild(toggle);
+        const toggleBtn = document.createElement("button");
+        toggleBtn.textContent = d.sent ? "Mark Pending" : "Mark Sent";
+        toggleBtn.className = "btn small";
+        toggleBtn.onclick = () => doc.ref.update({sent: !d.sent}).then(loadInvitations).catch(err=>alert(err.message));
+        actionsTd.appendChild(toggleBtn);
 
-        const del=document.createElement("button"); del.style.marginLeft="8px"; del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick=()=>{ if(confirm("Delete invitation?")) doc.ref.delete().then(loadInvitations); };
-        actionsTd.appendChild(del);
+        const delBtn = document.createElement("button");
+        delBtn.style.marginLeft = "8px";
+        delBtn.textContent = "Delete";
+        delBtn.className = "btn small ghost";
+        delBtn.onclick = () => { if(confirm("Delete invitation?")) doc.ref.delete().then(loadInvitations); };
+        actionsTd.appendChild(delBtn);
 
-        const editable=tr.querySelectorAll("td[contenteditable='true']");
-        editable.forEach((cell,idx)=>{
-          const map=["name","village","mobile","remarks"];
-          cell.onblur=async ()=>{
-            try{ const val=cell.textContent.trim(); const upd={}; upd[map[idx]]=val; await doc.ref.update(upd); }catch(e){console.error(e); alert("Save failed: "+(e.message||e));}
+        const editableCells = tr.querySelectorAll("td[contenteditable='true']");
+        editableCells.forEach((cell, idx) => {
+          const fieldMap = ["name","village","mobile","remarks"];
+          cell.onblur = async () => {
+            try {
+              const val = cell.textContent.trim();
+              const update = {}; update[fieldMap[idx]] = val;
+              await doc.ref.update(update);
+            } catch(e) { console.error("Save edit error:", e); alert("Save failed: "+(e.message||e)); }
           };
         });
       }
     });
-    document.getElementById("summary-invitees").textContent=`Invitees: ${total} | Sent: ${sent} | Pending: ${total-sent}`;
-  }catch(e){ console.error(e); alert("Load invitations failed: "+(e.message||e)); }
+    document.getElementById("summary-invitees").textContent = `Invitees: ${total} | Sent: ${sent} | Pending: ${total-sent}`;
+  } catch(e){
+    console.error("Load invitations error:", e);
+    alert("Failed to load invitations: " + (e.message || e));
+  }
 }
-document.getElementById("search-invite").addEventListener("input",(e)=> filterTable("invitation-table", e.target.value));
 
-/* ---------------- Members ---------------- */
-document.getElementById("add-mem-btn").addEventListener("click", async ()=>{
-  if(currentRole!=="admin") return alert("Only admin can add members");
-  const name=document.getElementById("mem-name").value.trim();
-  const village=document.getElementById("mem-village").value.trim();
-  const mobile=document.getElementById("mem-mobile").value.trim();
-  const remarks=document.getElementById("mem-remarks").value.trim();
-  if(!name||!mobile) return alert("Name & Mobile required");
-  try{
-    const dup=await membersCol.where("name","==",name).where("mobile","==",mobile).get();
+/* invitation search */
+document.getElementById("search-invite").addEventListener("input", (e)=>{
+  filterTable("invitation-table", e.target.value);
+});
+
+/* ---------------- MEMBERS ---------------- */
+document.getElementById("add-mem-btn").addEventListener("click", async () => {
+  if(currentRole !== "admin") return alert("Only admin can add members");
+  const name = document.getElementById("mem-name").value.trim();
+  const village = document.getElementById("mem-village").value.trim();
+  const mobile = document.getElementById("mem-mobile").value.trim();
+  const remarks = document.getElementById("mem-remarks").value.trim();
+  if(!name || !mobile) return alert("Name & Mobile required");
+  try {
+    const dup = await membersCol.where("name","==",name).where("mobile","==",mobile).get();
     if(!dup.empty && !confirm("Possible duplicate member. Add anyway?")) return;
     await membersCol.add({name,village,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
     ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");
     loadMembers(); loadFeeMembersDropdown();
-  }catch(e){ console.error(e); alert("Add member failed: "+(e.message||e)); }
+  } catch(e){
+    console.error("Add member error:", e);
+    alert("Failed to add member: " + (e.message || e));
+  }
 });
 
 async function loadMembers(){
-  const tbody=document.querySelector("#members-table tbody"); tbody.innerHTML="";
-  try{
-    const snap=await membersCol.orderBy("name").get();
+  const tbody = document.querySelector("#members-table tbody");
+  tbody.innerHTML = "";
+  try {
+    const snapshot = await membersCol.orderBy("name").get();
     let total=0;
-    snap.forEach(docSnap=>{
-      total++; const d=docSnap.data();
-      const tr=document.createElement("tr");
-      tr.innerHTML=`
+    snapshot.forEach(docSnap => {
+      total++;
+      const d = docSnap.data();
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
         <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.name||"")}</td>
         <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.village||"")}</td>
         <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
@@ -560,23 +673,28 @@ async function loadMembers(){
       `;
       tbody.appendChild(tr);
 
-      const actionsTd=tr.querySelector("td:last-child");
+      const actionsTd = tr.querySelector("td:last-child");
       if(currentRole==="admin"){
-        const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick=()=>{ if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ loadMembers(); loadFeeMembersDropdown(); }); };
+        const del = document.createElement("button");
+        del.textContent = "Delete";
+        del.className = "btn small ghost";
+        del.onclick = () => { if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ loadMembers(); loadFeeMembersDropdown(); }); };
         actionsTd.appendChild(del);
 
-        const editable=tr.querySelectorAll("td[contenteditable='true']");
-        editable.forEach((cell,idx)=>{
-          const map=["name","village","mobile","remarks"];
-          cell.onblur = async ()=> {
-            try{ const val=cell.textContent.trim(); const upd={}; upd[map[idx]]=val; await membersCol.doc(docSnap.id).update(upd); loadFeeMembersDropdown(); }catch(e){console.error(e); alert("Save failed: "+(e.message||e)); }
+        const editable = tr.querySelectorAll("td[contenteditable='true']");
+        editable.forEach((cell, idx) => {
+          const map = ["name","village","mobile","remarks"];
+          cell.onblur = async () => {
+            try { const val = cell.textContent.trim(); const upd = {}; upd[map[idx]] = val; await membersCol.doc(docSnap.id).update(upd); loadFeeMembersDropdown(); } catch(e) { console.error(e); alert("Save failed: "+(e.message||e)); }
           };
         });
       }
     });
-    document.getElementById("summary-members").textContent=`Members: ${total}`;
-  }catch(e){ console.error(e); alert("Load members failed: "+(e.message||e)); }
+    document.getElementById("summary-members").textContent = `Members: ${total}`;
+  } catch(e){
+    console.error("Load members error:", e);
+    alert("Failed to load members: " + (e.message || e));
+  }
 }
 document.getElementById("search-members").addEventListener("input",(e)=> filterTable("members-table", e.target.value));
 
@@ -624,20 +742,32 @@ async function updateMonthlySummary(){
 
 /* ---------------- Membership Fees (flat per-year collections) ---------------- */
 
-/* fee members dropdown */
+/* fee members dropdown (duplicate-safe) */
 const feeMemberSelect = document.getElementById('feeMemberSelect');
 async function loadFeeMembersDropdown(){
   feeMemberSelect.innerHTML = '<option value="">-- Select member --</option>';
-  try{
+  const seen = new Set(); // Track duplicates using name or mobile
+  try {
     const snap = await membersCol.orderBy("name").get();
-    snap.forEach(docSnap=>{
+    snap.forEach(docSnap => {
       const d = docSnap.data();
-      const opt = document.createElement('option');
-      opt.value = docSnap.id;
-      opt.textContent = `${d.name} — ${d.mobile||''}`;
-      feeMemberSelect.appendChild(opt);
+      const key = ((d.mobile || "") + "|" + (d.name || "")).trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        const opt = document.createElement('option');
+        opt.value = docSnap.id;
+        opt.textContent = `${d.name} — ${d.mobile || ''}`;
+        feeMemberSelect.appendChild(opt);
+      }
     });
-  }catch(e){ console.error("Load fee members failed:", e); }
+
+    if (seen.size < (await membersCol.get()).size) {
+      console.warn("⚠️ Duplicate members detected in Firestore. Consider merging them.");
+    }
+
+  } catch (e) {
+    console.error("❌ Failed to load member list for fees tracker:", e);
+  }
 }
 
 /* load member fee months */
@@ -818,11 +948,123 @@ document.getElementById("nav-members").addEventListener("click", (e)=>{ e.preven
 document.getElementById("nav-collectors").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("collectors").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-collectors").classList.add('active'); });
 document.getElementById("nav-fees").addEventListener("click", (e)=>{ e.preventDefault(); document.getElementById("fees").scrollIntoView({behavior:"smooth"}); clearActiveNav(); document.getElementById("nav-fees").classList.add('active'); });
 
-/* Expose for debugging */
-window.loadAllData = loadAllData;
-window.loadFeeMonthsTable = loadFeeMonthsTable;
-window.loadFeeYearlySummary = loadFeeYearlySummary;
+/* ---------------- Duplicate remover (glass popup) logic ---------------- */
+document.addEventListener("DOMContentLoaded", () => {
+  // Elements are already on page (we added them in Members)
+  const adminUID = "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2";
+  const btn = document.getElementById("removeDuplicatesBtn");
+  const div = document.getElementById("removeDuplicatesDiv");
+  const progress = document.getElementById("removeProgress");
+  const bar = document.getElementById("removeProgressBar");
+  const toast = document.getElementById("toastMsg");
+  const popup = document.getElementById("duplicatesPopup");
+  const listBox = document.getElementById("duplicateList");
+  const confirmBtn = document.getElementById("confirmDeleteBtn");
+  const cancelBtn = document.getElementById("cancelDeleteBtn");
+  let duplicates = [];
 
+  // Show only for admin
+  firebase.auth().onAuthStateChanged(user => {
+    div.style.display = user && user.uid === adminUID ? "block" : "none";
+  });
+
+  function showToast(msg, color) {
+    toast.textContent = msg;
+    toast.style.display = "block";
+    toast.style.background = color || "linear-gradient(135deg,#b71c1c,#fdd835)";
+    setTimeout(() => (toast.style.display = "none"), 3500);
+  }
+
+  btn.addEventListener("mouseover", () => {
+    btn.style.transform = "scale(1.03)";
+    btn.style.boxShadow = "0 4px 10px rgba(183,28,28,0.4)";
+  });
+  btn.addEventListener("mouseout", () => {
+    btn.style.transform = "scale(1)";
+    btn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
+  });
+
+  btn.addEventListener("click", async () => {
+    const db = firebase.firestore();
+    const seen = new Set();
+    duplicates = [];
+    bar.style.width = "0%";
+    progress.style.display = "block";
+
+    try {
+      const snapshot = await db.collection("members").get();
+      let processed = 0;
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        const key = (d.name + "_" + d.mobile).toLowerCase().trim();
+        if (seen.has(key)) duplicates.push({ id: doc.id, ...d });
+        else seen.add(key);
+        processed++;
+        bar.style.width = ((processed / snapshot.size) * 100).toFixed(1) + "%";
+      });
+
+      progress.style.display = "none";
+
+      if (duplicates.length === 0) {
+        showToast("✨ No duplicates found.",
+          "linear-gradient(135deg,#4caf50,#8bc34a)");
+        return;
+      }
+
+      // Build list HTML
+      listBox.innerHTML = duplicates.map(d => `
+        <div style='margin-bottom:10px;padding:6px 8px;
+          background:rgba(255,255,255,0.45);
+          border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);'>
+          <b>${escapeHtml(d.name)}</b> — ${escapeHtml(d.mobile)}<br>
+          <span style='color:#555;font-size:13px;'>${escapeHtml(d.village || "")}</span>
+        </div>
+      `).join("");
+      popup.style.display = "block";
+      popup.style.animation = "fadeIn 0.25s ease";
+
+    } catch (err) {
+      console.error(err);
+      showToast("❌ Error checking duplicates.",
+        "linear-gradient(135deg,#d32f2f,#ff6f00)");
+      progress.style.display = "none";
+    }
+  });
+
+  cancelBtn.onclick = () => {
+    popup.style.display = "none";
+    duplicates = [];
+  };
+
+  confirmBtn.onclick = async () => {
+    const db = firebase.firestore();
+    popup.style.display = "none";
+    progress.style.display = "block";
+    bar.style.width = "0%";
+
+    try {
+      const batch = db.batch();
+      let processed = 0;
+      for (const d of duplicates) {
+        batch.delete(db.collection("members").doc(d.id));
+        processed++;
+        bar.style.width = ((processed / duplicates.length) * 100).toFixed(1) + "%";
+      }
+      await batch.commit();
+      showToast(`✅ Deleted ${duplicates.length} duplicate member(s).`);
+      // reload members lists and fee dropdowns after deletion
+      loadMembers();
+      loadFeeMembersDropdown();
+    } catch (e) {
+      console.error(e);
+      showToast("❌ Error deleting.",
+        "linear-gradient(135deg,#d32f2f,#ff6f00)");
+    } finally {
+      progress.style.display = "none";
+      duplicates = [];
+    }
+  };
+});
 </script>
 </body>
 </html>
