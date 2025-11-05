@@ -809,20 +809,6 @@ async function loadMembers(){
 }
 document.getElementById("search-members").addEventListener("input",(e)=> filterTable("members-table", e.target.value));
 
-// ===== Populate Collector Dropdown =====
-const vcCollectorSelect = document.getElementById('vc-collector');
-
-collectorsCol.orderBy("name").onSnapshot(snapshot => {
-  vcCollectorSelect.innerHTML = '<option value="">-- Select Collector --</option>'; // reset
-  snapshot.forEach(docSnap => {
-    const d = docSnap.data();
-    const opt = document.createElement('option');
-    opt.value = d.name;
-    opt.textContent = d.name;
-    vcCollectorSelect.appendChild(opt);
-  });
-});
-
 /* ---------------- Collectors (with bill no, mobile, remarks) ---------------- */
 document.getElementById("add-col-btn").addEventListener("click", async ()=> {
   if(currentRole!=="admin") return alert("Only admin can add");
@@ -869,18 +855,7 @@ const vcDonorInput = document.getElementById("vc-donor");
 const vcAmountInput = document.getElementById("vc-amount");
 const vcRemarksInput = document.getElementById("vc-remarks");
 
-// Populate collector dropdown
-async function loadVillageCollectorsDropdown(){
-  vcCollectorSelect.innerHTML = '<option value="">-- Select Collector --</option>';
-  const snap = await collectorsCol.orderBy("name").get();
-  snap.forEach(doc => {
-    const d = doc.data();
-    const opt = document.createElement("option");
-    opt.value = doc.id;
-    opt.textContent = d.name;
-    vcCollectorSelect.appendChild(opt);
-  });
-}
+// REMOVED DUPLICATE COLLECTOR DROPDOWN POPULATION - KEEPING ONLY ONE
 
 // Add collection button
 document.getElementById("add-vc-btn").addEventListener("click", async ()=>{
@@ -974,8 +949,21 @@ document.getElementById("search-vc").addEventListener("input", e => {
   filterTable("vc-table", e.target.value);
 });
 
+// ===== Populate Collector Dropdown (SINGLE PLACE) =====
+const vcCollectorSelect = document.getElementById('vc-collector');
+
+collectorsCol.orderBy("name").onSnapshot(snapshot => {
+  vcCollectorSelect.innerHTML = '<option value="">-- Select Collector --</option>'; // reset
+  snapshot.forEach(docSnap => {
+    const d = docSnap.data();
+    const opt = document.createElement('option');
+    opt.value = d.name;
+    opt.textContent = d.name;
+    vcCollectorSelect.appendChild(opt);
+  });
+});
+
 // Init
-loadVillageCollectorsDropdown();
 loadVillageCollections();
 
 /* ---------------- Monthly summary placeholder ---------------- */
