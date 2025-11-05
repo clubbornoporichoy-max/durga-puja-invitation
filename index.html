@@ -397,6 +397,34 @@
       </div>
     </div>
 
+<!-- Village Collection Tracker -->
+<div class="card" id="village-collection">
+  <h2>🏘️ Village Collection Tracker</h2>
+  <div class="subtitle">Track donations per village and collector</div>
+
+  <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;align-items:center">
+    <input id="vc-bill" type="text" placeholder="Bill No" style="min-width:120px" />
+    <select id="vc-collector" style="min-width:180px"><option value="">-- Select Collector --</option></select>
+    <input id="vc-amount" type="number" placeholder="Amount (₹)" style="min-width:120px" />
+    <input id="vc-remarks" type="text" placeholder="Remarks" style="min-width:180px" />
+    <select id="vc-village" style="min-width:160px">
+      <option value="Madhabpur" selected>Madhabpur</option>
+      <option value="Other1">Other1</option>
+      <option value="Other2">Other2</option>
+    </select>
+    <button id="add-vc-btn" class="btn small">Add Collection</button>
+    <button id="export-vc-btn" class="btn small secondary">Export CSV</button>
+    <input id="search-vc" type="text" placeholder="Search by Village / Collector / Bill..." style="flex:1;min-width:200px" />
+  </div>
+
+  <table id="vc-table" style="margin-top:12px">
+    <thead>
+      <tr><th>Bill No</th><th>Collector</th><th>Amount</th><th>Village</th><th>Remarks</th><th>Date Added</th><th>Actions</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
   </div> <!-- main-content -->
 </div> <!-- container -->
 
