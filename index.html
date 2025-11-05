@@ -769,6 +769,16 @@ async function loadCollectors(){
         tr.querySelector("td:last-child").appendChild(del);
       }
     });
+    const vcCollectorSelect = document.getElementById("vc-collector");
+    vcCollectorSelect.innerHTML = '<option value="">-- Select Collector --</option>';
+    snap.forEach(docSnap=>{
+      const d = docSnap.data();
+      const opt = document.createElement('option');
+      opt.value = d.name;
+      opt.textContent = d.name;
+      vcCollectorSelect.appendChild(opt);
+    });
+    
   }catch(e){ console.error(e); alert("Load collectors failed: "+(e.message || e)); }
 }
 document.getElementById("search-collectors").addEventListener("input",(e)=> filterTable("collector-table", e.target.value));
