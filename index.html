@@ -891,14 +891,29 @@ document.getElementById("add-vc-btn").addEventListener("click", async ()=>{
 });
 
 // Load collections table and calculate total
+// Load collections table and calculate total
 async function loadVillageCollections(){
   vcTable.innerHTML = "";
   try {
-    const snap = await villageCollectionsCol.orderBy("dateAdded","desc").get();
+    const snap = await villageCollectionsCol.orderBy("dateAdded", "desc").get();
     let totalAmount = 0;
+    
+    // Create a map to track unique entries and avoid duplicates
+    const seenEntries = new Set();
     
     snap.forEach(doc => {
       const d = doc.data();
+      
+      // Create a unique key for this entry to detect duplicates
+      const entryKey = `${d.bill}-${d.collectorId}-${d.donorName}-${d.amount}-${d.village}`;
+      
+      // Skip if we've already seen this exact entry
+      if (seenEntries.has(entryKey)) {
+        console.log('Skipping duplicate:', entryKey);
+        return;
+      }
+      seenEntries.add(entryKey);
+      
       totalAmount += (d.amount || 0);
       
       const tr = document.createElement("tr");
@@ -916,12 +931,13 @@ async function loadVillageCollections(){
 
       if(currentRole==="admin"){
         const delBtn = document.createElement("button");
-        delBtn.textContent="Delete"; delBtn.className="btn small ghost";
+        delBtn.textContent="Delete"; 
+        delBtn.className="btn small ghost";
         delBtn.onclick = ()=> { 
           if(confirm("Delete this collection?")) doc.ref.delete().then(()=>{ 
             showToast("Deleted"); 
             loadVillageCollections(); 
-            recalcTotalCollected(); // Update the breakdown
+            recalcTotalCollected();
           }); 
         };
         tr.querySelector("td:last-child").appendChild(delBtn);
@@ -938,12 +954,13 @@ async function loadVillageCollections(){
     } else {
       totalElement.style.display = "none";
     }
+    
+    console.log('Total unique entries:', seenEntries.size);
   } catch(e) { 
     console.error(e); 
     alert("Failed to load village collections: "+(e.message||e)); 
   }
 }
-
 // Search
 document.getElementById("search-vc").addEventListener("input", e => {
   filterTable("vc-table", e.target.value);
