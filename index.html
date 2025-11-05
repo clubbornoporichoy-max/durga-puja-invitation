@@ -747,7 +747,7 @@ document.getElementById("search-members").addEventListener("input",(e)=> filterT
 /* ---------------- Collectors (with bill no, mobile, remarks) ---------------- */
 document.getElementById("add-col-btn").addEventListener("click", async ()=> {
   if(currentRole!=="admin") return alert("Only admin can add");
-  const name=document.getElementById("col-name").value.trim();
+  const collectorName = vcCollectorSelect.value;
   const area=document.getElementById("col-area").value.trim();
   const bill=document.getElementById("col-bill").value.trim();
   const mobile=document.getElementById("col-mobile").value.trim();
