@@ -396,6 +396,7 @@
         </div>
       </div>
     </div>
+
 <!-- Village Collection Tracker -->
 <div class="card" id="village-collection">
   <h2>🏘️ Village Collection Tracker</h2>
@@ -468,6 +469,7 @@ const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 /* ---------------- collections (static) ---------------- */
 const invitationCol = db.collection("invitations");
 const membersCol = db.collection("members");
+const collectorsCol = db.collection("collectors");
 function membershipFeesCollectionFor(year){ return db.collection(`membership_fees_${year}`); }
 
 /* ---------------- fee-year dropdowns (2025-2050) ---------------- */
@@ -760,7 +762,7 @@ collectorsCol.orderBy("name").onSnapshot(snapshot => {
 /* ---------------- Collectors (with bill no, mobile, remarks) ---------------- */
 document.getElementById("add-col-btn").addEventListener("click", async ()=> {
   if(currentRole!=="admin") return alert("Only admin can add");
-  const collectorName = vcCollectorSelect.value;
+  const name=document.getElementById("col-name").value.trim();
   const area=document.getElementById("col-area").value.trim();
   const bill=document.getElementById("col-bill").value.trim();
   const mobile=document.getElementById("col-mobile").value.trim();
@@ -797,7 +799,6 @@ document.getElementById("search-collectors").addEventListener("input",(e)=> filt
 
 /* ---------------- Village Collection Tracker ---------------- */
 const vcTable = document.getElementById("vc-table").querySelector("tbody");
-const vcCollectorSelect = document.getElementById("vc-collector");
 const vcVillageSelect = document.getElementById("vc-village");
 const vcBillInput = document.getElementById("vc-bill");
 const vcAmountInput = document.getElementById("vc-amount");
