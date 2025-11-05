@@ -744,7 +744,7 @@ async function loadMembers(){
 document.getElementById("search-members").addEventListener("input",(e)=> filterTable("members-table", e.target.value));
 
 // ===== Populate Collector Dropdown =====
-
+const vcCollectorSelect = document.getElementById('vc-collector');
 
 collectorsCol.orderBy("name").onSnapshot(snapshot => {
   vcCollectorSelect.innerHTML = '<option value="">-- Select Collector --</option>'; // reset
