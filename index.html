@@ -855,8 +855,6 @@ const vcDonorInput = document.getElementById("vc-donor");
 const vcAmountInput = document.getElementById("vc-amount");
 const vcRemarksInput = document.getElementById("vc-remarks");
 
-// REMOVED DUPLICATE COLLECTOR DROPDOWN POPULATION - KEEPING ONLY ONE
-
 // Add collection button
 document.getElementById("add-vc-btn").addEventListener("click", async ()=>{
   if(currentRole !== "admin") return alert("Only admin can add");
@@ -890,16 +888,16 @@ document.getElementById("add-vc-btn").addEventListener("click", async ()=>{
   }catch(e){ console.error(e); alert("Failed to add collection: "+(e.message||e)); }
 });
 
-// Load collections table and calculate total
-// Load collections table and calculate total
+// Load collections table and calculate total - FIXED VERSION
 async function loadVillageCollections(){
   vcTable.innerHTML = "";
   try {
     const snap = await villageCollectionsCol.orderBy("dateAdded", "desc").get();
     let totalAmount = 0;
     
-    // Create a map to track unique entries and avoid duplicates
-    const seenEntries = new Set();
+    // Create a map to track unique entries and delete duplicates
+    const seenEntries = new Map();
+    const duplicatesToDelete = [];
     
     snap.forEach(doc => {
       const d = doc.data();
@@ -907,13 +905,15 @@ async function loadVillageCollections(){
       // Create a unique key for this entry to detect duplicates
       const entryKey = `${d.bill}-${d.collectorId}-${d.donorName}-${d.amount}-${d.village}`;
       
-      // Skip if we've already seen this exact entry
+      // If we've seen this exact entry before, mark it for deletion
       if (seenEntries.has(entryKey)) {
-        console.log('Skipping duplicate:', entryKey);
-        return;
+        console.log('Found duplicate, will delete:', doc.id);
+        duplicatesToDelete.push(doc.ref.delete());
+        return; // Skip displaying this duplicate
       }
-      seenEntries.add(entryKey);
       
+      // Store the first occurrence
+      seenEntries.set(entryKey, doc.id);
       totalAmount += (d.amount || 0);
       
       const tr = document.createElement("tr");
@@ -944,6 +944,18 @@ async function loadVillageCollections(){
       }
     });
 
+    // Delete all duplicates found
+    if (duplicatesToDelete.length > 0) {
+      await Promise.all(duplicatesToDelete);
+      console.log(`Deleted ${duplicatesToDelete.length} duplicate entries`);
+      if (duplicatesToDelete.length > 0) {
+        showToast(`Removed ${duplicatesToDelete.length} duplicates`);
+        // Reload to show clean data
+        setTimeout(loadVillageCollections, 500);
+        return;
+      }
+    }
+
     // Update total collection display
     const totalElement = document.getElementById("vc-total-collection");
     const totalAmountElement = document.getElementById("vc-total-amount");
@@ -961,6 +973,53 @@ async function loadVillageCollections(){
     alert("Failed to load village collections: "+(e.message||e)); 
   }
 }
+
+// Quick cleanup function to remove all duplicates immediately
+async function forceCleanDuplicates() {
+  if (currentRole !== "admin") {
+    alert("Only admin can run cleanup");
+    return;
+  }
+  
+  if (!confirm("This will remove ALL duplicate collection entries. Continue?")) {
+    return;
+  }
+  
+  try {
+    const snap = await villageCollectionsCol.orderBy("dateAdded", "desc").get();
+    const seenEntries = new Map();
+    const duplicatesToDelete = [];
+    
+    // Find duplicates
+    snap.forEach(doc => {
+      const d = doc.data();
+      const entryKey = `${d.bill}-${d.collectorId}-${d.donorName}-${d.amount}-${d.village}`;
+      
+      if (seenEntries.has(entryKey)) {
+        duplicatesToDelete.push(doc.ref.delete());
+      } else {
+        seenEntries.set(entryKey, doc.id);
+      }
+    });
+    
+    // Delete duplicates
+    if (duplicatesToDelete.length > 0) {
+      await Promise.all(duplicatesToDelete);
+      showToast(`Removed ${duplicatesToDelete.length} duplicate entries`);
+      loadVillageCollections();
+    } else {
+      showToast("No duplicates found");
+    }
+    
+  } catch (e) {
+    console.error("Cleanup error:", e);
+    alert("Cleanup failed: " + e.message);
+  }
+}
+
+// Make it available globally
+window.forceCleanDuplicates = forceCleanDuplicates;
+
 // Search
 document.getElementById("search-vc").addEventListener("input", e => {
   filterTable("vc-table", e.target.value);
