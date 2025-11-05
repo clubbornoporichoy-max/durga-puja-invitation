@@ -181,6 +181,11 @@
     color: var(--primary-red);
     font-size: 14px;
   }
+
+  /* Utility classes */
+  .hidden { display: none !important; }
+  .visible { display: block !important; }
+  .flex-row { display: flex; flex-direction: row; }
 </style>
 </head>
 <body>
@@ -247,11 +252,11 @@
     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
       <div style="min-width:240px;flex:1">
         <label class="muted">Email</label>
-        <input id="email" type="email" placeholder="admin@example.com" />
+        <input id="email" type="email" placeholder="admin@example.com" style="width:100%" />
       </div>
       <div style="min-width:220px;flex:1">
         <label class="muted">Password</label>
-        <input id="password" type="password" placeholder="password" />
+        <input id="password" type="password" placeholder="password" style="width:100%" />
       </div>
 
       <div style="min-width:160px">
@@ -259,7 +264,7 @@
         <select id="feeYearSelectSmall" style="width:100%;"></select>
       </div>
 
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;margin-top:20px">
         <button id="login-btn" class="btn">Login</button>
       </div>
     </div>
@@ -361,7 +366,7 @@
 
         <div style="min-width:140px">
           <label class="muted">Monthly Fee (₹)</label>
-          <input id="feeAmountInput" type="number" min="1" value="100" />
+          <input id="feeAmountInput" type="number" min="1" value="100" style="width:100%" />
         </div>
 
         <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
@@ -584,6 +589,7 @@ const loginBtn = document.getElementById("login-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const mainContent = document.getElementById("main-content");
+const authCard = document.getElementById("auth-card");
 
 /* ---------------- Toast helpers ---------------- */
 function showToast(msg, ttl=2500) {
@@ -617,22 +623,25 @@ logoutBtn.addEventListener("click", () => {
 auth.onAuthStateChanged(user => {
   if(user){
     currentRole = ROLES[user.uid] || "viewer";
-    document.getElementById("email").style.display="none";
-    document.getElementById("password").style.display="none";
-    loginBtn.style.display="none";
-    logoutBtn.classList.remove("hidden");
+    // Show main content, hide auth card
+    authCard.style.display = "none";
     mainContent.classList.remove("hidden");
+    logoutBtn.classList.remove("hidden");
     userInfo.textContent = `${user.email} (${currentRole})`;
     applyRoleToUI();
     setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); }, 120);
   } else {
-    document.getElementById("email").style.display="";
-    document.getElementById("password").style.display="";
-    loginBtn.style.display="";
-    logoutBtn.classList.add("hidden");
+    // Show auth card, hide main content
+    authCard.style.display = "block";
     mainContent.classList.add("hidden");
+    logoutBtn.classList.add("hidden");
     userInfo.textContent = "";
     clearAllTables();
+    
+    // Reset form visibility
+    document.getElementById("email").style.display = "block";
+    document.getElementById("password").style.display = "block";
+    loginBtn.style.display = "block";
   }
 });
 
@@ -1103,7 +1112,7 @@ async function loadFeeMonthsTable(){
         if(currentRole!=="admin"){ cb.checked = !cb.checked; return alert("Only admin can change payments"); }
         try{
           if(!docSnap.exists){
-            const monthsInit = {}; MONTHS.forEach(mm=> monthsInit[mm] = { paid:false, paidAt:null });
+            const monthsInit = {}; MONTHS.forEach(mm=> monthsInit[mm] = { paid:false, paidAt:null };
             await docRef.set({ memberId, year: selectedFeeYear, months: monthsInit, feeAmount });
           }
           const updatePaid = {}; updatePaid[`months.${m}.paid`] = cb.checked;
