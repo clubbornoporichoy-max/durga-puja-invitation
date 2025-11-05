@@ -145,6 +145,17 @@
     .spacer{height:140px}
     .summary-bar { display:none; }
   }
+
+  .total-collection {
+    background: linear-gradient(135deg, var(--accent-gold), #f8e8a8);
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-top: 12px;
+    text-align: center;
+    font-weight: 700;
+    color: var(--text);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
 </style>
 </head>
 <body>
@@ -409,6 +420,8 @@
       <option value="">-- Select Collector --</option>
     </select>
 
+    <input id="vc-donor" type="text" placeholder="Donor Name" style="min-width:160px" />
+
     <input id="vc-amount" type="number" placeholder="Amount (₹)" style="min-width:120px" />
     <input id="vc-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
 
@@ -425,11 +438,17 @@
     <button id="add-vc-btn" class="btn small">Add Collection</button>
   </div>
 
+  <!-- Total Collection Display -->
+  <div id="vc-total-collection" class="total-collection" style="display:none;">
+    Total Village Collection: ₹<span id="vc-total-amount">0</span>
+  </div>
+
   <table id="vc-table" style="margin-top:12px">
     <thead>
       <tr>
         <th>Bill No</th>
         <th>Collector</th>
+        <th>Donor Name</th>
         <th>Amount (₹)</th>
         <th>Remarks</th>
         <th>Village</th>
@@ -476,6 +495,7 @@ const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov
 const invitationCol = db.collection("invitations");
 const membersCol = db.collection("members");
 const collectorsCol = db.collection("collectors");
+const villageCollectionsCol = db.collection("village_collections");
 function membershipFeesCollectionFor(year){ return db.collection(`membership_fees_${year}`); }
 
 /* ---------------- fee-year dropdowns (2025-2050) ---------------- */
@@ -583,7 +603,7 @@ auth.onAuthStateChanged(user => {
 
 /* ui role enforcement */
 function applyRoleToUI(){
-  ["add-inv-btn","add-mem-btn","add-col-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","show-paid-btn","exportCsvBtn"].forEach(id=>{
+  ["add-inv-btn","add-mem-btn","add-col-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","show-paid-btn","exportCsvBtn","add-vc-btn"].forEach(id=>{
     const el=document.getElementById(id); if(el) el.disabled = (currentRole !== "admin");
   });
 }
@@ -610,6 +630,7 @@ function loadAllData(){
   loadInvitations();
   loadMembers();
   loadCollectors();
+  loadVillageCollections();
   updateMonthlySummary();
 }
 
@@ -807,6 +828,7 @@ document.getElementById("search-collectors").addEventListener("input",(e)=> filt
 const vcTable = document.getElementById("vc-table").querySelector("tbody");
 const vcVillageSelect = document.getElementById("vc-village");
 const vcBillInput = document.getElementById("vc-bill");
+const vcDonorInput = document.getElementById("vc-donor");
 const vcAmountInput = document.getElementById("vc-amount");
 const vcRemarksInput = document.getElementById("vc-remarks");
 
@@ -828,47 +850,79 @@ document.getElementById("add-vc-btn").addEventListener("click", async ()=>{
   if(currentRole !== "admin") return alert("Only admin can add");
   const bill = vcBillInput.value.trim();
   const collectorId = vcCollectorSelect.value;
+  const donorName = vcDonorInput.value.trim();
   const amount = Number(vcAmountInput.value);
   const remarks = vcRemarksInput.value.trim();
   const village = vcVillageSelect.value;
-  if(!bill || !collectorId || !amount || !village) return alert("Bill, collector, amount, village required");
+  if(!bill || !collectorId || !amount || !village || !donorName) return alert("Bill, collector, donor name, amount, and village are required");
 
   try{
-    await db.collection("village_collections").add({
-      bill, collectorId, amount, remarks, village,
+    await villageCollectionsCol.add({
+      bill, 
+      collectorId, 
+      donorName,
+      amount, 
+      remarks, 
+      village,
       dateAdded: firebase.firestore.FieldValue.serverTimestamp()
     });
-    vcBillInput.value=""; vcAmountInput.value=""; vcRemarksInput.value=""; vcCollectorSelect.value=""; vcVillageSelect.value="";
+    vcBillInput.value=""; 
+    vcDonorInput.value="";
+    vcAmountInput.value=""; 
+    vcRemarksInput.value=""; 
+    vcCollectorSelect.value=""; 
+    vcVillageSelect.value="";
     showToast("Collection added");
     loadVillageCollections();
   }catch(e){ console.error(e); alert("Failed to add collection: "+(e.message||e)); }
 });
 
-// Load collections table
+// Load collections table and calculate total
 async function loadVillageCollections(){
   vcTable.innerHTML = "";
-  const snap = await db.collection("village_collections").orderBy("dateAdded","desc").get();
-  snap.forEach(doc => {
-    const d = doc.data();
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${d.bill||""}</td>
-      <td>${d.collectorId||""}</td>
-      <td>${d.amount||0}</td>
-      <td>${d.remarks||""}</td>
-      <td>${d.village||""}</td>
-      <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
-      <td></td>
-    `;
-    vcTable.appendChild(tr);
+  try {
+    const snap = await villageCollectionsCol.orderBy("dateAdded","desc").get();
+    let totalAmount = 0;
+    
+    snap.forEach(doc => {
+      const d = doc.data();
+      totalAmount += (d.amount || 0);
+      
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.bill||""}</td>
+        <td>${d.collectorId||""}</td>
+        <td>${d.donorName||""}</td>
+        <td>₹${d.amount||0}</td>
+        <td>${d.remarks||""}</td>
+        <td>${d.village||""}</td>
+        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
+        <td></td>
+      `;
+      vcTable.appendChild(tr);
 
-    if(currentRole==="admin"){
-      const delBtn = document.createElement("button");
-      delBtn.textContent="Delete"; delBtn.className="btn small ghost";
-      delBtn.onclick = ()=> { if(confirm("Delete this collection?")) doc.ref.delete().then(()=>{ showToast("Deleted"); loadVillageCollections(); }); };
-      tr.querySelector("td:last-child").appendChild(delBtn);
+      if(currentRole==="admin"){
+        const delBtn = document.createElement("button");
+        delBtn.textContent="Delete"; delBtn.className="btn small ghost";
+        delBtn.onclick = ()=> { if(confirm("Delete this collection?")) doc.ref.delete().then(()=>{ showToast("Deleted"); loadVillageCollections(); }); };
+        tr.querySelector("td:last-child").appendChild(delBtn);
+      }
+    });
+
+    // Update total collection display
+    const totalElement = document.getElementById("vc-total-collection");
+    const totalAmountElement = document.getElementById("vc-total-amount");
+    
+    if (totalAmount > 0) {
+      totalAmountElement.textContent = totalAmount.toLocaleString();
+      totalElement.style.display = "block";
+    } else {
+      totalElement.style.display = "none";
     }
-  });
+  } catch(e) { 
+    console.error(e); 
+    alert("Failed to load village collections: "+(e.message||e)); 
+  }
 }
 
 // Search
@@ -1157,7 +1211,7 @@ function renderPaidTrackerTable(data, year){
   };
 }
 
-/* ---------------- Recalc total collected (fees + collectors donations) ---------------- */
+/* ---------------- Recalc total collected (fees + collectors donations + village collections) ---------------- */
 async function recalcTotalCollected(){
   try{
     // fees collected for selectedFeeYear
@@ -1182,7 +1236,15 @@ async function recalcTotalCollected(){
       if(d.amount) collectorsTotal += Number(d.amount) || 0;
     });
 
-    const grandTotal = feesTotal + collectorsTotal;
+    // village collections
+    const villageSnap = await villageCollectionsCol.get();
+    let villageTotal = 0;
+    villageSnap.forEach(doc => {
+      const d = doc.data();
+      villageTotal += (d.amount || 0);
+    });
+
+    const grandTotal = feesTotal + collectorsTotal + villageTotal;
     document.getElementById("summary-collection").textContent = `₹${grandTotal} (${payingMembersCount})`;
     document.getElementById("summary-collection-inline").textContent = `₹${grandTotal}`;
   } catch(e){ console.error("Recalc total error:", e); }
