@@ -744,6 +744,21 @@ async function loadMembers(){
 }
 document.getElementById("search-members").addEventListener("input",(e)=> filterTable("members-table", e.target.value));
 
+// ===== Populate Collector Dropdown =====
+const collectorsCol = firebase.firestore().collection("Donation Collectors");
+const vcCollectorSelect = document.getElementById('vc-collector');
+
+collectorsCol.orderBy("name").onSnapshot(snapshot => {
+  vcCollectorSelect.innerHTML = '<option value="">-- Select Collector --</option>'; // reset
+  snapshot.forEach(docSnap => {
+    const d = docSnap.data();
+    const opt = document.createElement('option');
+    opt.value = d.name;
+    opt.textContent = d.name;
+    vcCollectorSelect.appendChild(opt);
+  });
+});
+
 /* ---------------- Collectors (with bill no, mobile, remarks) ---------------- */
 document.getElementById("add-col-btn").addEventListener("click", async ()=> {
   if(currentRole!=="admin") return alert("Only admin can add");
