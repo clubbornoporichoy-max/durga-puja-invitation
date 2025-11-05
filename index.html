@@ -782,6 +782,84 @@ async function loadCollectors(){
 }
 document.getElementById("search-collectors").addEventListener("input",(e)=> filterTable("collector-table", e.target.value));
 
+/* ---------------- Village Collection Tracker ---------------- */
+const vcTable = document.getElementById("vc-table").querySelector("tbody");
+const vcCollectorSelect = document.getElementById("vc-collector");
+const vcVillageSelect = document.getElementById("vc-village");
+const vcBillInput = document.getElementById("vc-bill");
+const vcAmountInput = document.getElementById("vc-amount");
+const vcRemarksInput = document.getElementById("vc-remarks");
+
+// Populate collector dropdown
+async function loadVillageCollectorsDropdown(){
+  vcCollectorSelect.innerHTML = '<option value="">-- Select Collector --</option>';
+  const snap = await collectorsCol.orderBy("name").get();
+  snap.forEach(doc => {
+    const d = doc.data();
+    const opt = document.createElement("option");
+    opt.value = doc.id;
+    opt.textContent = d.name;
+    vcCollectorSelect.appendChild(opt);
+  });
+}
+
+// Add collection button
+document.getElementById("add-vc-btn").addEventListener("click", async ()=>{
+  if(currentRole !== "admin") return alert("Only admin can add");
+  const bill = vcBillInput.value.trim();
+  const collectorId = vcCollectorSelect.value;
+  const amount = Number(vcAmountInput.value);
+  const remarks = vcRemarksInput.value.trim();
+  const village = vcVillageSelect.value;
+  if(!bill || !collectorId || !amount || !village) return alert("Bill, collector, amount, village required");
+
+  try{
+    await db.collection("village_collections").add({
+      bill, collectorId, amount, remarks, village,
+      dateAdded: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    vcBillInput.value=""; vcAmountInput.value=""; vcRemarksInput.value=""; vcCollectorSelect.value=""; vcVillageSelect.value="";
+    showToast("Collection added");
+    loadVillageCollections();
+  }catch(e){ console.error(e); alert("Failed to add collection: "+(e.message||e)); }
+});
+
+// Load collections table
+async function loadVillageCollections(){
+  vcTable.innerHTML = "";
+  const snap = await db.collection("village_collections").orderBy("dateAdded","desc").get();
+  snap.forEach(doc => {
+    const d = doc.data();
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${d.bill||""}</td>
+      <td>${d.collectorId||""}</td>
+      <td>${d.amount||0}</td>
+      <td>${d.remarks||""}</td>
+      <td>${d.village||""}</td>
+      <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
+      <td></td>
+    `;
+    vcTable.appendChild(tr);
+
+    if(currentRole==="admin"){
+      const delBtn = document.createElement("button");
+      delBtn.textContent="Delete"; delBtn.className="btn small ghost";
+      delBtn.onclick = ()=> { if(confirm("Delete this collection?")) doc.ref.delete().then(()=>{ showToast("Deleted"); loadVillageCollections(); }); };
+      tr.querySelector("td:last-child").appendChild(delBtn);
+    }
+  });
+}
+
+// Search
+document.getElementById("search-vc").addEventListener("input", e => {
+  filterTable("vc-table", e.target.value);
+});
+
+// Init
+loadVillageCollectorsDropdown();
+loadVillageCollections();
+
 /* ---------------- Monthly summary placeholder ---------------- */
 async function updateMonthlySummary(){
   // kept intentionally light. real totals handled in fee summary functions
