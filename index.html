@@ -466,6 +466,9 @@ const ROLES = {
 let currentRole = "viewer";
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+/* ---------------- Village List ---------------- */
+const VILLAGES = ["Madhabpur", "Paldhui", "Sabitrapur", "Lalupool", "Mahakal", "Others"];
+
 /* ---------------- collections (static) ---------------- */
 const invitationCol = db.collection("invitations");
 const membersCol = db.collection("members");
@@ -563,7 +566,7 @@ auth.onAuthStateChanged(user => {
     mainContent.classList.remove("hidden");
     userInfo.textContent = `${user.email} (${currentRole})`;
     applyRoleToUI();
-    setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); }, 120);
+    setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); populateVillageDropdown(); }, 120);
   } else {
     document.getElementById("email").style.display="";
     document.getElementById("password").style.display="";
@@ -605,6 +608,18 @@ function loadAllData(){
   loadMembers();
   loadCollectors();
   updateMonthlySummary();
+}
+
+/* ---------------- Populate Village Dropdown ---------------- */
+function populateVillageDropdown() {
+  const villageSelect = document.getElementById('vc-village');
+  villageSelect.innerHTML = '<option value="">-- Select Village --</option>';
+  VILLAGES.forEach(village => {
+    const option = document.createElement('option');
+    option.value = village;
+    option.textContent = village;
+    villageSelect.appendChild(option);
+  });
 }
 
 /* ---------------- INVITATIONS ---------------- */
@@ -912,7 +927,7 @@ async function loadFeeMonthsTable(){
     const docSnap = await docRef.get();
     let record = docSnap.exists ? docSnap.data() : null;
     if(!record){
-      const monthsInit = {}; MONTHS.forEach(m=> monthsInit[m] = { paid:false, paidAt:null });
+      const monthsInit = {}; MONTHS.forEach(m=> monthsInit[m] = { paid:false, paidAt:null };
       record = { memberId, months: monthsInit, feeAmount };
     }
 
@@ -1069,7 +1084,7 @@ document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
 loadFeeMembersDropdown();
 
 /* initial loads if already logged in */
-setTimeout(()=>{ if(auth.currentUser){ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); recalcTotalCollected(); } }, 200);
+setTimeout(()=>{ if(auth.currentUser){ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); recalcTotalCollected(); populateVillageDropdown(); } }, 200);
 
 /* ---------------- Paid Members Visual Tracker (month boxes) ---------------- */
 document.getElementById("show-paid-btn").addEventListener("click", loadPaidMembersTracker);
