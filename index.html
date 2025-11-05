@@ -215,8 +215,8 @@
   </div>
 </header>
 
-<!-- sticky summary bar under header -->
-<div class="summary-bar" id="summary-bar">
+<!-- sticky summary bar under header - HIDDEN BY DEFAULT -->
+<div class="summary-bar hidden" id="summary-bar">
   <div class="summary-inner">
     <div class="summary-card">
       <div style="font-size:12px;color:#666">Invitees</div>
@@ -590,6 +590,7 @@ const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const mainContent = document.getElementById("main-content");
 const authCard = document.getElementById("auth-card");
+const summaryBar = document.getElementById("summary-bar");
 
 /* ---------------- Toast helpers ---------------- */
 function showToast(msg, ttl=2500) {
@@ -623,25 +624,22 @@ logoutBtn.addEventListener("click", () => {
 auth.onAuthStateChanged(user => {
   if(user){
     currentRole = ROLES[user.uid] || "viewer";
-    // Show main content, hide auth card
-    authCard.style.display = "none";
+    // Show main content and summary bar, hide auth card
+    authCard.classList.add("hidden");
     mainContent.classList.remove("hidden");
+    summaryBar.classList.remove("hidden");
     logoutBtn.classList.remove("hidden");
     userInfo.textContent = `${user.email} (${currentRole})`;
     applyRoleToUI();
     setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); }, 120);
   } else {
-    // Show auth card, hide main content
-    authCard.style.display = "block";
+    // Show auth card, hide main content and summary bar
+    authCard.classList.remove("hidden");
     mainContent.classList.add("hidden");
+    summaryBar.classList.add("hidden");
     logoutBtn.classList.add("hidden");
     userInfo.textContent = "";
     clearAllTables();
-    
-    // Reset form visibility
-    document.getElementById("email").style.display = "block";
-    document.getElementById("password").style.display = "block";
-    loginBtn.style.display = "block";
   }
 });
 
