@@ -72,6 +72,32 @@
 
   .auth-area { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
+  /* Global Year Selector */
+  .global-year-selector {
+    background: var(--accent-gold);
+    padding: 8px 15px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 20px;
+  }
+  .global-year-selector label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .global-year-selector select {
+    background: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-weight: 600;
+    color: var(--primary-red);
+    min-width: 100px;
+  }
+
   /* Container + cards */
   .spacer { height:92px } /* to offset fixed header */
   .container { max-width:1200px; margin:22px auto; padding:0 18px 80px; }
@@ -181,6 +207,17 @@
   /* Advanced Filters */
   .advanced-filters { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
 
+  /* Year Info Badge */
+  .year-info {
+    background: var(--primary-red);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 8px;
+  }
+
   /* responsive */
   @media (max-width: 768px) {
     .summary-cards {
@@ -216,6 +253,11 @@
     .flex{flex-direction:column; align-items:stretch}
     .spacer{height:140px}
     .summary-bar { display:none; }
+    
+    .global-year-selector {
+      margin-left: 0;
+      margin-top: 10px;
+    }
   }
 
   .total-collection {
@@ -261,6 +303,14 @@
       <a href="#fees" id="nav-fees">Membership Fees</a>
       <a href="#paid-tracker" id="nav-paid" style="display:none">Paid Tracker</a>
     </nav>
+
+    <!-- Global Year Selector -->
+    <div class="global-year-selector hidden" id="global-year-selector">
+      <label>📅 Year:</label>
+      <select id="globalYearSelect">
+        <!-- Options will be populated dynamically -->
+      </select>
+    </div>
 
     <div class="auth-area">
       <div id="user-info" class="muted" style="font-size:13px"></div>
@@ -314,8 +364,10 @@
       </div>
 
       <div style="min-width:160px">
-        <label class="muted">Fees Year (quick)</label>
-        <select id="feeYearSelectSmall" style="width:100%;"></select>
+        <label class="muted">Select Year</label>
+        <select id="loginYearSelect" style="width:100%;">
+          <!-- Options will be populated dynamically -->
+        </select>
       </div>
 
       <div style="display:flex;gap:8px;align-items:center;margin-top:20px">
@@ -330,23 +382,26 @@
   <!-- Main content (hidden until login) -->
   <div id="main-content" class="hidden">
 
-    <!-- 1. Real-time Dashboard Summary Cards -->
-    <div class="summary-cards">
-      <div class="summary-card-item">
-        <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="total-invitations">0</div>
-        <div style="font-size: 14px; color: var(--muted);">Total Invitations</div>
-      </div>
-      <div class="summary-card-item">
-        <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="total-members">0</div>
-        <div style="font-size: 14px; color: var(--muted);">Total Members</div>
-      </div>
-      <div class="summary-card-item">
-        <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="pending-invitations">0</div>
-        <div style="font-size: 14px; color: var(--muted);">Pending Invitations</div>
-      </div>
-      <div class="summary-card-item">
-        <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="active-collectors">0</div>
-        <div style="font-size: 14px; color: var(--muted);">Active Collectors</div>
+    <!-- 1. Real-time Dashboard Summary Cards (SEPARATE PANEL) -->
+    <div class="card">
+      <h3>📊 Dashboard Overview</h3>
+      <div class="summary-cards">
+        <div class="summary-card-item">
+          <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="total-invitations">0</div>
+          <div style="font-size: 14px; color: var(--muted);">Total Invitations</div>
+        </div>
+        <div class="summary-card-item">
+          <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="total-members">0</div>
+          <div style="font-size: 14px; color: var(--muted);">Total Members</div>
+        </div>
+        <div class="summary-card-item">
+          <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="pending-invitations">0</div>
+          <div style="font-size: 14px; color: var(--muted);">Pending Invitations</div>
+        </div>
+        <div class="summary-card-item">
+          <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="active-collectors">0</div>
+          <div style="font-size: 14px; color: var(--muted);">Active Collectors</div>
+        </div>
       </div>
     </div>
 
@@ -358,6 +413,7 @@
         <button class="btn small secondary" onclick="sendBulkReminders()">📧 Send Reminders</button>
         <button class="btn small ghost" onclick="generateReport()">📋 Generate Report</button>
         <button class="btn small" onclick="backupData()">💾 Backup Data</button>
+        <button class="btn small secondary" onclick="showAllYearsData()">📅 View All Years</button>
       </div>
     </div>
 
@@ -369,12 +425,22 @@
       </div>
     </div>
 
+    <!-- Year Information Card -->
+    <div class="card" id="year-info-card">
+      <h3>📅 Currently Viewing: <span id="current-year-display">2025</span> <span class="year-info" id="year-data-status">Loading...</span></h3>
+      <div class="subtitle" id="year-data-description">Viewing membership fees data for selected year. Other data (invitations, members, collections) shows all years.</div>
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button class="btn small secondary" onclick="loadAllYearsFees()">🔄 Load Fees from All Years</button>
+        <button class="btn small ghost" onclick="showYearComparison()">📊 Compare Years</button>
+      </div>
+    </div>
+
     <!-- Invitations -->
     <div class="card" id="invitations">
-      <h2>🪔 Invitation List</h2>
-      <div class="subtitle">Add, search and track invitation card distribution</div>
+      <h2>🪔 Invitation List <span class="year-info">All Years</span></h2>
+      <div class="subtitle">Add, search and track invitation card distribution (shows data from all years)</div>
 
-      <!-- 6. Enhanced Search & Filters -->
+      <!-- Enhanced Search & Filters -->
       <div class="advanced-filters">
         <select id="filter-village" style="min-width: 150px;">
           <option value="">All Villages</option>
@@ -419,8 +485,8 @@
 
     <!-- Members -->
     <div class="card" id="members">
-      <h2>🌸 Members List</h2>
-      <div class="subtitle">Manage members — linked to membership fee tracker</div>
+      <h2>🌸 Members List <span class="year-info">All Years</span></h2>
+      <div class="subtitle">Manage members — linked to membership fee tracker (shows data from all years)</div>
 
       <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
         <input id="search-members" type="text" placeholder="Search members (name/mobile)..." style="flex:1" />
@@ -445,15 +511,10 @@
 
     <!-- Membership Fees -->
     <div class="card" id="fees">
-      <h2>💰 Membership Fees Tracker (per Year)</h2>
-      <div class="subtitle">Track monthly payments (₹ per month configurable)</div>
+      <h2>💰 Membership Fees Tracker (<span id="fees-year-display">2025</span>)</h2>
+      <div class="subtitle">Track monthly payments (₹ per month configurable) - Year-specific data</div>
 
       <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
-        <div style="min-width:160px">
-          <label class="muted">Year</label>
-          <select id="feeYearSelectSmall2" style="width:100%"></select>
-        </div>
-
         <div style="min-width:260px">
           <label class="muted">Member</label>
           <select id="feeMemberSelect" style="width:100%"><option value="">-- Select member --</option></select>
@@ -492,17 +553,12 @@
       </div>
     </div>
 
-    <!-- Paid Members Visual Tracker (with boxes) -->
+    <!-- Paid Members Visual Tracker -->
     <div class="card" id="paid-tracker">
-      <h2>💠 Paid Members Visual Tracker</h2>
+      <h2>💠 Paid Members Visual Tracker (<span id="paid-tracker-year-display">2025</span>)</h2>
       <div class="subtitle">Click to load paid status for selected year. Click column header "Member" to sort A→Z.</div>
 
       <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
-        <div style="min-width:160px">
-          <label class="muted">Fees Year (tracker)</label>
-          <select id="feesYearTrackerSelect" style="width:100%"></select>
-        </div>
-
         <div style="min-width:220px">
           <button id="show-paid-btn" class="btn small">Show Paid Members</button>
           <button id="clear-paid-view" class="btn small ghost" style="margin-left:8px">Clear</button>
@@ -518,8 +574,8 @@
 
     <!-- Collectors -->
     <div class="card" id="collectors">
-      <h2>📬 Donation Collectors</h2>
-      <div class="subtitle">Assign areas and track bills</div>
+      <h2>📬 Donation Collectors <span class="year-info">All Years</span></h2>
+      <div class="subtitle">Assign areas and track bills (shows data from all years)</div>
 
       <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
         <input id="search-collectors" type="text" placeholder="Search collectors..." style="flex:1" />
@@ -543,73 +599,73 @@
       </div>
     </div>
 
-<!-- Village Collection Tracker -->
-<div class="card" id="village-collection">
-  <h2>🏘️ Village Collection Tracker</h2>
-  <div class="subtitle">Track donations per village and collector</div>
+    <!-- Village Collection Tracker -->
+    <div class="card" id="village-collection">
+      <h2>🏘️ Village Collection Tracker <span class="year-info">All Years</span></h2>
+      <div class="subtitle">Track donations per village and collector (shows data from all years)</div>
 
-  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
-    <input id="vc-bill" type="text" placeholder="Bill No" style="min-width:120px" />
-    
-    <select id="vc-collector" style="min-width:160px">
-      <option value="">-- Select Collector --</option>
-    </select>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
+        <input id="vc-bill" type="text" placeholder="Bill No" style="min-width:120px" />
+        
+        <select id="vc-collector" style="min-width:160px">
+          <option value="">-- Select Collector --</option>
+        </select>
 
-    <input id="vc-donor" type="text" placeholder="Donor Name" style="min-width:160px" />
+        <input id="vc-donor" type="text" placeholder="Donor Name" style="min-width:160px" />
 
-    <input id="vc-amount" type="number" placeholder="Amount (₹)" style="min-width:120px" />
-    <input id="vc-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
+        <input id="vc-amount" type="number" placeholder="Amount (₹)" style="min-width:120px" />
+        <input id="vc-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
 
-    <select id="vc-village" style="min-width:160px">
-      <option value="">-- Select Village --</option>
-      <option value="Madhabpur">Madhabpur</option>
-      <option value="Paldhui">Paldhui</option>
-      <option value="Sabitrapur">Sabitrapur</option>
-      <option value="Lalupool">Lalupool</option>
-      <option value="Mahakal">Mahakal</option>
-      <option value="Others">Others</option>
-    </select>
+        <select id="vc-village" style="min-width:160px">
+          <option value="">-- Select Village --</option>
+          <option value="Madhabpur">Madhabpur</option>
+          <option value="Paldhui">Paldhui</option>
+          <option value="Sabitrapur">Sabitrapur</option>
+          <option value="Lalupool">Lalupool</option>
+          <option value="Mahakal">Mahakal</option>
+          <option value="Others">Others</option>
+        </select>
 
-    <button id="add-vc-btn" class="btn small">Add Collection</button>
-  </div>
+        <button id="add-vc-btn" class="btn small">Add Collection</button>
+      </div>
 
-  <!-- Total Collection Display -->
-  <div id="vc-total-collection" class="total-collection" style="display:none;">
-    Total Village Collection: ₹<span id="vc-total-amount">0</span>
-  </div>
+      <!-- Total Collection Display -->
+      <div id="vc-total-collection" class="total-collection" style="display:none;">
+        Total Village Collection: ₹<span id="vc-total-amount">0</span>
+      </div>
 
-  <!-- 2. Village-wise Collection Breakdown -->
-  <div class="card" style="margin-top: 15px;">
-    <h3>🏘️ Village-wise Collection</h3>
-    <div id="village-breakdown" class="village-breakdown">
-      <!-- Will be populated dynamically -->
+      <!-- Village-wise Collection Breakdown -->
+      <div class="card" style="margin-top: 15px;">
+        <h3>🏘️ Village-wise Collection</h3>
+        <div id="village-breakdown" class="village-breakdown">
+          <!-- Will be populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Monthly Collection Trends Chart -->
+      <div class="card" style="margin-top: 15px;">
+        <h3>📈 Monthly Collection Trend</h3>
+        <canvas id="collectionChart" height="100"></canvas>
+      </div>
+
+      <table id="vc-table" style="margin-top:12px">
+        <thead>
+          <tr>
+            <th>Bill No</th>
+            <th>Collector</th>
+            <th>Donor Name</th>
+            <th>Amount (₹)</th>
+            <th>Remarks</th>
+            <th>Village</th>
+            <th>Date Added</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <input id="search-vc" type="text" placeholder="Search collections..." style="margin-top:12px;width:100%;padding:8px;border-radius:8px;border:1px solid #ccc;" />
     </div>
-  </div>
-
-  <!-- 3. Monthly Collection Trends Chart -->
-  <div class="card" style="margin-top: 15px;">
-    <h3>📈 Monthly Collection Trend</h3>
-    <canvas id="collectionChart" height="100"></canvas>
-  </div>
-
-  <table id="vc-table" style="margin-top:12px">
-    <thead>
-      <tr>
-        <th>Bill No</th>
-        <th>Collector</th>
-        <th>Donor Name</th>
-        <th>Amount (₹)</th>
-        <th>Remarks</th>
-        <th>Village</th>
-        <th>Date Added</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <input id="search-vc" type="text" placeholder="Search collections..." style="margin-top:12px;width:100%;padding:8px;border-radius:8px;border:1px solid #ccc;" />
-</div>
 
   </div> <!-- main-content -->
 </div> <!-- container -->
@@ -632,6 +688,163 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+/* ---------------- Global Year Selection System ---------------- */
+let selectedYear = new Date().getFullYear(); // Default to current year
+let allYearsFeesData = {}; // Store fees data from all years
+
+// Function to populate year dropdowns
+function populateYearDropdowns() {
+  const loginYearSelect = document.getElementById('loginYearSelect');
+  const globalYearSelect = document.getElementById('globalYearSelect');
+  
+  // Clear existing options
+  if (loginYearSelect) loginYearSelect.innerHTML = '';
+  if (globalYearSelect) globalYearSelect.innerHTML = '';
+  
+  // Add "All Years" option
+  const allYearsOption = document.createElement('option');
+  allYearsOption.value = 'all';
+  allYearsOption.textContent = 'All Years';
+  
+  if (loginYearSelect) loginYearSelect.appendChild(allYearsOption.cloneNode(true));
+  if (globalYearSelect) globalYearSelect.appendChild(allYearsOption.cloneNode(true));
+  
+  // Add years from 2025 to 2050
+  for (let year = 2025; year <= 2050; year++) {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    
+    if (year === selectedYear) {
+      option.selected = true;
+    }
+    
+    if (loginYearSelect) loginYearSelect.appendChild(option.cloneNode(true));
+    if (globalYearSelect) globalYearSelect.appendChild(option);
+  }
+}
+
+// Function to update year displays
+function updateYearDisplays() {
+  // Update header displays
+  const currentYearDisplay = document.getElementById('current-year-display');
+  const feesYearDisplay = document.getElementById('fees-year-display');
+  const paidTrackerYearDisplay = document.getElementById('paid-tracker-year-display');
+  
+  if (currentYearDisplay) currentYearDisplay.textContent = selectedYear === 'all' ? 'All Years' : selectedYear;
+  if (feesYearDisplay) feesYearDisplay.textContent = selectedYear === 'all' ? 'All Years' : selectedYear;
+  if (paidTrackerYearDisplay) paidTrackerYearDisplay.textContent = selectedYear === 'all' ? 'All Years' : selectedYear;
+  
+  // Update year data status
+  const yearDataStatus = document.getElementById('year-data-status');
+  const yearDataDescription = document.getElementById('year-data-description');
+  
+  if (selectedYear === 'all') {
+    if (yearDataStatus) yearDataStatus.textContent = 'All Years Data';
+    if (yearDataDescription) yearDataDescription.textContent = 'Viewing aggregated data from all years. Membership fees are combined across all available years.';
+  } else {
+    if (yearDataStatus) yearDataStatus.textContent = `Year ${selectedYear}`;
+    if (yearDataDescription) yearDataDescription.textContent = `Viewing membership fees data for ${selectedYear}. Other data (invitations, members, collections) shows all years.`;
+  }
+  
+  // Update global year selector
+  const globalYearSelect = document.getElementById('globalYearSelect');
+  if (globalYearSelect) {
+    globalYearSelect.value = selectedYear;
+  }
+}
+
+// Function to change global year
+function changeGlobalYear(newYear) {
+  selectedYear = newYear === 'all' ? 'all' : parseInt(newYear);
+  updateYearDisplays();
+  
+  // Reload all year-dependent data
+  loadFeeMembersDropdown();
+  loadFeeYearlySummary();
+  recalcTotalCollected();
+  
+  // Show notification
+  if (selectedYear === 'all') {
+    showNotification('Now viewing data from all years', 'info');
+    addActivity('Changed to view all years data', 'info');
+  } else {
+    showNotification(`Year changed to ${selectedYear}. All data updated.`, 'info');
+    addActivity(`Changed global year to ${selectedYear}`, 'info');
+  }
+}
+
+// Function to load fees data from all years
+async function loadAllYearsFees() {
+  try {
+    addActivity('Loading fees data from all years...', 'info');
+    
+    allYearsFeesData = {};
+    const years = [2024, 2025]; // Add all years you have data for
+    
+    for (const year of years) {
+      try {
+        const feesCol = membershipFeesCollectionFor(year);
+        const snap = await feesCol.get();
+        if (!snap.empty) {
+          allYearsFeesData[year] = {};
+          snap.forEach(doc => {
+            allYearsFeesData[year][doc.id] = doc.data();
+          });
+        }
+      } catch (error) {
+        console.log(`No data found for year ${year} or collection doesn't exist`);
+      }
+    }
+    
+    showNotification('Loaded fees data from all available years', 'success');
+    addActivity('Fees data loaded from all years', 'success');
+    
+    // Refresh the display
+    if (selectedYear === 'all') {
+      loadFeeYearlySummary();
+      recalcTotalCollected();
+    }
+    
+  } catch (error) {
+    console.error('Error loading all years fees:', error);
+    showNotification('Error loading data from all years', 'error');
+  }
+}
+
+// Function to show all years data
+function showAllYearsData() {
+  changeGlobalYear('all');
+}
+
+// Function to show year comparison (placeholder)
+function showYearComparison() {
+  showNotification('Year comparison feature coming soon!', 'info');
+}
+
+// Initialize year system
+populateYearDropdowns();
+
+/* ---------------- Event Listeners for Year Selection ---------------- */
+document.addEventListener('DOMContentLoaded', function() {
+  // Login year selector
+  const loginYearSelect = document.getElementById('loginYearSelect');
+  if (loginYearSelect) {
+    loginYearSelect.addEventListener('change', function(e) {
+      selectedYear = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
+      updateYearDisplays();
+    });
+  }
+  
+  // Global year selector (in header)
+  const globalYearSelect = document.getElementById('globalYearSelect');
+  if (globalYearSelect) {
+    globalYearSelect.addEventListener('change', function(e) {
+      changeGlobalYear(e.target.value);
+    });
+  }
+});
+
 /* ---------------- Roles & constants ---------------- */
 const ROLES = {
   "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin",
@@ -647,7 +860,7 @@ const collectorsCol = db.collection("collectors");
 const villageCollectionsCol = db.collection("village_collections");
 function membershipFeesCollectionFor(year){ return db.collection(`membership_fees_${year}`); }
 
-/* ---------------- NEW: Chart initialization ---------------- */
+/* ---------------- Chart initialization ---------------- */
 let collectionChart;
 function initCollectionChart() {
   const ctx = document.getElementById('collectionChart');
@@ -690,7 +903,7 @@ function initCollectionChart() {
   });
 }
 
-/* ---------------- NEW: Summary Cards Functions ---------------- */
+/* ---------------- Summary Cards Functions ---------------- */
 async function updateSummaryCards() {
   try {
     // Total invitations
@@ -721,7 +934,7 @@ async function updateSummaryCards() {
   }
 }
 
-/* ---------------- NEW: Safe DOM element helper ---------------- */
+/* ---------------- Safe DOM element helper ---------------- */
 function safeSetTextContent(elementId, text) {
   const element = document.getElementById(elementId);
   if (element) {
@@ -731,7 +944,7 @@ function safeSetTextContent(elementId, text) {
   }
 }
 
-/* ---------------- NEW: Village Breakdown Function ---------------- */
+/* ---------------- Village Breakdown Function ---------------- */
 async function loadVillageBreakdown() {
   const breakdownContainer = document.getElementById('village-breakdown');
   if (!breakdownContainer) {
@@ -762,7 +975,7 @@ async function loadVillageBreakdown() {
   }
 }
 
-/* ---------------- NEW: Recent Activity Functions ---------------- */
+/* ---------------- Recent Activity Functions ---------------- */
 function addActivity(message, type = 'info') {
   const activityDiv = document.getElementById('recent-activity');
   if (!activityDiv) {
@@ -786,7 +999,7 @@ function addActivity(message, type = 'info') {
   }
 }
 
-/* ---------------- NEW: Enhanced Notification System ---------------- */
+/* ---------------- Enhanced Notification System ---------------- */
 function showNotification(message, type = 'info', duration = 5000) {
   // Remove existing notifications of same type to avoid duplicates
   const existingNotifications = document.querySelectorAll('.notification');
@@ -815,7 +1028,7 @@ function showNotification(message, type = 'info', duration = 5000) {
   }, duration);
 }
 
-/* ---------------- NEW: Data Validation ---------------- */
+/* ---------------- Data Validation ---------------- */
 function validateCollectionData(data) {
   const errors = [];
   if (!data.bill) errors.push('Bill number is required');
@@ -826,7 +1039,7 @@ function validateCollectionData(data) {
   return errors;
 }
 
-/* ---------------- NEW: Quick Actions Functions ---------------- */
+/* ---------------- Quick Actions Functions ---------------- */
 async function exportAllData() {
   try {
     addActivity('Starting data export...', 'info');
@@ -835,7 +1048,7 @@ async function exportAllData() {
       invitationCol.get(),
       membersCol.get(),
       villageCollectionsCol.get(),
-      membershipFeesCollectionFor(selectedFeeYear).get()
+      membershipFeesCollectionFor(selectedYear).get()
     ]);
     
     const data = {
@@ -882,7 +1095,7 @@ async function backupData() {
   addActivity('Backup triggered', 'info');
 }
 
-/* ---------------- NEW: Performance Optimizations ---------------- */
+/* ---------------- Performance Optimizations ---------------- */
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -893,60 +1106,6 @@ function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
-}
-
-/* ---------------- fee-year dropdowns (2025-2050) ---------------- */
-const feeYearSmall = document.getElementById('feeYearSelectSmall');
-const feeYearSmall2 = document.getElementById('feeYearSelectSmall2');
-const feesYearTrackerSelect = document.getElementById('feesYearTrackerSelect');
-const now = new Date().getFullYear();
-
-if (feeYearSmall) {
-  for(let y=2025;y<=2050;y++){
-    const o=document.createElement('option'); o.value=y; o.textContent=y;
-    if(y===now){ o.selected=true; }
-    feeYearSmall.appendChild(o);
-  }
-}
-let selectedFeeYear = feeYearSmall ? parseInt(feeYearSmall.value || now) : now;
-
-/* populate second fee-year select */
-(function populateFeeYearSelect2(){
-  const sel = document.getElementById('feeYearSelectSmall2');
-  if(!sel) return;
-  sel.innerHTML = '';
-  for(let y=2025;y<=2050;y++){
-    const o=document.createElement('option'); o.value=y; o.textContent=y;
-    if(y===now) o.selected=true;
-    sel.appendChild(o);
-  }
-  sel.addEventListener('change', ()=> {
-    selectedFeeYear = parseInt(sel.value);
-    loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary();
-  });
-})();
-
-/* populate tracker fee-year select */
-(function populateTrackerYear(){
-  const trackerSelect = document.getElementById('feesYearTrackerSelect');
-  if (!trackerSelect) return;
-  
-  for(let y=2025;y<=2050;y++){
-    const o=document.createElement('option'); o.value=y; o.textContent=y;
-    if(y===now) o.selected=true;
-    trackerSelect.appendChild(o);
-  }
-  trackerSelect.addEventListener('change', () => {
-    selectedFeeYear = parseInt(trackerSelect.value);
-  });
-})();
-
-/* quick fee year small change */
-if (feeYearSmall) {
-  feeYearSmall.addEventListener('change', ()=> {
-    selectedFeeYear = parseInt(feeYearSmall.value);
-    loadFeeMembersDropdown(); loadFeeMonthsTable(); loadFeeYearlySummary();
-  });
 }
 
 /* ---------------- UI elements ---------------- */
@@ -982,6 +1141,13 @@ if (loginBtn) {
       .then(()=> {
         showToast("Logged in");
         addActivity('User logged in successfully', 'success');
+        
+        // Show global year selector after login
+        const globalYearSelector = document.getElementById('global-year-selector');
+        if (globalYearSelector) globalYearSelector.classList.remove('hidden');
+        
+        // Update year displays
+        updateYearDisplays();
       })
       .catch(e => { 
         alert("Login error: "+e.message); 
@@ -1012,26 +1178,47 @@ auth.onAuthStateChanged(user => {
   if(user){
     currentRole = ROLES[user.uid] || "viewer";
     // Show main content and summary bar, hide auth card
+    const authCard = document.getElementById("auth-card");
+    const mainContent = document.getElementById("main-content");
+    const summaryBar = document.getElementById("summary-bar");
+    const logoutBtn = document.getElementById("logout-btn");
+    const globalYearSelector = document.getElementById('global-year-selector');
+    
     if (authCard) authCard.classList.add("hidden");
     if (mainContent) mainContent.classList.remove("hidden");
     if (summaryBar) summaryBar.classList.remove("hidden");
     if (logoutBtn) logoutBtn.classList.remove("hidden");
+    if (globalYearSelector) globalYearSelector.classList.remove("hidden");
+    
+    const userInfo = document.getElementById("user-info");
     if (userInfo) userInfo.textContent = `${user.email} (${currentRole})`;
+    
     applyRoleToUI();
     setTimeout(()=>{ 
       loadAllData(); 
       loadFeeMembersDropdown(); 
       loadFeeYearlySummary(); 
-      initCollectionChart(); // Initialize chart
-      updateSummaryCards(); // Update summary cards
-      loadVillageBreakdown(); // Load village breakdown
+      initCollectionChart(); 
+      updateSummaryCards(); 
+      loadVillageBreakdown();
+      updateYearDisplays();
+      loadAllYearsFees(); // Load all years data initially
     }, 120);
   } else {
     // Show auth card, hide main content and summary bar
+    const authCard = document.getElementById("auth-card");
+    const mainContent = document.getElementById("main-content");
+    const summaryBar = document.getElementById("summary-bar");
+    const logoutBtn = document.getElementById("logout-btn");
+    const globalYearSelector = document.getElementById('global-year-selector');
+    
     if (authCard) authCard.classList.remove("hidden");
     if (mainContent) mainContent.classList.add("hidden");
     if (summaryBar) summaryBar.classList.add("hidden");
     if (logoutBtn) logoutBtn.classList.add("hidden");
+    if (globalYearSelector) globalYearSelector.classList.add("hidden");
+    
+    const userInfo = document.getElementById("user-info");
     if (userInfo) userInfo.textContent = "";
     clearAllTables();
   }
@@ -1082,8 +1269,8 @@ function loadAllData(){
   loadCollectors();
   loadVillageCollections();
   updateMonthlySummary();
-  updateSummaryCards(); // Update summary cards
-  loadVillageBreakdown(); // Load village breakdown
+  updateSummaryCards();
+  loadVillageBreakdown();
 }
 
 /* ---------------- INVITATIONS ---------------- */
@@ -1113,7 +1300,7 @@ if (addInvBtn) {
       showToast("Invitation added");
       addActivity(`Added invitation for ${name} from ${village}`, 'success');
       loadInvitations();
-      updateSummaryCards(); // Update summary cards
+      updateSummaryCards();
     } catch(err){
       console.error("Add invitation error:", err);
       alert("Failed to add invitation: " + (err.message || err));
@@ -1156,7 +1343,7 @@ async function loadInvitations(){
           showToast("Updated"); 
           addActivity(`Updated invitation status for ${d.name}`, 'info');
           loadInvitations(); 
-          updateSummaryCards(); // Update summary cards
+          updateSummaryCards();
         }).catch(err=>alert(err.message));
         actionsTd.appendChild(toggle);
 
@@ -1165,7 +1352,7 @@ async function loadInvitations(){
           showToast("Deleted"); 
           addActivity(`Deleted invitation for ${d.name}`, 'info');
           loadInvitations(); 
-          updateSummaryCards(); // Update summary cards
+          updateSummaryCards();
         }); };
         actionsTd.appendChild(del);
 
@@ -1220,7 +1407,7 @@ if (addMemBtn) {
       addActivity(`Added member: ${name} from ${village}`, 'success');
       loadMembers(); 
       loadFeeMembersDropdown();
-      updateSummaryCards(); // Update summary cards
+      updateSummaryCards();
     }catch(e){ 
       console.error(e); 
       alert("Add member failed: "+(e.message||e)); 
@@ -1259,7 +1446,7 @@ async function loadMembers(){
           addActivity(`Deleted member: ${d.name}`, 'info');
           loadMembers(); 
           loadFeeMembersDropdown(); 
-          updateSummaryCards(); // Update summary cards
+          updateSummaryCards();
         }); };
         actionsTd.appendChild(del);
 
@@ -1293,10 +1480,7 @@ if (searchMembers) {
   searchMembers.addEventListener("input",(e)=> debouncedFilterTable("members-table", e.target.value));
 }
 
-// ... (rest of the code remains the same for collectors, village collections, etc.)
-// The pattern continues for all other functions - adding null checks and safe element access
-
-/* ---------------- Collectors (with bill no, mobile, remarks) ---------------- */
+/* ---------------- Collectors ---------------- */
 const addColBtn = document.getElementById("add-col-btn");
 if (addColBtn) {
   addColBtn.addEventListener("click", async ()=> {
@@ -1318,7 +1502,7 @@ if (addColBtn) {
       showToast("Collector added");
       addActivity(`Added collector: ${name} for area ${area}`, 'success');
       loadCollectors();
-      updateSummaryCards(); // Update summary cards
+      updateSummaryCards();
     }catch(e){ console.error(e); alert("Add collector failed: "+(e.message||e)); }
   });
 }
@@ -1344,7 +1528,7 @@ async function loadCollectors(){
           showToast("Collector deleted"); 
           addActivity(`Deleted collector: ${d.name}`, 'info');
           loadCollectors(); 
-          updateSummaryCards(); // Update summary cards
+          updateSummaryCards();
         }); };
         tr.querySelector("td:last-child").appendChild(del);
       }
@@ -1406,9 +1590,9 @@ if (addVcBtn) {
       showToast("Collection added");
       addActivity(`Added collection: ₹${amount} from ${donorName} in ${village}`, 'success');
       loadVillageCollections();
-      recalcTotalCollected(); // Update the breakdown
-      loadVillageBreakdown(); // Update village breakdown
-      updateChartData(); // Update chart
+      recalcTotalCollected();
+      loadVillageBreakdown();
+      updateChartData();
     }catch(e){ 
       console.error(e); 
       alert("Failed to add collection: "+(e.message||e));
@@ -1417,11 +1601,10 @@ if (addVcBtn) {
   });
 }
 
-// Load collections table and calculate total - WITH DUPLICATE PREVENTION
+// Load collections table and calculate total
 let isCurrentlyLoading = false;
 
 async function loadVillageCollections(){
-  // Prevent multiple simultaneous loads
   if (isCurrentlyLoading) {
     console.log('Already loading, skipping duplicate call');
     return;
@@ -1436,27 +1619,15 @@ async function loadVillageCollections(){
   vcTable.innerHTML = "";
   
   try {
-    console.log('Loading village collections...');
     const snap = await villageCollectionsCol.orderBy("dateAdded", "desc").get();
     
     let totalAmount = 0;
     const seenEntries = new Set();
     let displayedCount = 0;
     
-    console.log(`Found ${snap.size} documents in database`);
-    
     snap.forEach(doc => {
       const d = doc.data();
       const entryKey = `${d.bill}-${d.collectorId}-${d.donorName}-${d.amount}-${d.village}`;
-      
-      console.log(`Processing document ${doc.id}:`, {
-        bill: d.bill,
-        collector: d.collectorId,
-        donor: d.donorName,
-        amount: d.amount,
-        village: d.village,
-        entryKey: entryKey
-      });
       
       // Check for duplicates in this load
       if (seenEntries.has(entryKey)) {
@@ -1491,8 +1662,8 @@ async function loadVillageCollections(){
             addActivity(`Deleted collection: ₹${d.amount} from ${d.donorName}`, 'info');
             loadVillageCollections(); 
             recalcTotalCollected();
-            loadVillageBreakdown(); // Update village breakdown
-            updateChartData(); // Update chart
+            loadVillageBreakdown();
+            updateChartData();
           }); 
         };
         tr.querySelector("td:last-child").appendChild(delBtn);
@@ -1510,8 +1681,6 @@ async function loadVillageCollections(){
       totalElement.style.display = "none";
     }
     
-    console.log(`Display completed: ${displayedCount} unique entries shown, ${seenEntries.size} in set`);
-    
   } catch(e) { 
     console.error("Load error:", e); 
     alert("Failed to load village collections: "+(e.message||e)); 
@@ -1520,7 +1689,7 @@ async function loadVillageCollections(){
   }
 }
 
-/* ---------------- NEW: Update Chart Data ---------------- */
+/* ---------------- Update Chart Data ---------------- */
 async function updateChartData() {
   try {
     const snap = await villageCollectionsCol.get();
@@ -1544,103 +1713,6 @@ async function updateChartData() {
   }
 }
 
-// Quick cleanup function to remove all duplicates immediately
-async function forceCleanDuplicates() {
-  if (currentRole !== "admin") {
-    alert("Only admin can run cleanup");
-    return;
-  }
-  
-  if (!confirm("This will remove ALL duplicate collection entries. Continue?")) {
-    return;
-  }
-  
-  try {
-    const snap = await villageCollectionsCol.orderBy("dateAdded", "desc").get();
-    const seenEntries = new Map();
-    const duplicatesToDelete = [];
-    
-    // Find duplicates
-    snap.forEach(doc => {
-      const d = doc.data();
-      const entryKey = `${d.bill}-${d.collectorId}-${d.donorName}-${d.amount}-${d.village}`;
-      
-      if (seenEntries.has(entryKey)) {
-        duplicatesToDelete.push(doc.ref.delete());
-      } else {
-        seenEntries.set(entryKey, doc.id);
-      }
-    });
-    
-    // Delete duplicates
-    if (duplicatesToDelete.length > 0) {
-      await Promise.all(duplicatesToDelete);
-      showToast(`Removed ${duplicatesToDelete.length} duplicate entries`);
-      addActivity(`Cleaned up ${duplicatesToDelete.length} duplicate collections`, 'info');
-      loadVillageCollections();
-    } else {
-      showToast("No duplicates found");
-    }
-    
-  } catch (e) {
-    console.error("Cleanup error:", e);
-    alert("Cleanup failed: " + e.message);
-  }
-}
-
-// Make it available globally
-window.forceCleanDuplicates = forceCleanDuplicates;
-
-// Debug function to see what's really happening
-async function debugVillageData() {
-  console.log("=== VILLAGE COLLECTIONS DEBUG ===");
-  
-  try {
-    const snap = await villageCollectionsCol.orderBy("dateAdded", "desc").get();
-    console.log(`Total documents in Firestore: ${snap.size}`);
-    
-    const entries = [];
-    snap.forEach(doc => {
-      const d = doc.data();
-      const entryKey = `${d.bill}-${d.collectorId}-${d.donorName}-${d.amount}-${d.village}`;
-      entries.push({
-        id: doc.id,
-        bill: d.bill,
-        collector: d.collectorId,
-        donor: d.donorName,
-        amount: d.amount,
-        village: d.village,
-        date: d.dateAdded?.toDate?.(),
-        entryKey: entryKey
-      });
-    });
-    
-    console.log("All entries:", entries);
-    
-    // Check for duplicates
-    const seen = new Set();
-    const duplicates = [];
-    entries.forEach(entry => {
-      if (seen.has(entry.entryKey)) {
-        duplicates.push(entry);
-      } else {
-        seen.add(entry.entryKey);
-      }
-    });
-    
-    console.log(`Unique entries: ${seen.size}`);
-    console.log(`Duplicates found: ${duplicates.length}`);
-    if (duplicates.length > 0) {
-      console.log("Duplicate entries:", duplicates);
-    }
-    
-  } catch (e) {
-    console.error("Debug error:", e);
-  }
-}
-
-window.debugVillageData = debugVillageData;
-
 // Use debounced search
 const searchVc = document.getElementById("search-vc");
 if (searchVc) {
@@ -1649,7 +1721,7 @@ if (searchVc) {
   });
 }
 
-// ===== Populate Collector Dropdown (SINGLE PLACE) =====
+// ===== Populate Collector Dropdown =====
 const vcCollectorSelect = document.getElementById('vc-collector');
 
 if (vcCollectorSelect) {
@@ -1673,7 +1745,7 @@ async function updateMonthlySummary(){
   // kept intentionally light. real totals handled in fee summary functions
 }
 
-/* ---------------- Membership Fees (flat per-year collections) ---------------- */
+/* ---------------- Membership Fees ---------------- */
 
 /* fee members dropdown */
 const feeMemberSelect = document.getElementById('feeMemberSelect');
@@ -1707,13 +1779,12 @@ async function loadFeeMonthsTable(){
   
   tbody.innerHTML = "";
   if(!memberId){ 
-    const feeMemberSummary = document.getElementById("fee-member-summary");
-    if (feeMemberSummary) feeMemberSummary.textContent = "Select a member"; 
+    safeSetTextContent("fee-member-summary", "Select a member"); 
     return; 
   }
 
   try{
-    const feesCol = membershipFeesCollectionFor(selectedFeeYear);
+    const feesCol = membershipFeesCollectionFor(selectedYear);
     const docRef = feesCol.doc(memberId);
     const docSnap = await docRef.get();
     let record = docSnap.exists ? docSnap.data() : null;
@@ -1742,7 +1813,7 @@ async function loadFeeMonthsTable(){
         try{
           if(!docSnap.exists){
             const monthsInit = {}; MONTHS.forEach(mm=> monthsInit[mm] = { paid:false, paidAt:null });
-            await docRef.set({ memberId, year: selectedFeeYear, months: monthsInit, feeAmount });
+            await docRef.set({ memberId, year: selectedYear, months: monthsInit, feeAmount });
           }
           const updatePaid = {}; updatePaid[`months.${m}.paid`] = cb.checked;
           const updatePaidAt = {}; updatePaidAt[`months.${m}.paidAt`] = cb.checked ? firebase.firestore.FieldValue.serverTimestamp() : null;
@@ -1752,21 +1823,18 @@ async function loadFeeMonthsTable(){
           addActivity(`Updated ${m} payment for member`, 'info');
           loadFeeMonthsTable();
           loadFeeYearlySummary();
-          recalcTotalCollected(); // Update the breakdown
+          recalcTotalCollected();
         }catch(err){ console.error("Toggle paid error:", err); alert("Failed to update: "+(err.message||err)); cb.checked = !cb.checked; }
       });
       actionTd.appendChild(cb);
     });
 
     const totalPaid = paidCount * feeAmount;
-    const feeMemberSummary = document.getElementById("fee-member-summary");
-    if (feeMemberSummary) {
-      feeMemberSummary.textContent = `Paid months: ${paidCount}/12 — Total: ₹${totalPaid}`;
-    }
+    safeSetTextContent("fee-member-summary", `Paid months: ${paidCount}/12 — Total: ₹${totalPaid}`);
   }catch(e){ console.error("Load fee months error:", e); alert("Failed to load fees: "+(e.message||e)); }
 }
 
-/* Save fee config (create or update feeAmount) */
+/* Save fee config */
 const saveFeeConfigBtn = document.getElementById("saveFeeConfigBtn");
 if (saveFeeConfigBtn) {
   saveFeeConfigBtn.addEventListener("click", async ()=>{
@@ -1774,18 +1842,18 @@ if (saveFeeConfigBtn) {
     const feeAmount = Number(document.getElementById("feeAmountInput")?.value) || 100;
     if(!memberId) return alert("Select a member");
     try{
-      const feesCol = membershipFeesCollectionFor(selectedFeeYear);
+      const feesCol = membershipFeesCollectionFor(selectedYear);
       const docRef = feesCol.doc(memberId);
       const docSnap = await docRef.get();
       if(!docSnap.exists){
         const monthsInit = {}; MONTHS.forEach(m=> monthsInit[m] = { paid:false, paidAt:null });
-        await docRef.set({ memberId, year: selectedFeeYear, months: monthsInit, feeAmount });
+        await docRef.set({ memberId, year: selectedYear, months: monthsInit, feeAmount });
       } else {
         await docRef.update({ feeAmount });
       }
       showToast("Fee configuration saved");
       addActivity(`Updated fee configuration for member`, 'info');
-      loadFeeMonthsTable(); loadFeeYearlySummary(); recalcTotalCollected(); // Update the breakdown
+      loadFeeMonthsTable(); loadFeeYearlySummary(); recalcTotalCollected();
     }catch(e){ console.error("Save fee config error:", e); alert("Failed to save fee config: "+(e.message||e)); }
   });
 }
@@ -1798,47 +1866,90 @@ if (clearFeeRecordBtn) {
     const memberId = feeMemberSelect?.value; if(!memberId) return alert("Select a member");
     if(!confirm("Clear all fee records for this member and year?")) return;
     try{
-      const docRef = membershipFeesCollectionFor(selectedFeeYear).doc(memberId);
+      const docRef = membershipFeesCollectionFor(selectedYear).doc(memberId);
       const snap = await docRef.get();
       if(snap.exists) await docRef.delete();
       showToast("Cleared");
       addActivity(`Cleared fee records for member`, 'info');
-      loadFeeMonthsTable(); loadFeeYearlySummary(); recalcTotalCollected(); // Update the breakdown
+      loadFeeMonthsTable(); loadFeeYearlySummary(); recalcTotalCollected();
     }catch(e){ console.error(e); alert("Failed to clear: "+(e.message||e)); }
   });
 }
 
-/* Yearly aggregated summary for fees (selected year) */
+/* Yearly aggregated summary for fees */
 async function loadFeeYearlySummary(){
   const tbody = document.querySelector("#fees-yearly-summary tbody"); 
   if(!tbody) return; 
   
   tbody.innerHTML="";
-  try{
-    const feesCol = membershipFeesCollectionFor(selectedFeeYear);
-    const snap = await feesCol.get();
-    const monthCounts = {}; MONTHS.forEach(m=> monthCounts[m] = { paid:0, total:0 });
-    snap.forEach(docSnap=>{
-      const d = docSnap.data(); const feeAmt = d.feeAmount || Number(document.getElementById("feeAmountInput")?.value) || 100;
-      const monthsObj = d.months || {};
-      MONTHS.forEach(m=> {
-        if(monthsObj[m] && monthsObj[m].paid){ monthCounts[m].paid++; monthCounts[m].total += feeAmt; }
+  
+  try {
+    if (selectedYear === 'all') {
+      // Aggregate data from all years
+      const monthlyAggregate = {};
+      MONTHS.forEach(m => monthlyAggregate[m] = { paid: 0, total: 0 });
+      
+      // Use pre-loaded all years data or load it
+      if (Object.keys(allYearsFeesData).length === 0) {
+        await loadAllYearsFees();
+      }
+      
+      // Aggregate data from all years
+      Object.values(allYearsFeesData).forEach(yearData => {
+        Object.values(yearData).forEach(memberData => {
+          const feeAmt = memberData.feeAmount || 100;
+          const monthsObj = memberData.months || {};
+          MONTHS.forEach(m => {
+            if (monthsObj[m] && monthsObj[m].paid) {
+              monthlyAggregate[m].paid++;
+              monthlyAggregate[m].total += feeAmt;
+            }
+          });
+        });
       });
-    });
-    MONTHS.forEach(m=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML = `<td>${m}</td><td class="center">${monthCounts[m].paid}</td><td class="center">₹${monthCounts[m].total}</td>`;
-      tbody.appendChild(tr);
-    });
-  }catch(e){ console.error("Fee yearly summary error:", e); }
+      
+      MONTHS.forEach(m => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${m}</td><td class="center">${monthlyAggregate[m].paid}</td><td class="center">₹${monthlyAggregate[m].total}</td>`;
+        tbody.appendChild(tr);
+      });
+      
+    } else {
+      // Single year data
+      const feesCol = membershipFeesCollectionFor(selectedYear);
+      const snap = await feesCol.get();
+      const monthCounts = {}; 
+      MONTHS.forEach(m => monthCounts[m] = { paid: 0, total: 0 });
+      
+      snap.forEach(docSnap => {
+        const d = docSnap.data(); 
+        const feeAmt = d.feeAmount || 100;
+        const monthsObj = d.months || {};
+        MONTHS.forEach(m => {
+          if (monthsObj[m] && monthsObj[m].paid) { 
+            monthCounts[m].paid++; 
+            monthCounts[m].total += feeAmt; 
+          }
+        });
+      });
+      
+      MONTHS.forEach(m => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${m}</td><td class="center">${monthCounts[m].paid}</td><td class="center">₹${monthCounts[m].total}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+  } catch(e) { 
+    console.error("Fee yearly summary error:", e); 
+  }
 }
 
-/* ---------------- Export CSV for selected fees year (all members) ---------------- */
+/* ---------------- Export CSV for selected fees year ---------------- */
 const exportCsvBtn = document.getElementById("exportCsvBtn");
 if (exportCsvBtn) {
   exportCsvBtn.addEventListener("click", async ()=>{
     try{
-      const year = selectedFeeYear;
+      const year = selectedYear;
       const feesCol = membershipFeesCollectionFor(year);
       // load all members (master member info)
       const membersSnap = await membersCol.orderBy("name").get();
@@ -1894,19 +2005,7 @@ if (exportCsvBtn) {
 /* ---------------- Fee dropdown load */
 loadFeeMembersDropdown();
 
-/* initial loads if already logged in */
-setTimeout(()=>{ 
-  if(auth.currentUser){ 
-    loadAllData(); 
-    loadFeeMembersDropdown(); 
-    loadFeeYearlySummary(); 
-    recalcTotalCollected(); 
-    initCollectionChart(); // Initialize chart
-    updateChartData(); // Load initial chart data
-  } 
-}, 200);
-
-/* ---------------- Paid Members Visual Tracker (month boxes) ---------------- */
+/* ---------------- Paid Members Visual Tracker ---------------- */
 const showPaidBtn = document.getElementById("show-paid-btn");
 if (showPaidBtn) {
   showPaidBtn.addEventListener("click", loadPaidMembersTracker);
@@ -1926,7 +2025,7 @@ if (clearPaidView) {
 let paidTrackerData = []; // cached for sorting
 
 async function loadPaidMembersTracker(){
-  const year = selectedFeeYear || parseInt(feesYearTrackerSelect?.value || now);
+  const year = selectedYear;
   const container = document.getElementById("paid-members-list");
   if (!container) return;
   
@@ -2007,7 +2106,7 @@ function renderPaidTrackerTable(data, year){
       // sort
       paidTrackerData.sort((a,b)=> asc ? b.name.localeCompare(a.name,'en',{sensitivity:'base'}) : a.name.localeCompare(b.name,'en',{sensitivity:'base'}));
       header.innerText = asc ? "Member ▼" : "Member ▲";
-      renderPaidTrackerTable(paidTrackerData, selectedFeeYear);
+      renderPaidTrackerTable(paidTrackerData, selectedYear);
     };
   }
 }
@@ -2015,7 +2114,7 @@ function renderPaidTrackerTable(data, year){
 /* ---------------- Recalc total collected with breakdown ---------------- */
 async function recalcTotalCollected(){
   try{
-    // Village collections total
+    // Village collections total (always all years)
     const villageSnap = await villageCollectionsCol.get();
     let villageTotal = 0;
     villageSnap.forEach(doc => {
@@ -2023,19 +2122,35 @@ async function recalcTotalCollected(){
       villageTotal += (d.amount || 0);
     });
 
-    // Membership fees total for selectedFeeYear
-    const feesCol = membershipFeesCollectionFor(selectedFeeYear);
-    const feesSnap = await feesCol.get();
+    // Membership fees total
     let membershipTotal = 0;
-    let payingMembersCount = 0;
-    feesSnap.forEach(doc => {
-      const d = doc.data();
-      const feeAmt = d.feeAmount || Number(document.getElementById("feeAmountInput")?.value) || 100;
-      const monthsObj = d.months || {};
-      const paidCount = Object.values(monthsObj).filter(v=> v && v.paid).length;
-      if(paidCount>0) payingMembersCount++;
-      membershipTotal += (paidCount * feeAmt);
-    });
+    
+    if (selectedYear === 'all') {
+      // Aggregate from all years
+      if (Object.keys(allYearsFeesData).length === 0) {
+        await loadAllYearsFees();
+      }
+      
+      Object.values(allYearsFeesData).forEach(yearData => {
+        Object.values(yearData).forEach(memberData => {
+          const feeAmt = memberData.feeAmount || 100;
+          const monthsObj = memberData.months || {};
+          const paidCount = Object.values(monthsObj).filter(v => v && v.paid).length;
+          membershipTotal += (paidCount * feeAmt);
+        });
+      });
+    } else {
+      // Single year
+      const feesCol = membershipFeesCollectionFor(selectedYear);
+      const feesSnap = await feesCol.get();
+      feesSnap.forEach(doc => {
+        const d = doc.data();
+        const feeAmt = d.feeAmount || 100;
+        const monthsObj = d.months || {};
+        const paidCount = Object.values(monthsObj).filter(v => v && v.paid).length;
+        membershipTotal += (paidCount * feeAmt);
+      });
+    }
 
     const grandTotal = villageTotal + membershipTotal;
 
@@ -2050,9 +2165,14 @@ async function recalcTotalCollected(){
 }
 
 /* call recalc on load of fee summary */
-setInterval(()=>{ if(auth.currentUser) recalcTotalCollected(); }, 12000);
+setInterval(()=>{ 
+  if(auth.currentUser) {
+    recalcTotalCollected(); 
+    updateSummaryCards();
+  } 
+}, 12000);
 
-/* ---------------- small feature: navigation links scroll to sections and highlight */
+/* ---------------- Navigation ---------------- */
 function clearActiveNav(){ 
   document.querySelectorAll('nav.topbar a').forEach(a=>{
     if (a) a.classList.remove('active');
@@ -2083,11 +2203,14 @@ window.loadPaidMembersTracker = loadPaidMembersTracker;
 window.recalcTotalCollected = recalcTotalCollected;
 window.addActivity = addActivity;
 window.showNotification = showNotification;
+window.changeGlobalYear = changeGlobalYear;
+window.loadAllYearsFees = loadAllYearsFees;
 
 // Add some initial activities when the page loads
 setTimeout(() => {
   if (auth.currentUser) {
     addActivity('Dashboard initialized successfully', 'success');
+    addActivity(`Global year set to ${selectedYear}`, 'info');
     addActivity('Welcome to Club Bornoporichoy Dashboard!', 'info');
   }
 }, 1000);
