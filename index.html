@@ -13,6 +13,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
   :root{
     --primary-red: #B71C1C;
@@ -137,8 +140,77 @@
   }
   .toast.show { opacity:1; transform: translateY(0); }
 
+  /* Summary Cards */
+  .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+  .summary-card-item { text-align: center; background: var(--card); border-radius: var(--radius); padding: 15px; box-shadow: var(--shadow); }
+
+  /* Village Breakdown */
+  .village-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+  .breakdown-item { background: rgba(255,255,255,0.8); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05); }
+  .breakdown-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .breakdown-value { font-weight: 700; color: var(--primary-red); font-size: 14px; }
+
+  /* Quick Actions */
+  .quick-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+
+  /* Recent Activity */
+  .activity-item { padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; background: rgba(183,28,28,0.03); border-left: 3px solid var(--primary-red); }
+  .activity-item.info { border-left-color: #17a2b8; }
+  .activity-item.success { border-left-color: #28a745; }
+  .activity-item.error { border-left-color: #dc3545; }
+
+  /* Notifications */
+  .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    z-index: 10000;
+    animation: slideIn 0.3s ease;
+  }
+  .notification-success { background: #28a745; }
+  .notification-error { background: #dc3545; }
+  .notification-info { background: #17a2b8; }
+  @keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+
+  /* Advanced Filters */
+  .advanced-filters { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+
   /* responsive */
-  @media (max-width:980px){
+  @media (max-width: 768px) {
+    .summary-cards {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .flex-row-mobile {
+      flex-direction: column !important;
+    }
+    
+    input, select, button {
+      font-size: 16px !important; /* Prevents zoom on iOS */
+    }
+    
+    table {
+      font-size: 12px;
+    }
+    
+    .card {
+      padding: 12px;
+    }
+
+    .advanced-filters {
+      flex-direction: column;
+    }
+
+    .quick-actions {
+      flex-direction: column;
+    }
+
     .header-inner{flex-direction:column; gap:10px; align-items:flex-start}
     nav.topbar{flex-wrap:wrap}
     .flex{flex-direction:column; align-items:stretch}
@@ -162,24 +234,6 @@
     gap: 12px;
     margin-top: 8px;
     flex-wrap: wrap;
-  }
-  .breakdown-item {
-    flex: 1;
-    min-width: 120px;
-    background: rgba(255,255,255,0.8);
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(0,0,0,0.05);
-  }
-  .breakdown-label {
-    font-size: 11px;
-    color: var(--muted);
-    margin-bottom: 4px;
-  }
-  .breakdown-value {
-    font-weight: 700;
-    color: var(--primary-red);
-    font-size: 14px;
   }
 
   /* Utility classes */
@@ -276,21 +330,42 @@
   <!-- Main content (hidden until login) -->
   <div id="main-content" class="hidden">
 
-    <!-- Top summary (kept also in page above) -->
-    <div class="card" style="display:none;">
-      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-        <div>
-          <div style="font-weight:700;color:var(--primary-red)">Invitees</div>
-          <div id="summary-invitees-inline" class="muted">—</div>
-        </div>
-        <div>
-          <div style="font-weight:700;color:var(--primary-red)">Members</div>
-          <div id="summary-members-inline" class="muted">—</div>
-        </div>
-        <div style="margin-left:auto">
-          <div style="font-weight:700;color:var(--primary-red)">Total Collected</div>
-          <div id="summary-collection-inline" class="muted">₹0</div>
-        </div>
+    <!-- 1. Real-time Dashboard Summary Cards -->
+    <div class="summary-cards">
+      <div class="summary-card-item">
+        <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="total-invitations">0</div>
+        <div style="font-size: 14px; color: var(--muted);">Total Invitations</div>
+      </div>
+      <div class="summary-card-item">
+        <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="total-members">0</div>
+        <div style="font-size: 14px; color: var(--muted);">Total Members</div>
+      </div>
+      <div class="summary-card-item">
+        <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="pending-invitations">0</div>
+        <div style="font-size: 14px; color: var(--muted);">Pending Invitations</div>
+      </div>
+      <div class="summary-card-item">
+        <div style="font-size: 24px; font-weight: bold; color: var(--primary-red);" id="active-collectors">0</div>
+        <div style="font-size: 14px; color: var(--muted);">Active Collectors</div>
+      </div>
+    </div>
+
+    <!-- 4. Quick Actions Panel -->
+    <div class="card">
+      <h3>⚡ Quick Actions</h3>
+      <div class="quick-actions">
+        <button class="btn small" onclick="exportAllData()">📊 Export All Data</button>
+        <button class="btn small secondary" onclick="sendBulkReminders()">📧 Send Reminders</button>
+        <button class="btn small ghost" onclick="generateReport()">📋 Generate Report</button>
+        <button class="btn small" onclick="backupData()">💾 Backup Data</button>
+      </div>
+    </div>
+
+    <!-- 5. Recent Activity Feed -->
+    <div class="card">
+      <h3>🕒 Recent Activity</h3>
+      <div id="recent-activity" style="max-height: 200px; overflow-y: auto;">
+        <!-- Activity items will be added here -->
       </div>
     </div>
 
@@ -298,6 +373,26 @@
     <div class="card" id="invitations">
       <h2>🪔 Invitation List</h2>
       <div class="subtitle">Add, search and track invitation card distribution</div>
+
+      <!-- 6. Enhanced Search & Filters -->
+      <div class="advanced-filters">
+        <select id="filter-village" style="min-width: 150px;">
+          <option value="">All Villages</option>
+          <option value="Madhabpur">Madhabpur</option>
+          <option value="Paldhui">Paldhui</option>
+          <option value="Sabitrapur">Sabitrapur</option>
+          <option value="Lalupool">Lalupool</option>
+          <option value="Mahakal">Mahakal</option>
+          <option value="Others">Others</option>
+        </select>
+        <select id="filter-status" style="min-width: 150px;">
+          <option value="">All Status</option>
+          <option value="paid">Paid</option>
+          <option value="pending">Pending</option>
+        </select>
+        <input type="date" id="filter-date-from" placeholder="From Date">
+        <input type="date" id="filter-date-to" placeholder="To Date">
+      </div>
 
       <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
         <input id="search-invite" type="text" placeholder="Search invitations (name / village / mobile)..." style="flex:1" />
@@ -483,6 +578,20 @@
     Total Village Collection: ₹<span id="vc-total-amount">0</span>
   </div>
 
+  <!-- 2. Village-wise Collection Breakdown -->
+  <div class="card" style="margin-top: 15px;">
+    <h3>🏘️ Village-wise Collection</h3>
+    <div id="village-breakdown" class="village-breakdown">
+      <!-- Will be populated dynamically -->
+    </div>
+  </div>
+
+  <!-- 3. Monthly Collection Trends Chart -->
+  <div class="card" style="margin-top: 15px;">
+    <h3>📈 Monthly Collection Trend</h3>
+    <canvas id="collectionChart" height="100"></canvas>
+  </div>
+
   <table id="vc-table" style="margin-top:12px">
     <thead>
       <tr>
@@ -537,6 +646,229 @@ const membersCol = db.collection("members");
 const collectorsCol = db.collection("collectors");
 const villageCollectionsCol = db.collection("village_collections");
 function membershipFeesCollectionFor(year){ return db.collection(`membership_fees_${year}`); }
+
+/* ---------------- NEW: Chart initialization ---------------- */
+let collectionChart;
+function initCollectionChart() {
+  const ctx = document.getElementById('collectionChart').getContext('2d');
+  collectionChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: MONTHS,
+      datasets: [{
+        label: 'Monthly Collection (₹)',
+        data: Array(12).fill(0),
+        borderColor: '#B71C1C',
+        backgroundColor: 'rgba(183, 28, 28, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return '₹' + value;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+/* ---------------- NEW: Summary Cards Functions ---------------- */
+async function updateSummaryCards() {
+  try {
+    // Total invitations
+    const invitationsSnap = await invitationCol.get();
+    const totalInvitations = invitationsSnap.size;
+    document.getElementById('total-invitations').textContent = totalInvitations;
+
+    // Total members
+    const membersSnap = await membersCol.get();
+    const totalMembers = membersSnap.size;
+    document.getElementById('total-members').textContent = totalMembers;
+
+    // Pending invitations
+    let pendingInvitations = 0;
+    invitationsSnap.forEach(doc => {
+      const data = doc.data();
+      if (!data.sent) pendingInvitations++;
+    });
+    document.getElementById('pending-invitations').textContent = pendingInvitations;
+
+    // Active collectors
+    const collectorsSnap = await collectorsCol.get();
+    const activeCollectors = collectorsSnap.size;
+    document.getElementById('active-collectors').textContent = activeCollectors;
+
+  } catch (error) {
+    console.error("Error updating summary cards:", error);
+  }
+}
+
+/* ---------------- NEW: Village Breakdown Function ---------------- */
+async function loadVillageBreakdown() {
+  const breakdownContainer = document.getElementById('village-breakdown');
+  try {
+    const snap = await villageCollectionsCol.get();
+    
+    const villageTotals = {};
+    snap.forEach(doc => {
+      const d = doc.data();
+      const village = d.village || 'Others';
+      villageTotals[village] = (villageTotals[village] || 0) + (d.amount || 0);
+    });
+    
+    breakdownContainer.innerHTML = Object.entries(villageTotals)
+      .map(([village, total]) => `
+        <div class="breakdown-item">
+          <div class="breakdown-label">${village}</div>
+          <div class="breakdown-value">₹${total.toLocaleString()}</div>
+        </div>
+      `).join('');
+  } catch (error) {
+    console.error("Error loading village breakdown:", error);
+    breakdownContainer.innerHTML = '<div class="breakdown-item">Error loading data</div>';
+  }
+}
+
+/* ---------------- NEW: Recent Activity Functions ---------------- */
+function addActivity(message, type = 'info') {
+  const activityDiv = document.getElementById('recent-activity');
+  const activityItem = document.createElement('div');
+  activityItem.className = `activity-item ${type}`;
+  activityItem.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span>${message}</span>
+      <small style="color: var(--muted);">${new Date().toLocaleTimeString()}</small>
+    </div>
+  `;
+  activityDiv.insertBefore(activityItem, activityDiv.firstChild);
+  
+  // Keep only last 10 activities
+  if (activityDiv.children.length > 10) {
+    activityDiv.removeChild(activityDiv.lastChild);
+  }
+}
+
+/* ---------------- NEW: Enhanced Notification System ---------------- */
+function showNotification(message, type = 'info', duration = 5000) {
+  // Remove existing notifications of same type to avoid duplicates
+  const existingNotifications = document.querySelectorAll('.notification');
+  existingNotifications.forEach(notification => {
+    if (notification.textContent.includes(message)) {
+      notification.remove();
+    }
+  });
+
+  const notification = document.createElement('div');
+  notification.className = `notification notification-${type}`;
+  notification.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+      <span>${message}</span>
+    </div>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // Auto remove after duration
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, duration);
+}
+
+/* ---------------- NEW: Data Validation ---------------- */
+function validateCollectionData(data) {
+  const errors = [];
+  if (!data.bill) errors.push('Bill number is required');
+  if (!data.collectorId) errors.push('Collector is required');
+  if (!data.amount || data.amount <= 0) errors.push('Valid amount is required');
+  if (!data.village) errors.push('Village is required');
+  
+  return errors;
+}
+
+/* ---------------- NEW: Quick Actions Functions ---------------- */
+async function exportAllData() {
+  try {
+    addActivity('Starting data export...', 'info');
+    
+    const [invitations, members, collections, fees] = await Promise.all([
+      invitationCol.get(),
+      membersCol.get(),
+      villageCollectionsCol.get(),
+      membershipFeesCollectionFor(selectedFeeYear).get()
+    ]);
+    
+    const data = {
+      invitations: invitations.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      members: members.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      collections: collections.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      fees: fees.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, `club-bornoporichoy-backup-${new Date().toISOString().split('T')[0]}.json`);
+    
+    showNotification('All data exported successfully!', 'success');
+    addActivity('Data exported successfully', 'success');
+  } catch (error) {
+    showNotification('Export failed: ' + error.message, 'error');
+    addActivity('Data export failed: ' + error.message, 'error');
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function sendBulkReminders() {
+  showNotification('Bulk reminder feature coming soon!', 'info');
+  addActivity('Bulk reminders triggered', 'info');
+}
+
+async function generateReport() {
+  showNotification('Report generation feature coming soon!', 'info');
+  addActivity('Report generation triggered', 'info');
+}
+
+async function backupData() {
+  showNotification('Auto backup feature coming soon!', 'info');
+  addActivity('Backup triggered', 'info');
+}
+
+/* ---------------- NEW: Performance Optimizations ---------------- */
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
 
 /* ---------------- fee-year dropdowns (2025-2050) ---------------- */
 const feeYearSmall = document.getElementById('feeYearSelectSmall');
@@ -611,13 +943,28 @@ loginBtn.addEventListener("click", () => {
   if(!email || !pw) return alert("Enter email and password");
   loginBtn.disabled = true;
   auth.signInWithEmailAndPassword(email,pw)
-    .then(()=> showToast("Logged in"))
-    .catch(e => { alert("Login error: "+e.message); })
+    .then(()=> {
+      showToast("Logged in");
+      addActivity('User logged in successfully', 'success');
+    })
+    .catch(e => { 
+      alert("Login error: "+e.message); 
+      addActivity('Login failed: ' + e.message, 'error');
+    })
     .finally(()=> loginBtn.disabled=false);
 });
 logoutBtn.addEventListener("click", () => {
   logoutBtn.disabled = true;
-  auth.signOut().then(()=> showToast("Logged out")).catch(e => alert("Logout error: "+e.message)).finally(()=> logoutBtn.disabled=false);
+  auth.signOut()
+    .then(()=> {
+      showToast("Logged out");
+      addActivity('User logged out', 'info');
+    })
+    .catch(e => {
+      alert("Logout error: "+e.message);
+      addActivity('Logout failed: ' + e.message, 'error');
+    })
+    .finally(()=> logoutBtn.disabled=false);
 });
 
 /* auth state listener */
@@ -631,7 +978,14 @@ auth.onAuthStateChanged(user => {
     logoutBtn.classList.remove("hidden");
     userInfo.textContent = `${user.email} (${currentRole})`;
     applyRoleToUI();
-    setTimeout(()=>{ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); }, 120);
+    setTimeout(()=>{ 
+      loadAllData(); 
+      loadFeeMembersDropdown(); 
+      loadFeeYearlySummary(); 
+      initCollectionChart(); // Initialize chart
+      updateSummaryCards(); // Update summary cards
+      loadVillageBreakdown(); // Load village breakdown
+    }, 120);
   } else {
     // Show auth card, hide main content and summary bar
     authCard.classList.remove("hidden");
@@ -652,11 +1006,16 @@ function applyRoleToUI(){
 
 /* helpers */
 function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// Use debounced search for better performance
+const debouncedFilterTable = debounce(filterTable, 300);
+
 function filterTable(tableId, term){
   const rows=document.getElementById(tableId).querySelectorAll("tbody tr");
   const q=(term||"").toLowerCase();
   rows.forEach(r=> r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none");
 }
+
 function clearAllTables(){
   ["invitation-table","members-table","collector-table","monthly-summary-table","fee-months-table","fees-yearly-summary"].forEach(id=>{
     const tb=document.getElementById(id)?.querySelector("tbody");
@@ -676,6 +1035,8 @@ function loadAllData(){
   loadCollectors();
   loadVillageCollections();
   updateMonthlySummary();
+  updateSummaryCards(); // Update summary cards
+  loadVillageBreakdown(); // Load village breakdown
 }
 
 /* ---------------- INVITATIONS ---------------- */
@@ -698,10 +1059,13 @@ document.getElementById("add-inv-btn").addEventListener("click", async () => {
     });
     ["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>document.getElementById(id).value="");
     showToast("Invitation added");
+    addActivity(`Added invitation for ${name} from ${village}`, 'success');
     loadInvitations();
+    updateSummaryCards(); // Update summary cards
   } catch(err){
     console.error("Add invitation error:", err);
     alert("Failed to add invitation: " + (err.message || err));
+    addActivity(`Failed to add invitation: ${err.message}`, 'error');
   }
 });
 
@@ -730,11 +1094,21 @@ async function loadInvitations(){
       const actionsTd = tr.querySelector("td:last-child");
       if(currentRole==="admin"){
         const toggle=document.createElement("button"); toggle.textContent=d.sent?"Mark Pending":"Mark Sent"; toggle.className="btn small";
-        toggle.onclick=()=> doc.ref.update({sent:!d.sent}).then(()=>{ showToast("Updated"); loadInvitations(); }).catch(err=>alert(err.message));
+        toggle.onclick=()=> doc.ref.update({sent:!d.sent}).then(()=>{ 
+          showToast("Updated"); 
+          addActivity(`Updated invitation status for ${d.name}`, 'info');
+          loadInvitations(); 
+          updateSummaryCards(); // Update summary cards
+        }).catch(err=>alert(err.message));
         actionsTd.appendChild(toggle);
 
         const del=document.createElement("button"); del.style.marginLeft="8px"; del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick=()=>{ if(confirm("Delete invitation?")) doc.ref.delete().then(()=>{ showToast("Deleted"); loadInvitations(); }); };
+        del.onclick=()=>{ if(confirm("Delete invitation?")) doc.ref.delete().then(()=>{ 
+          showToast("Deleted"); 
+          addActivity(`Deleted invitation for ${d.name}`, 'info');
+          loadInvitations(); 
+          updateSummaryCards(); // Update summary cards
+        }); };
         actionsTd.appendChild(del);
 
         const editable=tr.querySelectorAll("td[contenteditable='true']");
@@ -746,6 +1120,7 @@ async function loadInvitations(){
               const upd = {}; upd[map[idx]] = val;
               await doc.ref.update(upd);
               showToast("Saved");
+              addActivity(`Updated ${map[idx]} for ${d.name}`, 'info');
             } catch(e) { console.error(e); alert("Save failed: "+(e.message||e)); }
           };
         });
@@ -758,7 +1133,9 @@ async function loadInvitations(){
     alert("Failed to load invitations: " + (e.message || e));
   }
 }
-document.getElementById("search-invite").addEventListener("input",(e)=> filterTable("invitation-table", e.target.value));
+
+// Use debounced search
+document.getElementById("search-invite").addEventListener("input",(e)=> debouncedFilterTable("invitation-table", e.target.value));
 
 /* ---------------- Members ---------------- */
 document.getElementById("add-mem-btn").addEventListener("click", async ()=> {
@@ -774,7 +1151,9 @@ document.getElementById("add-mem-btn").addEventListener("click", async ()=> {
     await membersCol.add({name,village,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
     ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>document.getElementById(id).value="");
     showToast("Member added");
+    addActivity(`Added member: ${name} from ${village}`, 'success');
     loadMembers(); loadFeeMembersDropdown();
+    updateSummaryCards(); // Update summary cards
   }catch(e){ console.error(e); alert("Add member failed: "+(e.message||e)); }
 });
 
@@ -798,14 +1177,27 @@ async function loadMembers(){
       const actionsTd = tr.querySelector("td:last-child");
       if(currentRole==="admin"){
         const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick = ()=> { if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ showToast("Member deleted"); loadMembers(); loadFeeMembersDropdown(); }); };
+        del.onclick = ()=> { if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ 
+          showToast("Member deleted"); 
+          addActivity(`Deleted member: ${d.name}`, 'info');
+          loadMembers(); 
+          loadFeeMembersDropdown(); 
+          updateSummaryCards(); // Update summary cards
+        }); };
         actionsTd.appendChild(del);
 
         const editable = tr.querySelectorAll("td[contenteditable='true']");
         editable.forEach((cell,idx)=>{
           const map=["name","village","mobile","remarks"];
           cell.onblur = async ()=> {
-            try{ const val=cell.textContent.trim(); const upd={}; upd[map[idx]] = val; await membersCol.doc(docSnap.id).update(upd); loadFeeMembersDropdown(); showToast("Saved"); }catch(e){console.error(e); alert("Save failed: "+(e.message||e));}
+            try{ 
+              const val=cell.textContent.trim(); 
+              const upd={}; upd[map[idx]] = val; 
+              await membersCol.doc(docSnap.id).update(upd); 
+              loadFeeMembersDropdown(); 
+              showToast("Saved"); 
+              addActivity(`Updated ${map[idx]} for ${d.name}`, 'info');
+            }catch(e){console.error(e); alert("Save failed: "+(e.message||e));}
           };
         });
       }
@@ -814,7 +1206,9 @@ async function loadMembers(){
     document.getElementById("summary-members-inline").textContent = `${total}`;
   }catch(e){ console.error(e); alert("Load members failed: "+(e.message||e)); }
 }
-document.getElementById("search-members").addEventListener("input",(e)=> filterTable("members-table", e.target.value));
+
+// Use debounced search
+document.getElementById("search-members").addEventListener("input",(e)=> debouncedFilterTable("members-table", e.target.value));
 
 /* ---------------- Collectors (with bill no, mobile, remarks) ---------------- */
 document.getElementById("add-col-btn").addEventListener("click", async ()=> {
@@ -831,7 +1225,9 @@ document.getElementById("add-col-btn").addEventListener("click", async ()=> {
     await collectorsCol.add({name,area,bill,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
     ["col-name","col-area","col-bill","col-mobile","col-remarks"].forEach(id=>document.getElementById(id).value="");
     showToast("Collector added");
+    addActivity(`Added collector: ${name} for area ${area}`, 'success');
     loadCollectors();
+    updateSummaryCards(); // Update summary cards
   }catch(e){ console.error(e); alert("Add collector failed: "+(e.message||e)); }
 });
 
@@ -846,13 +1242,20 @@ async function loadCollectors(){
       tbody.appendChild(tr);
       if(currentRole==="admin"){
         const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick = ()=> { if(confirm("Delete collector?")) docSnap.ref.delete().then(()=>{ showToast("Collector deleted"); loadCollectors(); }); };
+        del.onclick = ()=> { if(confirm("Delete collector?")) docSnap.ref.delete().then(()=>{ 
+          showToast("Collector deleted"); 
+          addActivity(`Deleted collector: ${d.name}`, 'info');
+          loadCollectors(); 
+          updateSummaryCards(); // Update summary cards
+        }); };
         tr.querySelector("td:last-child").appendChild(del);
       }
     });
   }catch(e){ console.error(e); alert("Load collectors failed: "+(e.message || e)); }
 }
-document.getElementById("search-collectors").addEventListener("input",(e)=> filterTable("collector-table", e.target.value));
+
+// Use debounced search
+document.getElementById("search-collectors").addEventListener("input",(e)=> debouncedFilterTable("collector-table", e.target.value));
 
 /* ---------------- Village Collection Tracker ---------------- */
 const vcTable = document.getElementById("vc-table").querySelector("tbody");
@@ -871,6 +1274,14 @@ document.getElementById("add-vc-btn").addEventListener("click", async ()=>{
   const amount = Number(vcAmountInput.value);
   const remarks = vcRemarksInput.value.trim();
   const village = vcVillageSelect.value;
+  
+  // Data validation
+  const validationErrors = validateCollectionData({ bill, collectorId, amount, village, donorName });
+  if (validationErrors.length > 0) {
+    showNotification(validationErrors.join(', '), 'error');
+    return;
+  }
+
   if(!bill || !collectorId || !amount || !village || !donorName) return alert("Bill, collector, donor name, amount, and village are required");
 
   try{
@@ -890,12 +1301,18 @@ document.getElementById("add-vc-btn").addEventListener("click", async ()=>{
     vcCollectorSelect.value=""; 
     vcVillageSelect.value="";
     showToast("Collection added");
+    addActivity(`Added collection: ₹${amount} from ${donorName} in ${village}`, 'success');
     loadVillageCollections();
     recalcTotalCollected(); // Update the breakdown
-  }catch(e){ console.error(e); alert("Failed to add collection: "+(e.message||e)); }
+    loadVillageBreakdown(); // Update village breakdown
+    updateChartData(); // Update chart
+  }catch(e){ 
+    console.error(e); 
+    alert("Failed to add collection: "+(e.message||e));
+    addActivity(`Failed to add collection: ${e.message}`, 'error');
+  }
 });
 
-// Load collections table and calculate total - FIXED VERSION
 // Load collections table and calculate total - WITH DUPLICATE PREVENTION
 let isCurrentlyLoading = false;
 
@@ -962,8 +1379,11 @@ async function loadVillageCollections(){
         delBtn.onclick = ()=> { 
           if(confirm("Delete this collection?")) doc.ref.delete().then(()=>{ 
             showToast("Deleted"); 
+            addActivity(`Deleted collection: ₹${d.amount} from ${d.donorName}`, 'info');
             loadVillageCollections(); 
             recalcTotalCollected();
+            loadVillageBreakdown(); // Update village breakdown
+            updateChartData(); // Update chart
           }); 
         };
         tr.querySelector("td:last-child").appendChild(delBtn);
@@ -988,6 +1408,30 @@ async function loadVillageCollections(){
     alert("Failed to load village collections: "+(e.message||e)); 
   } finally {
     isCurrentlyLoading = false;
+  }
+}
+
+/* ---------------- NEW: Update Chart Data ---------------- */
+async function updateChartData() {
+  try {
+    const snap = await villageCollectionsCol.get();
+    const monthlyData = Array(12).fill(0);
+    
+    snap.forEach(doc => {
+      const d = doc.data();
+      if (d.dateAdded && d.dateAdded.toDate) {
+        const date = d.dateAdded.toDate();
+        const month = date.getMonth(); // 0-11
+        monthlyData[month] += (d.amount || 0);
+      }
+    });
+    
+    if (collectionChart) {
+      collectionChart.data.datasets[0].data = monthlyData;
+      collectionChart.update();
+    }
+  } catch (error) {
+    console.error("Error updating chart:", error);
   }
 }
 
@@ -1023,6 +1467,7 @@ async function forceCleanDuplicates() {
     if (duplicatesToDelete.length > 0) {
       await Promise.all(duplicatesToDelete);
       showToast(`Removed ${duplicatesToDelete.length} duplicate entries`);
+      addActivity(`Cleaned up ${duplicatesToDelete.length} duplicate collections`, 'info');
       loadVillageCollections();
     } else {
       showToast("No duplicates found");
@@ -1086,9 +1531,10 @@ async function debugVillageData() {
 }
 
 window.debugVillageData = debugVillageData;
-// Search
+
+// Use debounced search
 document.getElementById("search-vc").addEventListener("input", e => {
-  filterTable("vc-table", e.target.value);
+  debouncedFilterTable("vc-table", e.target.value);
 });
 
 // ===== Populate Collector Dropdown (SINGLE PLACE) =====
@@ -1177,6 +1623,7 @@ async function loadFeeMonthsTable(){
           await docRef.update(updatePaid);
           await docRef.update(updatePaidAt);
           showToast("Payment updated");
+          addActivity(`Updated ${m} payment for member`, 'info');
           loadFeeMonthsTable();
           loadFeeYearlySummary();
           recalcTotalCollected(); // Update the breakdown
@@ -1205,6 +1652,7 @@ document.getElementById("saveFeeConfigBtn").addEventListener("click", async ()=>
       await docRef.update({ feeAmount });
     }
     showToast("Fee configuration saved");
+    addActivity(`Updated fee configuration for member`, 'info');
     loadFeeMonthsTable(); loadFeeYearlySummary(); recalcTotalCollected(); // Update the breakdown
   }catch(e){ console.error("Save fee config error:", e); alert("Failed to save fee config: "+(e.message||e)); }
 });
@@ -1219,6 +1667,7 @@ document.getElementById("clearFeeRecordBtn").addEventListener("click", async ()=
     const snap = await docRef.get();
     if(snap.exists) await docRef.delete();
     showToast("Cleared");
+    addActivity(`Cleared fee records for member`, 'info');
     loadFeeMonthsTable(); loadFeeYearlySummary(); recalcTotalCollected(); // Update the breakdown
   }catch(e){ console.error(e); alert("Failed to clear: "+(e.message||e)); }
 });
@@ -1293,6 +1742,7 @@ document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
       setTimeout(()=> URL.revokeObjectURL(url), 1000);
     }
     showToast("CSV exported");
+    addActivity(`Exported CSV for year ${year}`, 'success');
   }catch(e){
     console.error("Export CSV error:", e);
     alert("Failed to export CSV: " + (e.message || e));
@@ -1303,7 +1753,16 @@ document.getElementById("exportCsvBtn").addEventListener("click", async ()=>{
 loadFeeMembersDropdown();
 
 /* initial loads if already logged in */
-setTimeout(()=>{ if(auth.currentUser){ loadAllData(); loadFeeMembersDropdown(); loadFeeYearlySummary(); recalcTotalCollected(); } }, 200);
+setTimeout(()=>{ 
+  if(auth.currentUser){ 
+    loadAllData(); 
+    loadFeeMembersDropdown(); 
+    loadFeeYearlySummary(); 
+    recalcTotalCollected(); 
+    initCollectionChart(); // Initialize chart
+    updateChartData(); // Load initial chart data
+  } 
+}, 200);
 
 /* ---------------- Paid Members Visual Tracker (month boxes) ---------------- */
 document.getElementById("show-paid-btn").addEventListener("click", loadPaidMembersTracker);
@@ -1343,6 +1802,7 @@ async function loadPaidMembersTracker(){
     paidTrackerData.sort((a,b)=> a.name.localeCompare(b.name,'en',{sensitivity:'base'}));
     renderPaidTrackerTable(paidTrackerData, year);
     showToast("Paid members loaded");
+    addActivity(`Loaded paid tracker for year ${year}`, 'info');
   } catch(err){
     console.error("Load paid tracker error:", err);
     container.innerHTML = `<p style="color:#e11d48;padding:10px">Error loading data.</p>`;
@@ -1436,6 +1896,16 @@ document.getElementById("nav-fees").addEventListener("click", (e)=>{ e.preventDe
 window.loadAllData = loadAllData;
 window.loadPaidMembersTracker = loadPaidMembersTracker;
 window.recalcTotalCollected = recalcTotalCollected;
+window.addActivity = addActivity;
+window.showNotification = showNotification;
+
+// Add some initial activities when the page loads
+setTimeout(() => {
+  if (auth.currentUser) {
+    addActivity('Dashboard initialized successfully', 'success');
+    addActivity('Welcome to Club Bornoporichoy Dashboard!', 'info');
+  }
+}, 1000);
 
 </script>
 </body>
