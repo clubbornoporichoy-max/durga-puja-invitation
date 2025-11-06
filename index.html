@@ -896,31 +896,50 @@ document.getElementById("add-vc-btn").addEventListener("click", async ()=>{
 });
 
 // Load collections table and calculate total - FIXED VERSION
+// Load collections table and calculate total - WITH DUPLICATE PREVENTION
+let isCurrentlyLoading = false;
+
 async function loadVillageCollections(){
+  // Prevent multiple simultaneous loads
+  if (isCurrentlyLoading) {
+    console.log('Already loading, skipping duplicate call');
+    return;
+  }
+  
+  isCurrentlyLoading = true;
   vcTable.innerHTML = "";
+  
   try {
+    console.log('Loading village collections...');
     const snap = await villageCollectionsCol.orderBy("dateAdded", "desc").get();
-    let totalAmount = 0;
     
-    // Create a map to track unique entries and delete duplicates
-    const seenEntries = new Map();
-    const duplicatesToDelete = [];
+    let totalAmount = 0;
+    const seenEntries = new Set();
+    let displayedCount = 0;
+    
+    console.log(`Found ${snap.size} documents in database`);
     
     snap.forEach(doc => {
       const d = doc.data();
-      
-      // Create a unique key for this entry to detect duplicates
       const entryKey = `${d.bill}-${d.collectorId}-${d.donorName}-${d.amount}-${d.village}`;
       
-      // If we've seen this exact entry before, mark it for deletion
+      console.log(`Processing document ${doc.id}:`, {
+        bill: d.bill,
+        collector: d.collectorId,
+        donor: d.donorName,
+        amount: d.amount,
+        village: d.village,
+        entryKey: entryKey
+      });
+      
+      // Check for duplicates in this load
       if (seenEntries.has(entryKey)) {
-        console.log('Found duplicate, will delete:', doc.id);
-        duplicatesToDelete.push(doc.ref.delete());
-        return; // Skip displaying this duplicate
+        console.warn('DUPLICATE DETECTED IN CURRENT LOAD - SKIPPING:', entryKey);
+        return; // Skip this duplicate
       }
       
-      // Store the first occurrence
-      seenEntries.set(entryKey, doc.id);
+      seenEntries.add(entryKey);
+      displayedCount++;
       totalAmount += (d.amount || 0);
       
       const tr = document.createElement("tr");
@@ -951,18 +970,6 @@ async function loadVillageCollections(){
       }
     });
 
-    // Delete all duplicates found
-    if (duplicatesToDelete.length > 0) {
-      await Promise.all(duplicatesToDelete);
-      console.log(`Deleted ${duplicatesToDelete.length} duplicate entries`);
-      if (duplicatesToDelete.length > 0) {
-        showToast(`Removed ${duplicatesToDelete.length} duplicates`);
-        // Reload to show clean data
-        setTimeout(loadVillageCollections, 500);
-        return;
-      }
-    }
-
     // Update total collection display
     const totalElement = document.getElementById("vc-total-collection");
     const totalAmountElement = document.getElementById("vc-total-amount");
@@ -974,10 +981,13 @@ async function loadVillageCollections(){
       totalElement.style.display = "none";
     }
     
-    console.log('Total unique entries:', seenEntries.size);
+    console.log(`Display completed: ${displayedCount} unique entries shown, ${seenEntries.size} in set`);
+    
   } catch(e) { 
-    console.error(e); 
+    console.error("Load error:", e); 
     alert("Failed to load village collections: "+(e.message||e)); 
+  } finally {
+    isCurrentlyLoading = false;
   }
 }
 
