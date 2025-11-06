@@ -1110,7 +1110,7 @@ async function loadFeeMonthsTable(){
         if(currentRole!=="admin"){ cb.checked = !cb.checked; return alert("Only admin can change payments"); }
         try{
           if(!docSnap.exists){
-            const monthsInit = {}; MONTHS.forEach(mm=> monthsInit[mm] = { paid:false, paidAt:null };
+            const monthsInit = {}; MONTHS.forEach(mm=> monthsInit[mm] = { paid:false, paidAt:null });
             await docRef.set({ memberId, year: selectedFeeYear, months: monthsInit, feeAmount });
           }
           const updatePaid = {}; updatePaid[`months.${m}.paid`] = cb.checked;
