@@ -4,25 +4,21 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Club Bornoporichoy — Durga Puja Dashboard</title>
-
 <!-- Google Font -->
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-
 <!-- Firebase compat SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
-  :root{
+  :root {
     --primary-red: #B71C1C;
     --deep-red: #a31313;
     --accent-gold: #D4AF37;
     --bg-start: #ffffff;
-    --bg-end: #f7f0e8; /* soft beige */
+    --bg-end: #f7f0e8;
     --card: #ffffff;
     --muted: #6b6b6b;
     --text: #2f2f2f;
@@ -31,48 +27,95 @@
     --glass: rgba(255,255,255,0.6);
     --toast-bg: rgba(0,0,0,0.85);
   }
-  *{box-sizing:border-box}
-  html,body{height:100%}
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
     margin: 0;
     background: linear-gradient(180deg, var(--bg-start), var(--bg-end));
     color: var(--text);
     font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, Arial;
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-    line-height:1.45;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.45;
   }
-
-  /* Header / nav (fixed) */
   header {
-    position: fixed; top:0; left:0; right:0; z-index:100;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
     background: linear-gradient(90deg, rgba(255,255,255,0.96), rgba(255,250,240,0.96));
     border-bottom: 1px solid rgba(0,0,0,0.04);
     padding: 12px 18px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.05);
     backdrop-filter: blur(6px);
   }
-  .header-inner { max-width:1200px; margin:0 auto; display:flex; gap:12px; align-items:center; }
-  .brand { display:flex; align-items:center; gap:12px; }
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
   .logo {
-    width:44px; height:44px; border-radius:10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
     background: linear-gradient(135deg, var(--primary-red), #e34b4b);
-    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(183,28,28,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(183,28,28,0.12);
   }
-  .brand h1 { margin:0; font-size:16px; color:var(--deep-red); font-weight:700; letter-spacing:0.2px; }
-  .brand .sub { font-size:12px; color:var(--muted); margin-top:2px; }
-
-  nav.topbar { margin-left:20px; display:flex; gap:10px; align-items:center; flex:1; }
+  .brand h1 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--deep-red);
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+  .brand .sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  nav.topbar {
+    margin-left: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex: 1;
+  }
   nav.topbar a {
-    padding:8px 12px; border-radius:10px; text-decoration:none; color:var(--deep-red);
-    font-weight:600; font-size:14px; transition: all 160ms ease;
+    padding: 8px 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--deep-red);
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 160ms ease;
   }
-  nav.topbar a:hover { transform: translateY(-2px); color: #7f0f0f; box-shadow: inset 0 -2px 0 var(--accent-gold); }
-  nav.topbar a.active { background: rgba(183,28,28,0.06); }
-
-  .auth-area { margin-left:auto; display:flex; gap:8px; align-items:center; }
-
-  /* Global Year Selector */
+  nav.topbar a:hover {
+    transform: translateY(-2px);
+    color: #7f0f0f;
+    box-shadow: inset 0 -2px 0 var(--accent-gold);
+  }
+  nav.topbar a.active {
+    background: rgba(183,28,28,0.06);
+  }
+  .auth-area {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
   .global-year-selector {
     background: var(--accent-gold);
     padding: 8px 15px;
@@ -97,95 +140,281 @@
     color: var(--primary-red);
     min-width: 100px;
   }
-
-  /* Container + cards */
-  .spacer { height:80px } /* to offset fixed header */
-  .container { max-width:1200px; margin:22px auto; padding:0 18px 80px; }
-  .card { background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); margin-bottom:18px; border:1px solid rgba(0,0,0,0.03); transition: transform 160ms ease, box-shadow 160ms ease; }
-  .card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(17,17,17,0.08); }
-  .card h2 { margin:0 0 8px 0; color:var(--primary-red); font-size:18px; display:flex; align-items:center; gap:8px; }
-  .subtitle { color:var(--muted); font-size:13px; margin-bottom:10px; }
-
-  .flex { display:flex; gap:12px; align-items:center; }
-  .flex.space { justify-content:space-between; }
-
+  .spacer { height: 80px; }
+  .container {
+    max-width: 1200px;
+    margin: 22px auto;
+    padding: 0 18px 80px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    margin-bottom: 18px;
+    border: 1px solid rgba(0,0,0,0.03);
+    transition: transform 160ms ease, box-shadow 160ms ease;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(17,17,17,0.08);
+  }
+  .card h2 {
+    margin: 0 0 8px 0;
+    color: var(--primary-red);
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .flex {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .flex.space {
+    justify-content: space-between;
+  }
   input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
-    padding:10px 12px; border-radius:10px; border:1px solid rgba(0,0,0,0.06); background:#fff;
-    font-size:14px; color:var(--text); outline:none;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,0.06);
+    background: #fff;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
   }
-  input:focus, select:focus, textarea:focus { box-shadow: 0 8px 24px rgba(183,28,28,0.06); border-color: rgba(183,28,28,0.18); }
-
-  /* Buttons */
-  .btn { background:var(--primary-red); color:#fff; border:none; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600; box-shadow: 0 8px 20px rgba(183,28,28,0.08); transition: transform 120ms ease, box-shadow 120ms ease; }
-  .btn:hover{ transform: translateY(-2px); box-shadow: 0 14px 28px rgba(183,28,28,0.12); }
-  .btn.small { padding:7px 10px; font-size:13px; border-radius:8px; }
-  .btn.secondary { background:var(--accent-gold); color:#222; box-shadow:none; }
-  .btn.ghost { background:transparent; color:var(--deep-red); border:1px solid rgba(0,0,0,0.06); box-shadow:none; }
-
-  .muted { color:var(--muted); font-size:13px; }
-  .note { font-size:13px; color:var(--muted); margin-top:8px; }
-
-  /* Tables */
-  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:12px; }
+  input:focus, select:focus, textarea:focus {
+    box-shadow: 0 8px 24px rgba(183,28,28,0.06);
+    border-color: rgba(183,28,28,0.18);
+  }
+  .btn {
+    background: var(--primary-red);
+    color: #fff;
+    border: none;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    box-shadow: 0 8px 20px rgba(183,28,28,0.08);
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(183,28,28,0.12);
+  }
+  .btn.small {
+    padding: 7px 10px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+  .btn.secondary {
+    background: var(--accent-gold);
+    color: #222;
+    box-shadow: none;
+  }
+  .btn.ghost {
+    background: transparent;
+    color: var(--deep-red);
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: none;
+  }
+  .muted {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .note {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-top: 12px;
+  }
   thead th {
-    text-align:left; padding:12px 14px; background:linear-gradient(0deg,var(--accent-gold), #f6e9a8); color:var(--text); border-bottom:2px solid rgba(0,0,0,0.04);
+    text-align: left;
+    padding: 12px 14px;
+    background: linear-gradient(0deg, var(--accent-gold), #f6e9a8);
+    color: var(--text);
+    border-bottom: 2px solid rgba(0,0,0,0.04);
   }
-  tbody td { padding:12px 14px; border-bottom:1px solid rgba(0,0,0,0.04); vertical-align:middle; }
-  tbody tr:hover { background: rgba(183,28,28,0.02); }
-  .editable { background: linear-gradient(180deg,#fff8e6,#fffdf7); border-radius:6px; padding:8px; }
-  .badge { display:inline-block; padding:6px 8px; border-radius:8px; font-weight:700; font-size:13px; transition: all 240ms ease; }
-  .badge.ok { background:#28a745; color:#fff; animation: pulse 1200ms infinite ease-in-out; }
-  .badge.warn { background:#ff8c00; color:#fff; }
-  @keyframes pulse { 0% { transform: scale(1); opacity:1 } 50% { transform: scale(1.03); opacity:0.92 } 100% { transform: scale(1); opacity:1 } }
-
-  .center { text-align:center; }
-  .right { margin-left:auto; }
-
-  /* Paid tracker icons */
-  .paid-box { display:inline-block; width:20px; height:20px; line-height:20px; text-align:center; border-radius:4px; font-weight:700; }
-  .paid-yes { background:#28a745; color:white; box-shadow: 0 4px 10px rgba(40,167,69,0.12); }
-  .paid-no { background:#fff; color:#888; border:1px solid #eee; }
-
-  /* Sticky summary bar below header */
+  tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+    vertical-align: middle;
+  }
+  tbody tr:hover {
+    background: rgba(183,28,28,0.02);
+  }
+  .editable {
+    background: linear-gradient(180deg, #fff8e6, #fffdf7);
+    border-radius: 6px;
+    padding: 8px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    transition: all 240ms ease;
+  }
+  .badge.ok {
+    background: #28a745;
+    color: #fff;
+    animation: pulse 1200ms infinite ease-in-out;
+  }
+  .badge.warn {
+    background: #ff8c00;
+    color: #fff;
+  }
+  @keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.03); opacity: 0.92; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .center { text-align: center; }
+  .right { margin-left: auto; }
+  .paid-box {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    text-align: center;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .paid-yes {
+    background: #28a745;
+    color: white;
+    box-shadow: 0 4px 10px rgba(40,167,69,0.12);
+  }
+  .paid-no {
+    background: #fff;
+    color: #888;
+    border: 1px solid #eee;
+  }
   .summary-bar {
-    position: fixed; top:64px; left:0; right:0; z-index:90;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    z-index: 90;
     background: linear-gradient(90deg, rgba(255,255,255,0.97), rgba(255,250,240,0.97));
     border-bottom: 1px solid rgba(0,0,0,0.03);
     box-shadow: 0 6px 18px rgba(0,0,0,0.04);
     padding: 10px 18px;
   }
-  .summary-inner { max-width:1200px; margin:0 auto; display:flex; gap:18px; align-items:center; }
-  .summary-card { background: #fff; padding:10px 14px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.03); display:flex; gap:8px; align-items:center; min-width:160px; }
-  .summary-card .value { font-weight:700; color:var(--primary-red); }
-
-  /* Toasts */
-  .toast-container { position: fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
-  .toast {
-    background: var(--toast-bg); color: #fff; padding:10px 14px; border-radius:8px; min-width:220px; box-shadow:0 8px 26px rgba(0,0,0,0.3);
-    opacity:0; transform: translateY(10px); transition: all 300ms ease;
+  .summary-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    gap: 18px;
+    align-items: center;
   }
-  .toast.show { opacity:1; transform: translateY(0); }
-
-  /* Summary Cards */
-  .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-  .summary-card-item { text-align: center; background: var(--card); border-radius: var(--radius); padding: 15px; box-shadow: var(--shadow); }
-
-  /* Village Breakdown */
-  .village-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
-  .breakdown-item { background: rgba(255,255,255,0.8); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05); }
-  .breakdown-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-  .breakdown-value { font-weight: 700; color: var(--primary-red); font-size: 14px; }
-
-  /* Quick Actions */
-  .quick-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-
-  /* Recent Activity */
-  .activity-item { padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; background: rgba(183,28,28,0.03); border-left: 3px solid var(--primary-red); }
-  .activity-item.info { border-left-color: #17a2b8; }
-  .activity-item.success { border-left-color: #28a745; }
-  .activity-item.error { border-left-color: #dc3545; }
-
-  /* Notifications */
+  .summary-card {
+    background: #fff;
+    padding: 10px 14px;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.03);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    min-width: 160px;
+  }
+  .summary-card .value {
+    font-weight: 700;
+    color: var(--primary-red);
+  }
+  .toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    background: var(--toast-bg);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    min-width: 220px;
+    box-shadow: 0 8px 26px rgba(0,0,0,0.3);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 300ms ease;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  .summary-card-item {
+    text-align: center;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 15px;
+    box-shadow: var(--shadow);
+  }
+  .village-breakdown {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .breakdown-item {
+    background: rgba(255,255,255,0.8);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+  .breakdown-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .breakdown-value {
+    font-weight: 700;
+    color: var(--primary-red);
+    font-size: 14px;
+  }
+  .quick-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .activity-item {
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: rgba(183,28,28,0.03);
+    border-left: 3px solid var(--primary-red);
+  }
+  .activity-item.info {
+    border-left-color: #17a2b8;
+  }
+  .activity-item.success {
+    border-left-color: #28a745;
+  }
+  .activity-item.error {
+    border-left-color: #dc3545;
+  }
   .notification {
     position: fixed;
     top: 20px;
@@ -203,11 +432,12 @@
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
   }
-
-  /* Advanced Filters */
-  .advanced-filters { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-
-  /* Year Info Badge */
+  .advanced-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+  }
   .year-info {
     background: var(--primary-red);
     color: white;
@@ -217,49 +447,47 @@
     font-weight: 600;
     margin-left: 8px;
   }
-
-  /* responsive */
   @media (max-width: 768px) {
     .summary-cards {
       grid-template-columns: repeat(2, 1fr) !important;
     }
-    
     .flex-row-mobile {
       flex-direction: column !important;
     }
-    
     input, select, button {
-      font-size: 16px !important; /* Prevents zoom on iOS */
+      font-size: 16px !important;
     }
-    
     table {
       font-size: 12px;
     }
-    
     .card {
       padding: 12px;
     }
-
     .advanced-filters {
       flex-direction: column;
     }
-
     .quick-actions {
       flex-direction: column;
     }
-
-    .header-inner{flex-direction:column; gap:10px; align-items:flex-start}
-    nav.topbar{flex-wrap:wrap}
-    .flex{flex-direction:column; align-items:stretch}
-    .spacer{height:140px}
-    .summary-bar { display:none; }
-    
+    .header-inner {
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    nav.topbar {
+      flex-wrap: wrap;
+    }
+    .flex {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .spacer { height: 140px; }
+    .summary-bar { display: none; }
     .global-year-selector {
       margin-left: 0;
       margin-top: 10px;
     }
   }
-
   .total-collection {
     background: linear-gradient(135deg, var(--accent-gold), #f8e8a8);
     padding: 12px 16px;
@@ -270,22 +498,59 @@
     color: var(--text);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
-
   .breakdown-container {
     display: flex;
     gap: 12px;
     margin-top: 8px;
     flex-wrap: wrap;
   }
-
-  /* Utility classes */
   .hidden { display: none !important; }
   .visible { display: block !important; }
   .flex-row { display: flex; flex-direction: row; }
+  @media print {
+    body, header, .summary-bar, .container, .card, .btn, .toast-container, .notification { display: none !important; }
+    .print-receipt { display: block !important; }
+  }
+  .print-receipt {
+    display: none;
+    font-family: 'Poppins', Arial, sans-serif;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    background: #fff;
+  }
+  .receipt-header {
+    text-align: center;
+    border-bottom: 2px solid var(--primary-red);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  .receipt-header h1 {
+    margin: 0;
+    color: var(--primary-red);
+    font-size: 24px;
+  }
+  .receipt-details {
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  .receipt-details div {
+    margin-bottom: 8px;
+  }
+  .receipt-details strong {
+    display: inline-block;
+    width: 150px;
+  }
+  .receipt-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--muted);
+  }
 </style>
 </head>
 <body>
-
 <header>
   <div class="header-inner">
     <div class="brand">
@@ -295,31 +560,25 @@
         <div class="sub">Durga Puja Dashboard</div>
       </div>
     </div>
-
     <nav class="topbar" role="navigation" aria-label="Main navigation">
       <a href="#invitations" id="nav-invitations" class="active">Manage Invitations</a>
       <a href="#members" id="nav-members">Members</a>
-      <a href="#collectors" id="nav-collectors">Donation Collectors</a>
       <a href="#fees" id="nav-fees">Membership Fees</a>
-      <a href="#paid-tracker" id="nav-paid" style="display:none">Paid Tracker</a>
+      <a href="#paid-tracker" id="nav-paid">Paid Tracker</a>
+      <a href="#village-collection" id="nav-village">Village Collection</a>
     </nav>
-
-    <!-- Global Year Selector -->
     <div class="global-year-selector hidden" id="global-year-selector">
       <label>📅 Year:</label>
       <select id="globalYearSelect">
         <!-- Options will be populated dynamically -->
       </select>
     </div>
-
     <div class="auth-area">
       <div id="user-info" class="muted" style="font-size:13px"></div>
       <button id="logout-btn" class="btn small hidden">Logout</button>
     </div>
   </div>
 </header>
-
-<!-- sticky summary bar under header - HIDDEN BY DEFAULT -->
 <div class="summary-bar hidden" id="summary-bar">
   <div class="summary-inner">
     <div class="summary-card">
@@ -346,12 +605,8 @@
     </div>
   </div>
 </div>
-
 <div class="spacer"></div>
-
 <div class="container">
-
-  <!-- Auth / Login Card -->
   <div class="card" id="auth-card">
     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
       <div style="min-width:240px;flex:1">
@@ -362,14 +617,12 @@
         <label class="muted">Password</label>
         <input id="password" type="password" placeholder="password" style="width:100%" />
       </div>
-
       <div style="min-width:160px">
         <label class="muted">Select Year</label>
         <select id="loginYearSelect" style="width:100%;">
           <!-- Options will be populated dynamically -->
         </select>
       </div>
-
       <div style="display:flex;gap:8px;align-items:center;margin-top:20px">
         <button id="login-btn" class="btn">Login</button>
       </div>
@@ -378,11 +631,7 @@
       Use email/password login. Admin UID for edits: <code>fRpLuiBgU0ZE1AtVmkGaA1RhBJk2</code>
     </div>
   </div>
-
-  <!-- Main content (hidden until login) -->
   <div id="main-content" class="hidden">
-
-    <!-- 1. Real-time Dashboard Summary Cards (SEPARATE PANEL) -->
     <div class="card">
       <h3>📊 Dashboard Overview</h3>
       <div class="summary-cards">
@@ -404,8 +653,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 4. Quick Actions Panel -->
     <div class="card">
       <h3>⚡ Quick Actions</h3>
       <div class="quick-actions">
@@ -416,16 +663,12 @@
         <button class="btn small secondary" onclick="showAllYearsData()">📅 View All Years</button>
       </div>
     </div>
-
-    <!-- 5. Recent Activity Feed -->
     <div class="card">
       <h3>🕒 Recent Activity</h3>
       <div id="recent-activity" style="max-height: 200px; overflow-y: auto;">
         <!-- Activity items will be added here -->
       </div>
     </div>
-
-    <!-- Year Information Card -->
     <div class="card" id="year-info-card">
       <h3>📅 Currently Viewing: <span id="current-year-display">2025</span> <span class="year-info" id="year-data-status">Loading...</span></h3>
       <div class="subtitle" id="year-data-description">Viewing membership fees data for selected year. Other data (invitations, members, collections) shows all years.</div>
@@ -434,13 +677,9 @@
         <button class="btn small ghost" onclick="showYearComparison()">📊 Compare Years</button>
       </div>
     </div>
-
-    <!-- Invitations -->
     <div class="card" id="invitations">
       <h2>🪔 Invitation List <span class="year-info">All Years</span></h2>
       <div class="subtitle">Add, search and track invitation card distribution (shows data from all years)</div>
-
-      <!-- Enhanced Search & Filters -->
       <div class="advanced-filters">
         <select id="filter-village" style="min-width: 150px;">
           <option value="">All Villages</option>
@@ -459,19 +698,16 @@
         <input type="date" id="filter-date-from" placeholder="From Date">
         <input type="date" id="filter-date-to" placeholder="To Date">
       </div>
-
       <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
         <input id="search-invite" type="text" placeholder="Search invitations (name / village / mobile)..." style="flex:1" />
         <div class="muted">Admin can add/edit/delete</div>
       </div>
-
       <table id="invitation-table" style="margin-top:12px">
         <thead>
           <tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Sent</th><th>Date Added</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
-
       <div style="margin-top:12px">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <input id="inv-name" type="text" placeholder="Name" style="min-width:180px" />
@@ -482,22 +718,17 @@
         </div>
       </div>
     </div>
-
-    <!-- Members -->
     <div class="card" id="members">
       <h2>🌸 Members List <span class="year-info">All Years</span></h2>
-      <div class="subtitle">Manage members — linked to membership fee tracker (shows data from all years)</div>
-
+      <div class="subtitle">Manage members — linked to membership fee and village collection trackers (shows data from all years)</div>
       <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
         <input id="search-members" type="text" placeholder="Search members (name/mobile)..." style="flex:1" />
         <div class="muted">Admin can add/edit/delete</div>
       </div>
-
       <table id="members-table" style="margin-top:12px">
         <thead><tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
-
       <div style="margin-top:12px">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <input id="mem-name" type="text" placeholder="Name" style="min-width:180px" />
@@ -508,34 +739,27 @@
         </div>
       </div>
     </div>
-
-    <!-- Membership Fees -->
     <div class="card" id="fees">
       <h2>💰 Membership Fees Tracker (<span id="fees-year-display">2025</span>)</h2>
       <div class="subtitle">Track monthly payments (₹ per month configurable) - Year-specific data</div>
-
       <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
         <div style="min-width:260px">
           <label class="muted">Member</label>
           <select id="feeMemberSelect" style="width:100%"><option value="">-- Select member --</option></select>
         </div>
-
         <div style="min-width:140px">
           <label class="muted">Monthly Fee (₹)</label>
           <input id="feeAmountInput" type="number" min="1" value="100" style="width:100%" />
         </div>
-
         <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
           <button id="loadMemberFeeBtn" class="btn small">Load</button>
           <button id="exportCsvBtn" class="btn small secondary">Export CSV</button>
         </div>
       </div>
-
       <table id="fee-months-table" style="margin-top:12px">
         <thead><tr><th>Month</th><th>Status</th><th>Paid On</th><th>Toggle (Admin)</th></tr></thead>
         <tbody></tbody>
       </table>
-
       <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
         <div id="fee-member-summary" class="muted">Select member to load fees</div>
         <div style="margin-left:auto;display:flex;gap:8px">
@@ -543,79 +767,39 @@
           <button id="clearFeeRecordBtn" class="btn small ghost">Clear</button>
         </div>
       </div>
-
       <div style="margin-top:12px">
         <h3 style="margin:0 0 8px 0;color:var(--primary-red);font-size:15px">Yearly Summary</h3>
         <table id="fees-yearly-summary">
           <thead><tr><th>Month</th><th>Paid Members</th><th>Total Collected (₹)</th></tr></thead>
-        <tbody></tbody>
+          <tbody></tbody>
         </table>
       </div>
     </div>
-
-    <!-- Paid Members Visual Tracker -->
     <div class="card" id="paid-tracker">
       <h2>💠 Paid Members Visual Tracker (<span id="paid-tracker-year-display">2025</span>)</h2>
       <div class="subtitle">Click to load paid status for selected year. Click column header "Member" to sort A→Z.</div>
-
       <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
         <div style="min-width:220px">
           <button id="show-paid-btn" class="btn small">Show Paid Members</button>
           <button id="clear-paid-view" class="btn small ghost" style="margin-left:8px">Clear</button>
         </div>
-
         <div style="margin-left:auto">
           <div id="paid-tracker-count" class="muted">Loaded: 0</div>
         </div>
       </div>
-
       <div id="paid-members-list" style="margin-top:14px;overflow:auto;"></div>
     </div>
-
-    <!-- Collectors -->
-    <div class="card" id="collectors">
-      <h2>📬 Donation Collectors <span class="year-info">All Years</span></h2>
-      <div class="subtitle">Assign areas and track bills (shows data from all years)</div>
-
-      <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
-        <input id="search-collectors" type="text" placeholder="Search collectors..." style="flex:1" />
-        <div class="muted">Admin can add/edit/delete</div>
-      </div>
-
-      <table id="collector-table" style="margin-top:12px">
-        <thead><tr><th>Name</th><th>Assigned Area</th><th>Bill No</th><th>Mobile No</th><th>Remarks</th><th>Actions</th></tr></thead>
-        <tbody></tbody>
-      </table>
-
-      <div style="margin-top:12px">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <input id="col-name" type="text" placeholder="Name" style="min-width:160px" />
-          <input id="col-area" type="text" placeholder="Assigned Area (comma separated)" style="min-width:160px" />
-          <input id="col-bill" type="text" placeholder="Bill No" style="min-width:120px" />
-          <input id="col-mobile" type="text" placeholder="Mobile No" style="min-width:120px" />
-          <input id="col-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
-          <button id="add-col-btn" class="btn small">Add Collector</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Village Collection Tracker -->
     <div class="card" id="village-collection">
       <h2>🏘️ Village Collection Tracker <span class="year-info">All Years</span></h2>
-      <div class="subtitle">Track donations per village and collector (shows data from all years)</div>
-
+      <div class="subtitle">Track donations per village and member (shows data from all years)</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
         <input id="vc-bill" type="text" placeholder="Bill No" style="min-width:120px" />
-        
         <select id="vc-collector" style="min-width:160px">
-          <option value="">-- Select Collector --</option>
+          <option value="">-- Select Member --</option>
         </select>
-
         <input id="vc-donor" type="text" placeholder="Donor Name" style="min-width:160px" />
-
         <input id="vc-amount" type="number" placeholder="Amount (₹)" style="min-width:120px" />
         <input id="vc-remarks" type="text" placeholder="Remarks" style="min-width:200px" />
-
         <select id="vc-village" style="min-width:160px">
           <option value="">-- Select Village --</option>
           <option value="Madhabpur">Madhabpur</option>
@@ -625,34 +809,26 @@
           <option value="Mahakal">Mahakal</option>
           <option value="Others">Others</option>
         </select>
-
         <button id="add-vc-btn" class="btn small">Add Collection</button>
       </div>
-
-      <!-- Total Collection Display -->
       <div id="vc-total-collection" class="total-collection" style="display:none;">
         Total Village Collection: ₹<span id="vc-total-amount">0</span>
       </div>
-
-      <!-- Village-wise Collection Breakdown -->
       <div class="card" style="margin-top: 15px;">
         <h3>🏘️ Village-wise Collection</h3>
         <div id="village-breakdown" class="village-breakdown">
           <!-- Will be populated dynamically -->
         </div>
       </div>
-
-      <!-- Monthly Collection Trends Chart -->
       <div class="card" style="margin-top: 15px;">
         <h3>📈 Monthly Collection Trend</h3>
         <canvas id="collectionChart" height="100"></canvas>
       </div>
-
       <table id="vc-table" style="margin-top:12px">
         <thead>
           <tr>
             <th>Bill No</th>
-            <th>Collector</th>
+            <th>Member</th>
             <th>Donor Name</th>
             <th>Amount (₹)</th>
             <th>Remarks</th>
@@ -663,18 +839,12 @@
         </thead>
         <tbody></tbody>
       </table>
-
       <input id="search-vc" type="text" placeholder="Search collections..." style="margin-top:12px;width:100%;padding:8px;border-radius:8px;border:1px solid #ccc;" />
     </div>
-
-  </div> <!-- main-content -->
-</div> <!-- container -->
-
-<!-- Toast container -->
+  </div>
+</div>
 <div class="toast-container" id="toast-container"></div>
-
 <script>
-/* ---------------- Firebase config (hardcoded) ---------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyCuVs6jx7HiNIx25lzLgoq1B6nQqaHLHm0",
   authDomain: "guestandcollection.firebaseapp.com",
@@ -687,58 +857,36 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-
-/* ---------------- Global Year Selection System ---------------- */
-let selectedYear = new Date().getFullYear(); // Default to current year
-let allYearsFeesData = {}; // Store fees data from all years
-
-// Function to populate year dropdowns
+let selectedYear = new Date().getFullYear();
+let allYearsFeesData = {};
 function populateYearDropdowns() {
   const loginYearSelect = document.getElementById('loginYearSelect');
   const globalYearSelect = document.getElementById('globalYearSelect');
-  
-  // Clear existing options
   if (loginYearSelect) loginYearSelect.innerHTML = '';
   if (globalYearSelect) globalYearSelect.innerHTML = '';
-  
-  // Add "All Years" option
   const allYearsOption = document.createElement('option');
   allYearsOption.value = 'all';
   allYearsOption.textContent = 'All Years';
-  
   if (loginYearSelect) loginYearSelect.appendChild(allYearsOption.cloneNode(true));
-  if (globalYearSelect) globalYearSelect.appendChild(allYearsOption.cloneNode(true));
-  
-  // Add years from 2025 to 2050
+  if (globalYearSelect) globalYearSelect.appendChild(allYearsOption);
   for (let year = 2025; year <= 2050; year++) {
     const option = document.createElement('option');
     option.value = year;
     option.textContent = year;
-    
-    if (year === selectedYear) {
-      option.selected = true;
-    }
-    
+    if (year === selectedYear) option.selected = true;
     if (loginYearSelect) loginYearSelect.appendChild(option.cloneNode(true));
     if (globalYearSelect) globalYearSelect.appendChild(option);
   }
 }
-
-// Function to update year displays
 function updateYearDisplays() {
-  // Update header displays
   const currentYearDisplay = document.getElementById('current-year-display');
   const feesYearDisplay = document.getElementById('fees-year-display');
   const paidTrackerYearDisplay = document.getElementById('paid-tracker-year-display');
-  
   if (currentYearDisplay) currentYearDisplay.textContent = selectedYear === 'all' ? 'All Years' : selectedYear;
   if (feesYearDisplay) feesYearDisplay.textContent = selectedYear === 'all' ? 'All Years' : selectedYear;
   if (paidTrackerYearDisplay) paidTrackerYearDisplay.textContent = selectedYear === 'all' ? 'All Years' : selectedYear;
-  
-  // Update year data status
   const yearDataStatus = document.getElementById('year-data-status');
   const yearDataDescription = document.getElementById('year-data-description');
-  
   if (selectedYear === 'all') {
     if (yearDataStatus) yearDataStatus.textContent = 'All Years Data';
     if (yearDataDescription) yearDataDescription.textContent = 'Viewing aggregated data from all years. Membership fees are combined across all available years.';
@@ -746,25 +894,13 @@ function updateYearDisplays() {
     if (yearDataStatus) yearDataStatus.textContent = `Year ${selectedYear}`;
     if (yearDataDescription) yearDataDescription.textContent = `Viewing membership fees data for ${selectedYear}. Other data (invitations, members, collections) shows all years.`;
   }
-  
-  // Update global year selector
-  const globalYearSelect = document.getElementById('globalYearSelect');
-  if (globalYearSelect) {
-    globalYearSelect.value = selectedYear;
-  }
 }
-
-// Function to change global year
 function changeGlobalYear(newYear) {
   selectedYear = newYear === 'all' ? 'all' : parseInt(newYear);
   updateYearDisplays();
-  
-  // Reload all year-dependent data
   loadFeeMembersDropdown();
   loadFeeYearlySummary();
   recalcTotalCollected();
-  
-  // Show notification
   if (selectedYear === 'all') {
     showNotification('Now viewing data from all years', 'info');
     addActivity('Changed to view all years data', 'info');
@@ -773,15 +909,12 @@ function changeGlobalYear(newYear) {
     addActivity(`Changed global year to ${selectedYear}`, 'info');
   }
 }
-
-// Function to load fees data from all years
 async function loadAllYearsFees() {
   try {
     addActivity('Loading fees data from all years...', 'info');
-    
     allYearsFeesData = {};
-    const years = [2024, 2025]; // Add all years you have data for
-    
+    const years = [];
+    for (let year = 2025; year <= 2050; year++) years.push(year);
     for (const year of years) {
       try {
         const feesCol = membershipFeesCollectionFor(year);
@@ -796,38 +929,25 @@ async function loadAllYearsFees() {
         console.log(`No data found for year ${year} or collection doesn't exist`);
       }
     }
-    
     showNotification('Loaded fees data from all available years', 'success');
     addActivity('Fees data loaded from all years', 'success');
-    
-    // Refresh the display
     if (selectedYear === 'all') {
       loadFeeYearlySummary();
       recalcTotalCollected();
     }
-    
   } catch (error) {
     console.error('Error loading all years fees:', error);
     showNotification('Error loading data from all years', 'error');
   }
 }
-
-// Function to show all years data
 function showAllYearsData() {
   changeGlobalYear('all');
 }
-
-// Function to show year comparison (placeholder)
 function showYearComparison() {
   showNotification('Year comparison feature coming soon!', 'info');
 }
-
-// Initialize year system
 populateYearDropdowns();
-
-/* ---------------- Event Listeners for Year Selection ---------------- */
 document.addEventListener('DOMContentLoaded', function() {
-  // Login year selector
   const loginYearSelect = document.getElementById('loginYearSelect');
   if (loginYearSelect) {
     loginYearSelect.addEventListener('change', function(e) {
@@ -835,8 +955,6 @@ document.addEventListener('DOMContentLoaded', function() {
       updateYearDisplays();
     });
   }
-  
-  // Global year selector (in header)
   const globalYearSelect = document.getElementById('globalYearSelect');
   if (globalYearSelect) {
     globalYearSelect.addEventListener('change', function(e) {
@@ -844,23 +962,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
-
-/* ---------------- Roles & constants ---------------- */
 const ROLES = {
   "fRpLuiBgU0ZE1AtVmkGaA1RhBJk2": "admin",
   "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer"
 };
 let currentRole = "viewer";
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-/* ---------------- collections (static) ---------------- */
 const invitationCol = db.collection("invitations");
 const membersCol = db.collection("members");
-const collectorsCol = db.collection("collectors");
 const villageCollectionsCol = db.collection("village_collections");
-function membershipFeesCollectionFor(year){ return db.collection(`membership_fees_${year}`); }
-
-/* ---------------- Chart initialization ---------------- */
+function membershipFeesCollectionFor(year) { return db.collection(`membership_fees_${year}`); }
 let collectionChart;
 function initCollectionChart() {
   const ctx = document.getElementById('collectionChart');
@@ -868,7 +979,6 @@ function initCollectionChart() {
     console.warn('Chart canvas not found');
     return;
   }
-  
   collectionChart = new Chart(ctx.getContext('2d'), {
     type: 'line',
     data: {
@@ -884,84 +994,53 @@ function initCollectionChart() {
     },
     options: {
       responsive: true,
-      plugins: {
-        legend: {
-          position: 'top',
-        }
-      },
+      plugins: { legend: { position: 'top' } },
       scales: {
         y: {
           beginAtZero: true,
-          ticks: {
-            callback: function(value) {
-              return '₹' + value;
-            }
-          }
+          ticks: { callback: function(value) { return '₹' + value; } }
         }
       }
     }
   });
 }
-
-/* ---------------- Summary Cards Functions ---------------- */
 async function updateSummaryCards() {
   try {
-    // Total invitations
     const invitationsSnap = await invitationCol.get();
     const totalInvitations = invitationsSnap.size;
     safeSetTextContent('total-invitations', totalInvitations);
-
-    // Total members
     const membersSnap = await membersCol.get();
     const totalMembers = membersSnap.size;
     safeSetTextContent('total-members', totalMembers);
-
-    // Pending invitations
     let pendingInvitations = 0;
     invitationsSnap.forEach(doc => {
-      const data = doc.data();
-      if (!data.sent) pendingInvitations++;
+      if (!doc.data().sent) pendingInvitations++;
     });
     safeSetTextContent('pending-invitations', pendingInvitations);
-
-    // Active collectors
-    const collectorsSnap = await collectorsCol.get();
-    const activeCollectors = collectorsSnap.size;
-    safeSetTextContent('active-collectors', activeCollectors);
-
+    safeSetTextContent('active-collectors', totalMembers);
   } catch (error) {
     console.error("Error updating summary cards:", error);
   }
 }
-
-/* ---------------- Safe DOM element helper ---------------- */
 function safeSetTextContent(elementId, text) {
   const element = document.getElementById(elementId);
-  if (element) {
-    element.textContent = text;
-  } else {
-    console.warn(`Element with id '${elementId}' not found`);
-  }
+  if (element) element.textContent = text;
+  else console.warn(`Element with id '${elementId}' not found`);
 }
-
-/* ---------------- Village Breakdown Function ---------------- */
 async function loadVillageBreakdown() {
   const breakdownContainer = document.getElementById('village-breakdown');
   if (!breakdownContainer) {
     console.warn('Village breakdown container not found');
     return;
   }
-  
   try {
     const snap = await villageCollectionsCol.get();
-    
     const villageTotals = {};
     snap.forEach(doc => {
       const d = doc.data();
       const village = d.village || 'Others';
       villageTotals[village] = (villageTotals[village] || 0) + (d.amount || 0);
     });
-    
     breakdownContainer.innerHTML = Object.entries(villageTotals)
       .map(([village, total]) => `
         <div class="breakdown-item">
@@ -974,15 +1053,12 @@ async function loadVillageBreakdown() {
     breakdownContainer.innerHTML = '<div class="breakdown-item">Error loading data</div>';
   }
 }
-
-/* ---------------- Recent Activity Functions ---------------- */
 function addActivity(message, type = 'info') {
   const activityDiv = document.getElementById('recent-activity');
   if (!activityDiv) {
     console.warn('Recent activity container not found');
     return;
   }
-  
   const activityItem = document.createElement('div');
   activityItem.className = `activity-item ${type}`;
   activityItem.innerHTML = `
@@ -992,23 +1068,13 @@ function addActivity(message, type = 'info') {
     </div>
   `;
   activityDiv.insertBefore(activityItem, activityDiv.firstChild);
-  
-  // Keep only last 10 activities
-  if (activityDiv.children.length > 10) {
-    activityDiv.removeChild(activityDiv.lastChild);
-  }
+  if (activityDiv.children.length > 10) activityDiv.removeChild(activityDiv.lastChild);
 }
-
-/* ---------------- Enhanced Notification System ---------------- */
 function showNotification(message, type = 'info', duration = 5000) {
-  // Remove existing notifications of same type to avoid duplicates
   const existingNotifications = document.querySelectorAll('.notification');
   existingNotifications.forEach(notification => {
-    if (notification.textContent.includes(message)) {
-      notification.remove();
-    }
+    if (notification.textContent.includes(message)) notification.remove();
   });
-
   const notification = document.createElement('div');
   notification.className = `notification notification-${type}`;
   notification.innerHTML = `
@@ -1017,50 +1083,37 @@ function showNotification(message, type = 'info', duration = 5000) {
       <span>${message}</span>
     </div>
   `;
-  
   document.body.appendChild(notification);
-  
-  // Auto remove after duration
   setTimeout(() => {
-    if (notification.parentNode) {
-      notification.parentNode.removeChild(notification);
-    }
+    if (notification.parentNode) notification.parentNode.removeChild(notification);
   }, duration);
 }
-
-/* ---------------- Data Validation ---------------- */
 function validateCollectionData(data) {
   const errors = [];
   if (!data.bill) errors.push('Bill number is required');
-  if (!data.collectorId) errors.push('Collector is required');
+  if (!data.collectorId) errors.push('Member is required');
+  if (!data.donorName) errors.push('Donor name is required');
   if (!data.amount || data.amount <= 0) errors.push('Valid amount is required');
   if (!data.village) errors.push('Village is required');
-  
   return errors;
 }
-
-/* ---------------- Quick Actions Functions ---------------- */
 async function exportAllData() {
   try {
     addActivity('Starting data export...', 'info');
-    
     const [invitations, members, collections, fees] = await Promise.all([
       invitationCol.get(),
       membersCol.get(),
       villageCollectionsCol.get(),
       membershipFeesCollectionFor(selectedYear).get()
     ]);
-    
     const data = {
       invitations: invitations.docs.map(doc => ({ id: doc.id, ...doc.data() })),
       members: members.docs.map(doc => ({ id: doc.id, ...doc.data() })),
       collections: collections.docs.map(doc => ({ id: doc.id, ...doc.data() })),
       fees: fees.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     };
-    
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     downloadBlob(blob, `club-bornoporichoy-backup-${new Date().toISOString().split('T')[0]}.json`);
-    
     showNotification('All data exported successfully!', 'success');
     addActivity('Data exported successfully', 'success');
   } catch (error) {
@@ -1068,7 +1121,6 @@ async function exportAllData() {
     addActivity('Data export failed: ' + error.message, 'error');
   }
 }
-
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1079,23 +1131,111 @@ function downloadBlob(blob, filename) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-
 async function sendBulkReminders() {
   showNotification('Bulk reminder feature coming soon!', 'info');
   addActivity('Bulk reminders triggered', 'info');
 }
-
 async function generateReport() {
   showNotification('Report generation feature coming soon!', 'info');
   addActivity('Report generation triggered', 'info');
 }
-
 async function backupData() {
   showNotification('Auto backup feature coming soon!', 'info');
   addActivity('Backup triggered', 'info');
 }
-
-/* ---------------- Performance Optimizations ---------------- */
+function generateReceiptHtml(data, collectorName) {
+  const date = data.dateAdded && data.dateAdded.toDate ? data.dateAdded.toDate().toLocaleString() : 'N/A';
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <title>Donation Receipt</title>
+      <style>
+        body {
+          font-family: 'Poppins', Arial, sans-serif;
+          margin: 0;
+          padding: 20px;
+          background: #fff;
+        }
+        .print-receipt {
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 20px;
+          border: 1px solid #ccc;
+          background: #fff;
+        }
+        .receipt-header {
+          text-align: center;
+          border-bottom: 2px solid #B71C1C;
+          padding-bottom: 10px;
+          margin-bottom: 20px;
+        }
+        .receipt-header h1 {
+          margin: 0;
+          color: #B71C1C;
+          font-size: 24px;
+        }
+        .receipt-details {
+          margin: 20px 0;
+          font-size: 14px;
+        }
+        .receipt-details div {
+          margin-bottom: 8px;
+        }
+        .receipt-details strong {
+          display: inline-block;
+          width: 150px;
+        }
+        .receipt-footer {
+          text-align: center;
+          margin-top: 20px;
+          font-size: 12px;
+          color: #6b6b6b;
+        }
+        @media print {
+          .print-receipt { display: block; }
+          body { margin: 0; padding: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="print-receipt">
+        <div class="receipt-header">
+          <h1>Club Bornoporichoy</h1>
+          <p>Durga Puja Committee</p>
+          <p>[Your Organization Address, City, State, ZIP]</p>
+          <p>Contact: [Your Contact Info] | Email: [Your Email]</p>
+        </div>
+        <h2 style="text-align:center;color:#B71C1C">Donation Receipt</h2>
+        <div class="receipt-details">
+          <div><strong>Receipt No:</strong> ${escapeHtml(data.bill)}</div>
+          <div><strong>Donor Name:</strong> ${escapeHtml(data.donorName)}</div>
+          <div><strong>Amount:</strong> ₹${(data.amount || 0).toLocaleString()}</div>
+          <div><strong>Village:</strong> ${escapeHtml(data.village)}</div>
+          <div><strong>Collected By:</strong> ${escapeHtml(collectorName)}</div>
+          <div><strong>Remarks:</strong> ${escapeHtml(data.remarks || 'None')}</div>
+          <div><strong>Date:</strong> ${date}</div>
+        </div>
+        <div class="receipt-footer">
+          <p>Thank you for your generous donation to Club Bornoporichoy Durga Puja Committee.</p>
+          <p>This donation may be eligible for tax deductions under Section 80G (if applicable). Please consult your tax advisor.</p>
+          <p>Authorized Signature: ___________________________</p>
+        </div>
+      </div>
+      <script>
+        window.onload = function() { window.print(); };
+      </script>
+    </body>
+    </html>
+  `;
+}
+function printReceipt(data, collectorName) {
+  const receiptWindow = window.open('', '_blank');
+  receiptWindow.document.write(generateReceiptHtml(data, collectorName));
+  receiptWindow.document.close();
+  addActivity(`Printed receipt for donation ₹${data.amount} from ${data.donorName}`, 'info');
+}
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -1107,193 +1247,149 @@ function debounce(func, wait) {
     timeout = setTimeout(later, wait);
   };
 }
-
-/* ---------------- UI elements ---------------- */
 const loginBtn = document.getElementById("login-btn");
 const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
-const mainContent = document.getElementById("main-content");
-const authCard = document.getElementById("auth-card");
-const summaryBar = document.getElementById("summary-bar");
-
-/* ---------------- Toast helpers ---------------- */
-function showToast(msg, ttl=2500) {
+function showToast(msg, ttl = 2500) {
   const container = document.getElementById('toast-container');
   if (!container) return;
-  
   const t = document.createElement('div');
   t.className = 'toast';
   t.innerText = msg;
   container.appendChild(t);
-  // show
-  requestAnimationFrame(()=> t.classList.add('show'));
-  setTimeout(()=> { t.classList.remove('show'); setTimeout(()=> container.removeChild(t), 300); }, ttl);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => container.removeChild(t), 300);
+  }, ttl);
 }
-
-/* ---------------- Auth handlers ---------------- */
 if (loginBtn) {
   loginBtn.addEventListener("click", () => {
-    const email = document.getElementById("email").value.trim();
-    const pw = document.getElementById("password").value;
-    if(!email || !pw) return alert("Enter email and password");
+    const email = document.getElementById("email")?.value.trim();
+    const pw = document.getElementById("password")?.value;
+    if (!email || !pw) return alert("Enter email and password");
     loginBtn.disabled = true;
-    auth.signInWithEmailAndPassword(email,pw)
-      .then(()=> {
+    auth.signInWithEmailAndPassword(email, pw)
+      .then(() => {
         showToast("Logged in");
         addActivity('User logged in successfully', 'success');
-        
-        // Show global year selector after login
-        const globalYearSelector = document.getElementById('global-year-selector');
-        if (globalYearSelector) globalYearSelector.classList.remove('hidden');
-        
-        // Update year displays
-        updateYearDisplays();
       })
-      .catch(e => { 
-        alert("Login error: "+e.message); 
+      .catch(e => {
+        alert("Login error: " + e.message);
         addActivity('Login failed: ' + e.message, 'error');
       })
-      .finally(()=> loginBtn.disabled=false);
+      .finally(() => loginBtn.disabled = false);
   });
 }
-
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
     logoutBtn.disabled = true;
     auth.signOut()
-      .then(()=> {
+      .then(() => {
         showToast("Logged out");
         addActivity('User logged out', 'info');
       })
       .catch(e => {
-        alert("Logout error: "+e.message);
+        alert("Logout error: " + e.message);
         addActivity('Logout failed: ' + e.message, 'error');
       })
-      .finally(()=> logoutBtn.disabled=false);
+      .finally(() => logoutBtn.disabled = false);
   });
 }
-
-/* auth state listener */
 auth.onAuthStateChanged(user => {
-  if(user){
+  const authCard = document.getElementById("auth-card");
+  const mainContent = document.getElementById("main-content");
+  const summaryBar = document.getElementById("summary-bar");
+  const logoutBtn = document.getElementById("logout-btn");
+  const globalYearSelector = document.getElementById('global-year-selector');
+  if (user) {
     currentRole = ROLES[user.uid] || "viewer";
-    // Show main content and summary bar, hide auth card
-    const authCard = document.getElementById("auth-card");
-    const mainContent = document.getElementById("main-content");
-    const summaryBar = document.getElementById("summary-bar");
-    const logoutBtn = document.getElementById("logout-btn");
-    const globalYearSelector = document.getElementById('global-year-selector');
-    
     if (authCard) authCard.classList.add("hidden");
     if (mainContent) mainContent.classList.remove("hidden");
     if (summaryBar) summaryBar.classList.remove("hidden");
     if (logoutBtn) logoutBtn.classList.remove("hidden");
     if (globalYearSelector) globalYearSelector.classList.remove("hidden");
-    
-    const userInfo = document.getElementById("user-info");
     if (userInfo) userInfo.textContent = `${user.email} (${currentRole})`;
-    
     applyRoleToUI();
-    setTimeout(()=>{ 
-      loadAllData(); 
-      loadFeeMembersDropdown(); 
-      loadFeeYearlySummary(); 
-      initCollectionChart(); 
-      updateSummaryCards(); 
-      loadVillageBreakdown();
-      updateYearDisplays();
-      loadAllYearsFees(); // Load all years data initially
-    }, 120);
+    loadAllData();
+    loadFeeMembersDropdown();
+    loadFeeYearlySummary();
+    initCollectionChart();
+    updateSummaryCards();
+    loadVillageBreakdown();
+    updateYearDisplays();
+    loadAllYearsFees();
   } else {
-    // Show auth card, hide main content and summary bar
-    const authCard = document.getElementById("auth-card");
-    const mainContent = document.getElementById("main-content");
-    const summaryBar = document.getElementById("summary-bar");
-    const logoutBtn = document.getElementById("logout-btn");
-    const globalYearSelector = document.getElementById('global-year-selector');
-    
     if (authCard) authCard.classList.remove("hidden");
     if (mainContent) mainContent.classList.add("hidden");
     if (summaryBar) summaryBar.classList.add("hidden");
     if (logoutBtn) logoutBtn.classList.add("hidden");
     if (globalYearSelector) globalYearSelector.classList.add("hidden");
-    
-    const userInfo = document.getElementById("user-info");
     if (userInfo) userInfo.textContent = "";
     clearAllTables();
   }
 });
-
-/* ui role enforcement */
-function applyRoleToUI(){
-  ["add-inv-btn","add-mem-btn","add-col-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","show-paid-btn","exportCsvBtn","add-vc-btn"].forEach(id=>{
-    const el=document.getElementById(id); 
-    if(el) el.disabled = (currentRole !== "admin");
+function applyRoleToUI() {
+  ["add-inv-btn", "add-mem-btn", "loadMemberFeeBtn", "saveFeeConfigBtn", "clearFeeRecordBtn", "show-paid-btn", "exportCsvBtn", "add-vc-btn"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = currentRole !== "admin";
   });
 }
-
-/* helpers */
-function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-
-// Use debounced search for better performance
+function escapeHtml(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 const debouncedFilterTable = debounce(filterTable, 300);
-
-function filterTable(tableId, term){
+function filterTable(tableId, term) {
   const table = document.getElementById(tableId);
   if (!table) return;
-  
   const rows = table.querySelectorAll("tbody tr");
-  const q = (term||"").toLowerCase();
+  const q = (term || "").toLowerCase();
   rows.forEach(r => {
     if (r) r.style.display = r.innerText.toLowerCase().includes(q) ? "" : "none";
   });
 }
-
-function clearAllTables(){
-  ["invitation-table","members-table","collector-table","monthly-summary-table","fee-months-table","fees-yearly-summary"].forEach(id=>{
+function clearAllTables() {
+  ["invitation-table", "members-table", "fee-months-table", "fees-yearly-summary", "vc-table"].forEach(id => {
     const tb = document.getElementById(id)?.querySelector("tbody");
-    if(tb) tb.innerHTML="";
+    if (tb) tb.innerHTML = "";
   });
-  
   safeSetTextContent("summary-invitees", "—");
   safeSetTextContent("summary-members", "—");
   safeSetTextContent("summary-collection", "₹0");
   safeSetTextContent("breakdown-village", "₹0");
   safeSetTextContent("breakdown-membership", "₹0");
 }
-
-/* ---------------- Load all static data ---------------- */
-function loadAllData(){
+function loadAllData() {
   loadInvitations();
   loadMembers();
-  loadCollectors();
   loadVillageCollections();
   updateMonthlySummary();
   updateSummaryCards();
   loadVillageBreakdown();
 }
-
-/* ---------------- INVITATIONS ---------------- */
 const addInvBtn = document.getElementById("add-inv-btn");
 if (addInvBtn) {
   addInvBtn.addEventListener("click", async () => {
-    if(currentRole !== "admin") return alert("Only admin can add");
-    const name = document.getElementById("inv-name").value.trim();
-    const village = document.getElementById("inv-village").value.trim();
-    const mobile = document.getElementById("inv-mobile").value.trim();
-    const remarks = document.getElementById("inv-remarks").value.trim();
-    if(!name || !village) return alert("Name & Village required");
+    if (currentRole !== "admin") return alert("Only admin can add");
+    const name = document.getElementById("inv-name")?.value.trim();
+    const village = document.getElementById("inv-village")?.value.trim();
+    const mobile = document.getElementById("inv-mobile")?.value.trim();
+    const remarks = document.getElementById("inv-remarks")?.value.trim();
+    if (!name || !village) return alert("Name & Village required");
     try {
-      let dupQuery = invitationCol.where("name","==",name);
-      if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
+      let dupQuery = invitationCol.where("name", "==", name);
+      if (mobile) dupQuery = dupQuery.where("mobile", "==", mobile);
       const dup = await dupQuery.get();
-      if(!dup.empty && !confirm("Possible duplicate found. Add anyway?")) return;
+      if (!dup.empty && !confirm("Possible duplicate found. Add anyway?")) return;
       await invitationCol.add({
-        name, village, mobile, remarks,
+        name,
+        village,
+        mobile,
+        remarks,
         sent: false,
         dateAdded: firebase.firestore.FieldValue.serverTimestamp()
       });
-      ["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id=>{
+      ["inv-name", "inv-village", "inv-mobile", "inv-remarks"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
@@ -1301,920 +1397,822 @@ if (addInvBtn) {
       addActivity(`Added invitation for ${name} from ${village}`, 'success');
       loadInvitations();
       updateSummaryCards();
-    } catch(err){
+    } catch (err) {
       console.error("Add invitation error:", err);
       alert("Failed to add invitation: " + (err.message || err));
       addActivity(`Failed to add invitation: ${err.message}`, 'error');
     }
   });
 }
-
-async function loadInvitations(){
+async function loadInvitations() {
   const tbody = document.querySelector("#invitation-table tbody");
-  if (!tbody) {
-    console.error("Invitations table body not found");
-    return;
-  }
-  
+  if (!tbody) return;
   tbody.innerHTML = "";
   try {
-    const snapshot = await invitationCol.orderBy("dateAdded","desc").get();
-    let total=0, sent=0;
+    const snapshot = await invitationCol.orderBy("dateAdded", "desc").get();
     snapshot.forEach(doc => {
-      total++;
       const d = doc.data();
-      if(d.sent) sent++;
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.name||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.village||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.remarks||"")}</td>
-        <td class="center">${d.sent?'<span class="badge ok">Sent</span>':'<span class="badge warn">Pending</span>'}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.name || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.village || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.mobile || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.remarks || "")}</td>
+        <td class="center">${d.sent ? '<span class="badge ok">Sent</span>' : '<span class="badge warn">Pending</span>'}</td>
         <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
         <td></td>
       `;
       tbody.appendChild(tr);
-
-      const actionsTd = tr.querySelector("td:last-child");
-      if(currentRole==="admin"){
-        const toggle=document.createElement("button"); toggle.textContent=d.sent?"Mark Pending":"Mark Sent"; toggle.className="btn small";
-        toggle.onclick=()=> doc.ref.update({sent:!d.sent}).then(()=>{ 
-          showToast("Updated"); 
+      if (currentRole === "admin") {
+        const toggle = document.createElement("button");
+        toggle.textContent = d.sent ? "Mark Pending" : "Mark Sent";
+        toggle.className = "btn small";
+        toggle.onclick = () => doc.ref.update({ sent: !d.sent }).then(() => {
+          showToast("Updated");
           addActivity(`Updated invitation status for ${d.name}`, 'info');
-          loadInvitations(); 
+          loadInvitations();
           updateSummaryCards();
-        }).catch(err=>alert(err.message));
-        actionsTd.appendChild(toggle);
-
-        const del=document.createElement("button"); del.style.marginLeft="8px"; del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick=()=>{ if(confirm("Delete invitation?")) doc.ref.delete().then(()=>{ 
-          showToast("Deleted"); 
-          addActivity(`Deleted invitation for ${d.name}`, 'info');
-          loadInvitations(); 
-          updateSummaryCards();
-        }); };
-        actionsTd.appendChild(del);
-
-        const editable=tr.querySelectorAll("td[contenteditable='true']");
-        editable.forEach((cell,idx)=> {
-          const map=["name","village","mobile","remarks"];
-          cell.onblur = async ()=> {
+        }).catch(err => alert(err.message));
+        tr.querySelector("td:last-child").appendChild(toggle);
+        const del = document.createElement("button");
+        del.style.marginLeft = "8px";
+        del.textContent = "Delete";
+        del.className = "btn small ghost";
+        del.onclick = () => {
+          if (confirm("Delete invitation?")) doc.ref.delete().then(() => {
+            showToast("Deleted");
+            addActivity(`Deleted invitation for ${d.name}`, 'info');
+            loadInvitations();
+            updateSummaryCards();
+          });
+        };
+        tr.querySelector("td:last-child").appendChild(del);
+        const editable = tr.querySelectorAll("td[contenteditable='true']");
+        editable.forEach((cell, idx) => {
+          const map = ["name", "village", "mobile", "remarks"];
+          cell.onblur = async () => {
             try {
               const val = cell.textContent.trim();
-              const upd = {}; upd[map[idx]] = val;
+              const upd = {};
+              upd[map[idx]] = val;
               await doc.ref.update(upd);
               showToast("Saved");
               addActivity(`Updated ${map[idx]} for ${d.name}`, 'info');
-            } catch(e) { console.error(e); alert("Save failed: "+(e.message||e)); }
+            } catch (e) {
+              console.error(e);
+              alert("Save failed: " + (e.message || e));
+            }
           };
         });
       }
     });
-    safeSetTextContent("summary-invitees", `${total}`);
-    safeSetTextContent("summary-invitees-inline", `${total}`);
-  } catch(e){
+  } catch (e) {
     console.error("Load invitations error:", e);
     alert("Failed to load invitations: " + (e.message || e));
   }
 }
-
-// Use debounced search
 const searchInvite = document.getElementById("search-invite");
-if (searchInvite) {
-  searchInvite.addEventListener("input",(e)=> debouncedFilterTable("invitation-table", e.target.value));
-}
-
-/* ---------------- Members ---------------- */
+if (searchInvite) searchInvite.addEventListener("input", e => debouncedFilterTable("invitation-table", e.target.value));
 const addMemBtn = document.getElementById("add-mem-btn");
 if (addMemBtn) {
-  addMemBtn.addEventListener("click", async ()=> {
-    if(currentRole!=="admin") return alert("Only admin can add members");
-    const name=document.getElementById("mem-name").value.trim();
-    const village=document.getElementById("mem-village").value.trim();
-    const mobile=document.getElementById("mem-mobile").value.trim();
-    const remarks=document.getElementById("mem-remarks").value.trim();
-    if(!name||!mobile) return alert("Name & Mobile required");
-    try{
-      const dup = await membersCol.where("name","==",name).where("mobile","==",mobile).get();
-      if(!dup.empty && !confirm("Possible duplicate member. Add anyway?")) return;
-      await membersCol.add({name,village,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
-      ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id=>{
+  addMemBtn.addEventListener("click", async () => {
+    if (currentRole !== "admin") return alert("Only admin can add members");
+    const name = document.getElementById("mem-name")?.value.trim();
+    const village = document.getElementById("mem-village")?.value.trim();
+    const mobile = document.getElementById("mem-mobile")?.value.trim();
+    const remarks = document.getElementById("mem-remarks")?.value.trim();
+    if (!name || !mobile) return alert("Name & Mobile required");
+    try {
+      const dup = await membersCol.where("name", "==", name).where("mobile", "==", mobile).get();
+      if (!dup.empty && !confirm("Possible duplicate member. Add anyway?")) return;
+      await membersCol.add({ name, village, mobile, remarks, dateAdded: firebase.firestore.FieldValue.serverTimestamp() });
+      ["mem-name", "mem-village", "mem-mobile", "mem-remarks"].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = "";
       });
       showToast("Member added");
       addActivity(`Added member: ${name} from ${village}`, 'success');
-      loadMembers(); 
+      loadMembers();
       loadFeeMembersDropdown();
+      loadVillageCollectors();
       updateSummaryCards();
-    }catch(e){ 
-      console.error(e); 
-      alert("Add member failed: "+(e.message||e)); 
+    } catch (e) {
+      console.error(e);
+      alert("Add member failed: " + (e.message || e));
+      addActivity(`Failed to add member: ${e.message}`, 'error');
     }
   });
 }
-
-async function loadMembers(){
-  const tbody=document.querySelector("#members-table tbody"); 
-  if (!tbody) {
-    console.error("Members table body not found");
-    return;
-  }
-  
-  tbody.innerHTML="";
-  try{
+async function loadMembers() {
+  const tbody = document.querySelector("#members-table tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  try {
     const snap = await membersCol.orderBy("name").get();
-    let total=0;
-    snap.forEach(docSnap=>{
-      total++; const d = docSnap.data();
+    snap.forEach(doc => {
+      const d = doc.data();
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.name||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.village||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.remarks||"")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.name || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.village || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.mobile || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.remarks || "")}</td>
         <td></td>
       `;
       tbody.appendChild(tr);
-
-      const actionsTd = tr.querySelector("td:last-child");
-      if(currentRole==="admin"){
-        const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick = ()=> { if(confirm("Delete member?")) docSnap.ref.delete().then(()=>{ 
-          showToast("Member deleted"); 
-          addActivity(`Deleted member: ${d.name}`, 'info');
-          loadMembers(); 
-          loadFeeMembersDropdown(); 
-          updateSummaryCards();
-        }); };
-        actionsTd.appendChild(del);
-
+      if (currentRole === "admin") {
+        const del = document.createElement("button");
+        del.textContent = "Delete";
+        del.className = "btn small ghost";
+        del.onclick = () => {
+          if (confirm("Delete member?")) doc.ref.delete().then(() => {
+            showToast("Member deleted");
+            addActivity(`Deleted member: ${d.name}`, 'info');
+            loadMembers();
+            loadFeeMembersDropdown();
+            loadVillageCollectors();
+            updateSummaryCards();
+          });
+        };
+        tr.querySelector("td:last-child").appendChild(del);
         const editable = tr.querySelectorAll("td[contenteditable='true']");
-        editable.forEach((cell,idx)=>{
-          const map=["name","village","mobile","remarks"];
-          cell.onblur = async ()=> {
-            try{ 
-              const val=cell.textContent.trim(); 
-              const upd={}; upd[map[idx]] = val; 
-              await membersCol.doc(docSnap.id).update(upd); 
-              loadFeeMembersDropdown(); 
-              showToast("Saved"); 
+        editable.forEach((cell, idx) => {
+          const map = ["name", "village", "mobile", "remarks"];
+          cell.onblur = async () => {
+            try {
+              const val = cell.textContent.trim();
+              const upd = {};
+              upd[map[idx]] = val;
+              await doc.ref.update(upd);
+              showToast("Saved");
               addActivity(`Updated ${map[idx]} for ${d.name}`, 'info');
-            }catch(e){console.error(e); alert("Save failed: "+(e.message||e));}
+            } catch (e) {
+              console.error(e);
+              alert("Save failed: " + (e.message || e));
+            }
           };
         });
       }
     });
-    safeSetTextContent("summary-members", `${total}`);
-    safeSetTextContent("summary-members-inline", `${total}`);
-  }catch(e){ 
-    console.error(e); 
-    alert("Load members failed: "+(e.message||e)); 
+  } catch (e) {
+    console.error(e);
+    alert("Load members failed: " + (e.message || e));
   }
 }
-
-// Use debounced search
 const searchMembers = document.getElementById("search-members");
-if (searchMembers) {
-  searchMembers.addEventListener("input",(e)=> debouncedFilterTable("members-table", e.target.value));
-}
-
-/* ---------------- Collectors ---------------- */
-const addColBtn = document.getElementById("add-col-btn");
-if (addColBtn) {
-  addColBtn.addEventListener("click", async ()=> {
-    if(currentRole!=="admin") return alert("Only admin can add");
-    const name=document.getElementById("col-name").value.trim();
-    const area=document.getElementById("col-area").value.trim();
-    const bill=document.getElementById("col-bill").value.trim();
-    const mobile=document.getElementById("col-mobile").value.trim();
-    const remarks=document.getElementById("col-remarks").value.trim();
-    if(!name||!area) return alert("Name & area required");
-    try{
-      const dup = await collectorsCol.where("name","==",name).where("area","==",area).get();
-      if(!dup.empty && !confirm("Possible duplicate. Add anyway?")) return;
-      await collectorsCol.add({name,area,bill,mobile,remarks,dateAdded:firebase.firestore.FieldValue.serverTimestamp()});
-      ["col-name","col-area","col-bill","col-mobile","col-remarks"].forEach(id=>{
-        const el = document.getElementById(id);
-        if (el) el.value = "";
-      });
-      showToast("Collector added");
-      addActivity(`Added collector: ${name} for area ${area}`, 'success');
-      loadCollectors();
-      updateSummaryCards();
-    }catch(e){ console.error(e); alert("Add collector failed: "+(e.message||e)); }
-  });
-}
-
-async function loadCollectors(){
-  const tbody = document.querySelector("#collector-table tbody"); 
-  if (!tbody) {
-    console.error("Collectors table body not found");
-    return;
-  }
-  
-  tbody.innerHTML="";
-  try{
-    const snap = await collectorsCol.orderBy("name").get();
-    snap.forEach(docSnap=>{
-      const d = docSnap.data();
-      const tr=document.createElement("tr");
-      tr.innerHTML = `<td>${escapeHtml(d.name||"")}</td><td>${escapeHtml(d.area||"")}</td><td>${escapeHtml(d.bill||"")}</td><td>${escapeHtml(d.mobile||"")}</td><td>${escapeHtml(d.remarks||"")}</td><td></td>`;
-      tbody.appendChild(tr);
-      if(currentRole==="admin"){
-        const del=document.createElement("button"); del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick = ()=> { if(confirm("Delete collector?")) docSnap.ref.delete().then(()=>{ 
-          showToast("Collector deleted"); 
-          addActivity(`Deleted collector: ${d.name}`, 'info');
-          loadCollectors(); 
-          updateSummaryCards();
-        }); };
-        tr.querySelector("td:last-child").appendChild(del);
-      }
-    });
-  }catch(e){ console.error(e); alert("Load collectors failed: "+(e.message || e)); }
-}
-
-// Use debounced search
-const searchCollectors = document.getElementById("search-collectors");
-if (searchCollectors) {
-  searchCollectors.addEventListener("input",(e)=> debouncedFilterTable("collector-table", e.target.value));
-}
-
-/* ---------------- Village Collection Tracker ---------------- */
+if (searchMembers) searchMembers.addEventListener("input", e => debouncedFilterTable("members-table", e.target.value));
 const vcTable = document.getElementById("vc-table")?.querySelector("tbody");
 const vcVillageSelect = document.getElementById("vc-village");
 const vcBillInput = document.getElementById("vc-bill");
 const vcDonorInput = document.getElementById("vc-donor");
 const vcAmountInput = document.getElementById("vc-amount");
 const vcRemarksInput = document.getElementById("vc-remarks");
-
-// Add collection button
+const vcCollectorSelect = document.getElementById("vc-collector");
 const addVcBtn = document.getElementById("add-vc-btn");
 if (addVcBtn) {
-  addVcBtn.addEventListener("click", async ()=>{
-    if(currentRole !== "admin") return alert("Only admin can add");
+  addVcBtn.addEventListener("click", async () => {
+    if (currentRole !== "admin") return alert("Only admin can add");
     const bill = vcBillInput?.value.trim() || "";
     const collectorId = vcCollectorSelect?.value || "";
     const donorName = vcDonorInput?.value.trim() || "";
     const amount = Number(vcAmountInput?.value) || 0;
     const remarks = vcRemarksInput?.value.trim() || "";
     const village = vcVillageSelect?.value || "";
-    
-    // Data validation
-    const validationErrors = validateCollectionData({ bill, collectorId, amount, village, donorName });
-    if (validationErrors.length > 0) {
-      showNotification(validationErrors.join(', '), 'error');
-      return;
-    }
-
-    if(!bill || !collectorId || !amount || !village || !donorName) return alert("Bill, collector, donor name, amount, and village are required");
-
-    try{
+    const validationErrors = validateCollectionData({ bill, collectorId, donorName, amount, village });
+    if (validationErrors.length > 0) return showNotification(validationErrors.join(', '), 'error');
+    try {
       await villageCollectionsCol.add({
-        bill, 
-        collectorId, 
+        bill,
+        collectorId,
         donorName,
-        amount, 
-        remarks, 
+        amount,
+        remarks,
         village,
         dateAdded: firebase.firestore.FieldValue.serverTimestamp()
       });
-      if (vcBillInput) vcBillInput.value=""; 
-      if (vcDonorInput) vcDonorInput.value="";
-      if (vcAmountInput) vcAmountInput.value=""; 
-      if (vcRemarksInput) vcRemarksInput.value=""; 
-      if (vcCollectorSelect) vcCollectorSelect.value=""; 
-      if (vcVillageSelect) vcVillageSelect.value="";
+      [vcBillInput, vcDonorInput, vcAmountInput, vcRemarksInput, vcCollectorSelect, vcVillageSelect].forEach(el => {
+        if (el) el.value = "";
+      });
       showToast("Collection added");
       addActivity(`Added collection: ₹${amount} from ${donorName} in ${village}`, 'success');
       loadVillageCollections();
       recalcTotalCollected();
       loadVillageBreakdown();
       updateChartData();
-    }catch(e){ 
-      console.error(e); 
-      alert("Failed to add collection: "+(e.message||e));
+    } catch (e) {
+      console.error(e);
+      alert("Failed to add collection: " + (e.message || e));
       addActivity(`Failed to add collection: ${e.message}`, 'error');
     }
   });
 }
-
-// Load collections table and calculate total
 let isCurrentlyLoading = false;
-
-async function loadVillageCollections(){
-  if (isCurrentlyLoading) {
-    console.log('Already loading, skipping duplicate call');
-    return;
-  }
-  
-  if (!vcTable) {
-    console.error("Village collections table not found");
-    return;
-  }
-  
+async function loadVillageCollections() {
+  if (isCurrentlyLoading) return;
+  if (!vcTable) return;
   isCurrentlyLoading = true;
   vcTable.innerHTML = "";
-  
   try {
     const snap = await villageCollectionsCol.orderBy("dateAdded", "desc").get();
-    
+    const membersSnap = await membersCol.get();
+    const memberMap = {};
+    membersSnap.forEach(doc => memberMap[doc.id] = doc.data().name);
     let totalAmount = 0;
     const seenEntries = new Set();
-    let displayedCount = 0;
-    
     snap.forEach(doc => {
       const d = doc.data();
       const entryKey = `${d.bill}-${d.collectorId}-${d.donorName}-${d.amount}-${d.village}`;
-      
-      // Check for duplicates in this load
-      if (seenEntries.has(entryKey)) {
-        console.warn('DUPLICATE DETECTED IN CURRENT LOAD - SKIPPING:', entryKey);
-        return; // Skip this duplicate
-      }
-      
-      seenEntries.add(entryKey);
-      displayedCount++;
-      totalAmount += (d.amount || 0);
-      
+      if (seenEntries.has(entryKey)) return;
+           seenEntries.add(entryKey);
+      totalAmount += d.amount || 0;
       const tr = document.createElement("tr");
+      const collectorName = memberMap[d.collectorId] || "Unknown";
       tr.innerHTML = `
-        <td>${d.bill||""}</td>
-        <td>${d.collectorId||""}</td>
-        <td>${d.donorName||""}</td>
-        <td>₹${d.amount||0}</td>
-        <td>${d.remarks||""}</td>
-        <td>${d.village||""}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable'}" data-field="bill">${escapeHtml(d.bill || "")}</td>
+        <td>${escapeHtml(collectorName)}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable'}" data-field="donorName">${escapeHtml(d.donorName || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable'}" data-field="amount">${d.amount || 0}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable'}" data-field="remarks">${escapeHtml(d.remarks || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable'}" data-field="village">${escapeHtml(d.village || "")}</td>
         <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
         <td></td>
       `;
       vcTable.appendChild(tr);
-
-      if(currentRole==="admin"){
+      if (currentRole === "admin") {
+        const printBtn = document.createElement("button");
+        printBtn.textContent = "Print Receipt";
+        printBtn.className = "btn small secondary";
+        printBtn.onclick = () => printReceipt(d, collectorName);
+        tr.querySelector("td:last-child").appendChild(printBtn);
         const delBtn = document.createElement("button");
-        delBtn.textContent="Delete"; 
-        delBtn.className="btn small ghost";
-        delBtn.onclick = ()=> { 
-          if(confirm("Delete this collection?")) doc.ref.delete().then(()=>{ 
-            showToast("Deleted"); 
-            addActivity(`Deleted collection: ₹${d.amount} from ${d.donorName}`, 'info');
-            loadVillageCollections(); 
-            recalcTotalCollected();
-            loadVillageBreakdown();
-            updateChartData();
-          }); 
+        delBtn.textContent = "Delete";
+        delBtn.className = "btn small ghost";
+        delBtn.style.marginLeft = "8px";
+        delBtn.onclick = () => {
+          if (confirm("Delete collection?")) {
+            doc.ref.delete().then(() => {
+              showToast("Collection deleted");
+              addActivity(`Deleted collection: ₹${d.amount} from ${d.donorName}`, 'info');
+              loadVillageCollections();
+              recalcTotalCollected();
+              loadVillageBreakdown();
+              updateChartData();
+            }).catch(e => {
+              alert("Delete failed: " + e.message);
+              addActivity(`Failed to delete collection: ${e.message}`, 'error');
+            });
+          }
         };
         tr.querySelector("td:last-child").appendChild(delBtn);
+        const editableCells = tr.querySelectorAll("td[contenteditable='true']");
+        editableCells.forEach(cell => {
+          cell.onblur = async () => {
+            try {
+              const field = cell.dataset.field;
+              const value = field === "amount" ? Number(cell.textContent.trim()) : cell.textContent.trim();
+              if (field === "amount" && (isNaN(value) || value <= 0)) {
+                alert("Invalid amount");
+                cell.textContent = d[field] || "";
+                return;
+              }
+              const updateData = { [field]: value };
+              await doc.ref.update(updateData);
+              showToast("Collection updated");
+              addActivity(`Updated ${field} for collection ${d.bill}`, 'info');
+              loadVillageCollections();
+              recalcTotalCollected();
+              loadVillageBreakdown();
+              updateChartData();
+            } catch (e) {
+              alert("Update failed: " + e.message);
+              addActivity(`Failed to update collection: ${e.message}`, 'error');
+            }
+          };
+        });
       }
     });
-
-    // Update total collection display
-    const totalElement = document.getElementById("vc-total-collection");
-    const totalAmountElement = document.getElementById("vc-total-amount");
-    
-    if (totalAmount > 0 && totalElement && totalAmountElement) {
-      totalAmountElement.textContent = totalAmount.toLocaleString();
-      totalElement.style.display = "block";
-    } else if (totalElement) {
-      totalElement.style.display = "none";
+    const totalCollectionEl = document.getElementById("vc-total-collection");
+    const totalAmountEl = document.getElementById("vc-total-amount");
+    if (totalCollectionEl && totalAmountEl) {
+      totalAmountEl.textContent = totalAmount.toLocaleString();
+      totalCollectionEl.style.display = totalAmount > 0 ? "block" : "none";
     }
-    
-  } catch(e) { 
-    console.error("Load error:", e); 
-    alert("Failed to load village collections: "+(e.message||e)); 
+  } catch (e) {
+    console.error("Load village collections error:", e);
+    alert("Failed to load collections: " + (e.message || e));
+    addActivity(`Failed to load village collections: ${e.message}`, 'error');
   } finally {
     isCurrentlyLoading = false;
   }
 }
 
-/* ---------------- Update Chart Data ---------------- */
+async function loadVillageCollectors() {
+  const vcCollectorSelect = document.getElementById("vc-collector");
+  if (!vcCollectorSelect) return;
+  vcCollectorSelect.innerHTML = '<option value="">-- Select Member --</option>';
+  try {
+    const snap = await membersCol.orderBy("name").get();
+    snap.forEach(doc => {
+      const option = document.createElement("option");
+      option.value = doc.id;
+      option.textContent = doc.data().name;
+      vcCollectorSelect.appendChild(option);
+    });
+  } catch (e) {
+    console.error("Load collectors error:", e);
+    alert("Failed to load collectors: " + e.message);
+  }
+}
+
 async function updateChartData() {
+  if (!collectionChart) return;
   try {
     const snap = await villageCollectionsCol.get();
-    const monthlyData = Array(12).fill(0);
-    
+    const monthlyTotals = Array(12).fill(0);
     snap.forEach(doc => {
       const d = doc.data();
       if (d.dateAdded && d.dateAdded.toDate) {
-        const date = d.dateAdded.toDate();
-        const month = date.getMonth(); // 0-11
-        monthlyData[month] += (d.amount || 0);
+        const month = d.dateAdded.toDate().getMonth();
+        monthlyTotals[month] += d.amount || 0;
       }
     });
-    
-    if (collectionChart) {
-      collectionChart.data.datasets[0].data = monthlyData;
-      collectionChart.update();
-    }
-  } catch (error) {
-    console.error("Error updating chart:", error);
+    collectionChart.data.datasets[0].data = monthlyTotals;
+    collectionChart.update();
+  } catch (e) {
+    console.error("Update chart error:", e);
   }
 }
 
-// Use debounced search
-const searchVc = document.getElementById("search-vc");
-if (searchVc) {
-  searchVc.addEventListener("input", e => {
-    debouncedFilterTable("vc-table", e.target.value);
-  });
-}
-
-// ===== Populate Collector Dropdown =====
-const vcCollectorSelect = document.getElementById('vc-collector');
-
-if (vcCollectorSelect) {
-  collectorsCol.orderBy("name").onSnapshot(snapshot => {
-    vcCollectorSelect.innerHTML = '<option value="">-- Select Collector --</option>'; // reset
-    snapshot.forEach(docSnap => {
-      const d = docSnap.data();
-      const opt = document.createElement('option');
-      opt.value = d.name;
-      opt.textContent = d.name;
-      vcCollectorSelect.appendChild(opt);
-    });
-  });
-}
-
-// Init
-loadVillageCollections();
-
-/* ---------------- Monthly summary placeholder ---------------- */
-async function updateMonthlySummary(){
-  // kept intentionally light. real totals handled in fee summary functions
-}
-
-/* ---------------- Membership Fees ---------------- */
-
-/* fee members dropdown */
-const feeMemberSelect = document.getElementById('feeMemberSelect');
-async function loadFeeMembersDropdown(){
-  if (!feeMemberSelect) return;
-  
-  feeMemberSelect.innerHTML = '<option value="">-- Select member --</option>';
-  try{
-    const snap = await membersCol.orderBy("name").get();
-    snap.forEach(docSnap=>{
-      const d = docSnap.data();
-      const opt = document.createElement('option');
-      opt.value = docSnap.id;
-      opt.textContent = `${d.name} — ${d.mobile||''}`;
-      feeMemberSelect.appendChild(opt);
-    });
-  }catch(e){ console.error("Load fee members failed:", e); }
-}
-
-/* load member fee months */
-const loadMemberFeeBtn = document.getElementById("loadMemberFeeBtn");
-if (loadMemberFeeBtn) {
-  loadMemberFeeBtn.addEventListener("click", loadFeeMonthsTable);
-}
-
-async function loadFeeMonthsTable(){
-  const memberId = feeMemberSelect?.value;
-  const feeAmount = Number(document.getElementById("feeAmountInput")?.value) || 100;
-  const tbody = document.querySelector("#fee-months-table tbody");
-  if (!tbody) return;
-  
-  tbody.innerHTML = "";
-  if(!memberId){ 
-    safeSetTextContent("fee-member-summary", "Select a member"); 
-    return; 
-  }
-
-  try{
-    const feesCol = membershipFeesCollectionFor(selectedYear);
-    const docRef = feesCol.doc(memberId);
-    const docSnap = await docRef.get();
-    let record = docSnap.exists ? docSnap.data() : null;
-    if(!record){
-      const monthsInit = {}; MONTHS.forEach(m=> monthsInit[m] = { paid:false, paidAt:null });
-      record = { memberId, months: monthsInit, feeAmount };
-    }
-
-    let paidCount = 0;
-    MONTHS.forEach(m=>{
-      const info = record.months && record.months[m] ? record.months[m] : { paid:false, paidAt:null };
-      if(info.paid) paidCount++;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${m}</td>
-        <td class="center">${info.paid ? '✅ Paid' : '—'}</td>
-        <td class="center">${info.paid && info.paidAt ? new Date(info.paidAt.seconds ? info.paidAt.seconds*1000 : info.paidAt).toLocaleString() : ''}</td>
-        <td class="center"></td>
-      `;
-      tbody.appendChild(tr);
-
-      const actionTd = tr.querySelector("td:last-child");
-      const cb = document.createElement("input"); cb.type="checkbox"; cb.checked = !!info.paid; cb.disabled = (currentRole!=="admin");
-      cb.addEventListener("change", async ()=>{
-        if(currentRole!=="admin"){ cb.checked = !cb.checked; return alert("Only admin can change payments"); }
-        try{
-          if(!docSnap.exists){
-            const monthsInit = {}; MONTHS.forEach(mm=> monthsInit[mm] = { paid:false, paidAt:null });
-            await docRef.set({ memberId, year: selectedYear, months: monthsInit, feeAmount });
-          }
-          const updatePaid = {}; updatePaid[`months.${m}.paid`] = cb.checked;
-          const updatePaidAt = {}; updatePaidAt[`months.${m}.paidAt`] = cb.checked ? firebase.firestore.FieldValue.serverTimestamp() : null;
-          await docRef.update(updatePaid);
-          await docRef.update(updatePaidAt);
-          showToast("Payment updated");
-          addActivity(`Updated ${m} payment for member`, 'info');
-          loadFeeMonthsTable();
-          loadFeeYearlySummary();
-          recalcTotalCollected();
-        }catch(err){ console.error("Toggle paid error:", err); alert("Failed to update: "+(err.message||err)); cb.checked = !cb.checked; }
-      });
-      actionTd.appendChild(cb);
-    });
-
-    const totalPaid = paidCount * feeAmount;
-    safeSetTextContent("fee-member-summary", `Paid months: ${paidCount}/12 — Total: ₹${totalPaid}`);
-  }catch(e){ console.error("Load fee months error:", e); alert("Failed to load fees: "+(e.message||e)); }
-}
-
-/* Save fee config */
-const saveFeeConfigBtn = document.getElementById("saveFeeConfigBtn");
-if (saveFeeConfigBtn) {
-  saveFeeConfigBtn.addEventListener("click", async ()=>{
-    const memberId = feeMemberSelect?.value; 
-    const feeAmount = Number(document.getElementById("feeAmountInput")?.value) || 100;
-    if(!memberId) return alert("Select a member");
-    try{
-      const feesCol = membershipFeesCollectionFor(selectedYear);
-      const docRef = feesCol.doc(memberId);
-      const docSnap = await docRef.get();
-      if(!docSnap.exists){
-        const monthsInit = {}; MONTHS.forEach(m=> monthsInit[m] = { paid:false, paidAt:null });
-        await docRef.set({ memberId, year: selectedYear, months: monthsInit, feeAmount });
-      } else {
-        await docRef.update({ feeAmount });
-      }
-      showToast("Fee configuration saved");
-      addActivity(`Updated fee configuration for member`, 'info');
-      loadFeeMonthsTable(); loadFeeYearlySummary(); recalcTotalCollected();
-    }catch(e){ console.error("Save fee config error:", e); alert("Failed to save fee config: "+(e.message||e)); }
-  });
-}
-
-/* Clear member fee record */
-const clearFeeRecordBtn = document.getElementById("clearFeeRecordBtn");
-if (clearFeeRecordBtn) {
-  clearFeeRecordBtn.addEventListener("click", async ()=>{
-    if(currentRole!=="admin") return alert("Only admin can clear fees");
-    const memberId = feeMemberSelect?.value; if(!memberId) return alert("Select a member");
-    if(!confirm("Clear all fee records for this member and year?")) return;
-    try{
-      const docRef = membershipFeesCollectionFor(selectedYear).doc(memberId);
-      const snap = await docRef.get();
-      if(snap.exists) await docRef.delete();
-      showToast("Cleared");
-      addActivity(`Cleared fee records for member`, 'info');
-      loadFeeMonthsTable(); loadFeeYearlySummary(); recalcTotalCollected();
-    }catch(e){ console.error(e); alert("Failed to clear: "+(e.message||e)); }
-  });
-}
-
-/* Yearly aggregated summary for fees */
-async function loadFeeYearlySummary(){
-  const tbody = document.querySelector("#fees-yearly-summary tbody"); 
-  if(!tbody) return; 
-  
-  tbody.innerHTML="";
-  
+async function recalcTotalCollected() {
   try {
-    if (selectedYear === 'all') {
-      // Aggregate data from all years
-      const monthlyAggregate = {};
-      MONTHS.forEach(m => monthlyAggregate[m] = { paid: 0, total: 0 });
-      
-      // Use pre-loaded all years data or load it
-      if (Object.keys(allYearsFeesData).length === 0) {
-        await loadAllYearsFees();
-      }
-      
-      // Aggregate data from all years
-      Object.values(allYearsFeesData).forEach(yearData => {
-        Object.values(yearData).forEach(memberData => {
-          const feeAmt = memberData.feeAmount || 100;
-          const monthsObj = memberData.months || {};
-          MONTHS.forEach(m => {
-            if (monthsObj[m] && monthsObj[m].paid) {
-              monthlyAggregate[m].paid++;
-              monthlyAggregate[m].total += feeAmt;
-            }
-          });
-        });
-      });
-      
-      MONTHS.forEach(m => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${m}</td><td class="center">${monthlyAggregate[m].paid}</td><td class="center">₹${monthlyAggregate[m].total}</td>`;
-        tbody.appendChild(tr);
-      });
-      
-    } else {
-      // Single year data
-      const feesCol = membershipFeesCollectionFor(selectedYear);
-      const snap = await feesCol.get();
-      const monthCounts = {}; 
-      MONTHS.forEach(m => monthCounts[m] = { paid: 0, total: 0 });
-      
-      snap.forEach(docSnap => {
-        const d = docSnap.data(); 
-        const feeAmt = d.feeAmount || 100;
-        const monthsObj = d.months || {};
-        MONTHS.forEach(m => {
-          if (monthsObj[m] && monthsObj[m].paid) { 
-            monthCounts[m].paid++; 
-            monthCounts[m].total += feeAmt; 
-          }
-        });
-      });
-      
-      MONTHS.forEach(m => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${m}</td><td class="center">${monthCounts[m].paid}</td><td class="center">₹${monthCounts[m].total}</td>`;
-        tbody.appendChild(tr);
-      });
-    }
-  } catch(e) { 
-    console.error("Fee yearly summary error:", e); 
-  }
-}
-
-/* ---------------- Export CSV for selected fees year ---------------- */
-const exportCsvBtn = document.getElementById("exportCsvBtn");
-if (exportCsvBtn) {
-  exportCsvBtn.addEventListener("click", async ()=>{
-    try{
-      const year = selectedYear;
-      const feesCol = membershipFeesCollectionFor(year);
-      // load all members (master member info)
-      const membersSnap = await membersCol.orderBy("name").get();
-      // load fees for the year (map by memberId)
-      const feeSnap = await feesCol.get();
-      const feeMap = {};
-      feeSnap.forEach(fs => feeMap[fs.id] = fs.data());
-      // assemble CSV rows: Name, Village, Mobile, Remarks, MonthsPaid (comma separated), LatestPaidDate
-      const rows = [];
-      rows.push(["Name","Village","Mobile","Remarks","MonthsPaid","LatestPaidDate"]);
-      membersSnap.forEach(mDoc=>{
-        const m = mDoc.data();
-        const memberId = mDoc.id;
-        const feeRec = feeMap[memberId] || { months: {} };
-        const monthsObj = feeRec.months || {};
-        const monthsPaid = Object.keys(monthsObj).filter(k => monthsObj[k] && monthsObj[k].paid);
-        let latestPaidAt = null;
-        Object.values(monthsObj).forEach(x => {
-          if(x && x.paidAt){
-            const t = x.paidAt.seconds ? x.paidAt.seconds*1000 : x.paidAt;
-            if(!latestPaidAt || t > latestPaidAt) latestPaidAt = t;
-          }
-        });
-        const paidDateStr = latestPaidAt ? new Date(latestPaidAt).toLocaleString() : "";
-        rows.push([m.name || "", m.village || "", m.mobile || "", m.remarks || "", monthsPaid.join("; "), paidDateStr]);
-      });
-
-      // convert to CSV text
-      const csvContent = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const filename = `MembershipFees_${year}.csv`;
-      if (navigator.msSaveBlob) { navigator.msSaveBlob(blob, filename); }
-      else {
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(()=> URL.revokeObjectURL(url), 1000);
-      }
-      showToast("CSV exported");
-      addActivity(`Exported CSV for year ${year}`, 'success');
-    }catch(e){
-      console.error("Export CSV error:", e);
-      alert("Failed to export CSV: " + (e.message || e));
-    }
-  });
-}
-
-/* ---------------- Fee dropdown load */
-loadFeeMembersDropdown();
-
-/* ---------------- Paid Members Visual Tracker ---------------- */
-const showPaidBtn = document.getElementById("show-paid-btn");
-if (showPaidBtn) {
-  showPaidBtn.addEventListener("click", loadPaidMembersTracker);
-}
-
-const clearPaidView = document.getElementById("clear-paid-view");
-if (clearPaidView) {
-  clearPaidView.addEventListener("click", ()=> {
-    const paidMembersList = document.getElementById("paid-members-list");
-    const paidTrackerCount = document.getElementById("paid-tracker-count");
-    
-    if (paidMembersList) paidMembersList.innerHTML = "";
-    if (paidTrackerCount) paidTrackerCount.textContent = "Loaded: 0";
-  });
-}
-
-let paidTrackerData = []; // cached for sorting
-
-async function loadPaidMembersTracker(){
-  const year = selectedYear;
-  const container = document.getElementById("paid-members-list");
-  if (!container) return;
-  
-  container.innerHTML = `<p style="color:#777;padding:10px">Loading...</p>`;
-  try {
-    // Get all members (master data)
-    const membersSnap = await membersCol.orderBy("name").get();
-    // Get fees for the year
-    const feesSnap = await membershipFeesCollectionFor(year).get();
-    const feeMap = {};
-    feesSnap.forEach(doc => feeMap[doc.id] = doc.data());
-    // Build rows
-    paidTrackerData = [];
-    membersSnap.forEach(mDoc => {
-      const m = mDoc.data();
-      const feeRec = feeMap[mDoc.id] || { months: {} };
-      // months array of booleans
-      const months = MONTHS.map(month => !!(feeRec.months && feeRec.months[month] && feeRec.months[month].paid));
-      paidTrackerData.push({
-        id: mDoc.id,
-        name: m.name || ("Member " + mDoc.id.substring(0,5)),
-        months
-      });
-    });
-
-    // default sort by name ascending
-    paidTrackerData.sort((a,b)=> a.name.localeCompare(b.name,'en',{sensitivity:'base'}));
-    renderPaidTrackerTable(paidTrackerData, year);
-    showToast("Paid members loaded");
-    addActivity(`Loaded paid tracker for year ${year}`, 'info');
-  } catch(err){
-    console.error("Load paid tracker error:", err);
-    container.innerHTML = `<p style="color:#e11d48;padding:10px">Error loading data.</p>`;
-  }
-}
-
-function renderPaidTrackerTable(data, year){
-  const container = document.getElementById("paid-members-list");
-  const paidTrackerCount = document.getElementById("paid-tracker-count");
-  
-  if(!container) return;
-  
-  if(!data || data.length===0){ 
-    container.innerHTML = `<p style="color:#777;padding:10px">No members found.</p>`; 
-    if (paidTrackerCount) paidTrackerCount.textContent = "Loaded: 0"; 
-    return; 
-  }
-  
-  // Build table
-  let html = `<div style="overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-      <thead style="background:#b91c1c;color:white;">
-        <tr>
-          <th id="paid-header-member" style="padding:10px;text-align:left;cursor:pointer">Member ▲</th>
-          ${MONTHS.map(m=>`<th style="padding:6px;text-align:center">${m}</th>`).join('')}
-        </tr>
-      </thead>
-      <tbody>`;
-
-  data.forEach(row=>{
-    html += `<tr style="background:#fff;border-bottom:1px solid #f0f0f0;">
-      <td style="padding:10px;font-weight:600">${escapeHtml(row.name)}</td>
-      ${row.months.map(p => `<td style="padding:6px;text-align:center">${p ? '<span class="paid-box paid-yes">✓</span>' : '<span class="paid-box paid-no">◻</span>'}</td>`).join('')}
-      </tr>`;
-  });
-
-  html += `</tbody></table></div>`;
-  container.innerHTML = html;
-  if (paidTrackerCount) paidTrackerCount.textContent = `Loaded: ${data.length}`;
-  
-  // Add sort click (name only)
-  const paidHeaderMember = document.getElementById("paid-header-member");
-  if (paidHeaderMember) {
-    paidHeaderMember.onclick = () => {
-      // toggle ascending/descending by seeing header arrow
-      const header = document.getElementById("paid-header-member");
-      const asc = header.innerText.endsWith("▲");
-      // sort
-      paidTrackerData.sort((a,b)=> asc ? b.name.localeCompare(a.name,'en',{sensitivity:'base'}) : a.name.localeCompare(b.name,'en',{sensitivity:'base'}));
-      header.innerText = asc ? "Member ▼" : "Member ▲";
-      renderPaidTrackerTable(paidTrackerData, selectedYear);
-    };
-  }
-}
-
-/* ---------------- Recalc total collected with breakdown ---------------- */
-async function recalcTotalCollected(){
-  try{
-    // Village collections total (always all years)
-    const villageSnap = await villageCollectionsCol.get();
     let villageTotal = 0;
-    villageSnap.forEach(doc => {
-      const d = doc.data();
-      villageTotal += (d.amount || 0);
-    });
+    const villageSnap = await villageCollectionsCol.get();
+    villageSnap.forEach(doc => villageTotal += doc.data().amount || 0);
+    safeSetTextContent("breakdown-village", `₹${villageTotal.toLocaleString()}`);
 
-    // Membership fees total
     let membershipTotal = 0;
-    
     if (selectedYear === 'all') {
-      // Aggregate from all years
-      if (Object.keys(allYearsFeesData).length === 0) {
-        await loadAllYearsFees();
+      for (const year in allYearsFeesData) {
+        for (const memberId in allYearsFeesData[year]) {
+          const data = allYearsFeesData[year][memberId];
+          for (const month in data.months) {
+            if (data.months[month].paid) {
+              membershipTotal += Number(data.monthlyFee) || 100;
+            }
+          }
+        }
       }
-      
-      Object.values(allYearsFeesData).forEach(yearData => {
-        Object.values(yearData).forEach(memberData => {
-          const feeAmt = memberData.feeAmount || 100;
-          const monthsObj = memberData.months || {};
-          const paidCount = Object.values(monthsObj).filter(v => v && v.paid).length;
-          membershipTotal += (paidCount * feeAmt);
-        });
-      });
     } else {
-      // Single year
-      const feesCol = membershipFeesCollectionFor(selectedYear);
-      const feesSnap = await feesCol.get();
+      const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
       feesSnap.forEach(doc => {
         const d = doc.data();
-        const feeAmt = d.feeAmount || 100;
-        const monthsObj = d.months || {};
-        const paidCount = Object.values(monthsObj).filter(v => v && v.paid).length;
-        membershipTotal += (paidCount * feeAmt);
+        for (const month in d.months) {
+          if (d.months[month].paid) {
+            membershipTotal += Number(d.monthlyFee) || 100;
+          }
+        }
+      });
+    }
+    safeSetTextContent("breakdown-membership", `₹${membershipTotal.toLocaleString()}`);
+    safeSetTextContent("summary-collection", `₹${(villageTotal + membershipTotal).toLocaleString()}`);
+  } catch (e) {
+    console.error("Recalc total error:", e);
+    showNotification("Failed to calculate totals: " + e.message, 'error');
+  }
+}
+
+async function loadFeeMembersDropdown() {
+  const feeMemberSelect = document.getElementById("feeMemberSelect");
+  if (!feeMemberSelect) return;
+  feeMemberSelect.innerHTML = '<option value="">-- Select member --</option>';
+  try {
+    const snap = await membersCol.orderBy("name").get();
+    snap.forEach(doc => {
+      const option = document.createElement("option");
+      option.value = doc.id;
+      option.textContent = doc.data().name;
+      feeMemberSelect.appendChild(option);
+    });
+  } catch (e) {
+    console.error("Load fee members error:", e);
+    alert("Failed to load members: " + e.message);
+  }
+}
+
+async function loadFeeYearlySummary() {
+  const tbody = document.querySelector("#fees-yearly-summary tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  try {
+    const monthlyCounts = {};
+    const monthlyTotals = {};
+    MONTHS.forEach((month, idx) => {
+      monthlyCounts[month] = 0;
+      monthlyTotals[month] = 0;
+    });
+
+    if (selectedYear === 'all') {
+      for (const year in allYearsFeesData) {
+        for (const memberId in allYearsFeesData[year]) {
+          const data = allYearsFeesData[year][memberId];
+          for (const month in data.months) {
+            if (data.months[month].paid) {
+              monthlyCounts[month]++;
+              monthlyTotals[month] += Number(data.monthlyFee) || 100;
+            }
+          }
+        }
+      }
+    } else {
+      const snap = await membershipFeesCollectionFor(selectedYear).get();
+      snap.forEach(doc => {
+        const d = doc.data();
+        for (const month in d.months) {
+          if (d.months[month].paid) {
+            monthlyCounts[month]++;
+            monthlyTotals[month] += Number(d.monthlyFee) || 100;
+          }
+        }
       });
     }
 
-    const grandTotal = villageTotal + membershipTotal;
-
-    // Update the summary display
-    safeSetTextContent("summary-collection", `₹${grandTotal}`);
-    safeSetTextContent("breakdown-village", `₹${villageTotal}`);
-    safeSetTextContent("breakdown-membership", `₹${membershipTotal}`);
-    
-  } catch(e){ 
-    console.error("Recalc total error:", e); 
+    MONTHS.forEach(month => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${month}</td>
+        <td>${monthlyCounts[month]}</td>
+        <td>₹${monthlyTotals[month].toLocaleString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error("Load yearly summary error:", e);
+    alert("Failed to load yearly summary: " + e.message);
   }
 }
 
-/* call recalc on load of fee summary */
-setInterval(()=>{ 
-  if(auth.currentUser) {
-    recalcTotalCollected(); 
-    updateSummaryCards();
-  } 
-}, 12000);
-
-/* ---------------- Navigation ---------------- */
-function clearActiveNav(){ 
-  document.querySelectorAll('nav.topbar a').forEach(a=>{
-    if (a) a.classList.remove('active');
-  }); 
+const loadMemberFeeBtn = document.getElementById("loadMemberFeeBtn");
+if (loadMemberFeeBtn) {
+  loadMemberFeeBtn.addEventListener("click", async () => {
+    if (currentRole !== "admin") return alert("Only admin can load fees");
+    const memberId = document.getElementById("feeMemberSelect")?.value;
+    if (!memberId) return alert("Select a member");
+    const tbody = document.querySelector("#fee-months-table tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    try {
+      const doc = await membershipFeesCollectionFor(selectedYear).doc(memberId).get();
+      const monthlyFeeInput = document.getElementById("feeAmountInput");
+      let data = doc.exists ? doc.data() : { monthlyFee: monthlyFeeInput?.value || 100, months: {} };
+      if (!doc.exists) {
+        await membershipFeesCollectionFor(selectedYear).doc(memberId).set({
+          monthlyFee: Number(data.monthlyFee),
+          months: {}
+        });
+        data = { monthlyFee: Number(data.monthlyFee), months: {} };
+      }
+      if (monthlyFeeInput) monthlyFeeInput.value = data.monthlyFee;
+      MONTHS.forEach((month, idx) => {
+        const paid = data.months[month]?.paid || false;
+        const paidOn = data.months[month]?.paidOn ? new Date(data.months[month].paidOn).toLocaleString() : "-";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${month}</td>
+          <td><span class="paid-box ${paid ? 'paid-yes' : 'paid-no'}">${paid ? '✓' : '✗'}</span></td>
+          <td>${paidOn}</td>
+          <td></td>
+        `;
+        if (currentRole === "admin") {
+          const toggleBtn = document.createElement("button");
+          toggleBtn.textContent = paid ? "Mark Unpaid" : "Mark Paid";
+          toggleBtn.className = "btn small";
+          toggleBtn.onclick = async () => {
+            try {
+              const updates = {};
+              updates[`months.${month}.paid`] = !paid;
+              updates[`months.${month}.paidOn`] = paid ? null : Date.now();
+              await membershipFeesCollectionFor(selectedYear).doc(memberId).update(updates);
+              showToast("Payment status updated");
+              addActivity(`Updated payment status for ${month} (Member ID: ${memberId})`, 'info');
+              loadMemberFeeBtn.click();
+              loadFeeYearlySummary();
+              recalcTotalCollected();
+            } catch (e) {
+              alert("Update failed: " + e.message);
+              addActivity(`Failed to update payment status: ${e.message}`, 'error');
+            }
+          };
+          tr.querySelector("td:last-child").appendChild(toggleBtn);
+        }
+        tbody.appendChild(tr);
+      });
+      const memberSnap = await membersCol.doc(memberId).get();
+      const memberName = memberSnap.exists ? memberSnap.data().name : "Unknown";
+      safeSetTextContent("fee-member-summary", `Loaded fees for ${memberName} (${selectedYear})`);
+    } catch (e) {
+      console.error("Load member fee error:", e);
+      alert("Failed to load fees: " + e.message);
+      addActivity(`Failed to load fees: ${e.message}`, 'error');
+    }
+  });
 }
 
-// Add navigation event listeners
-const navLinks = ['nav-invitations', 'nav-members', 'nav-collectors', 'nav-fees'];
-navLinks.forEach(navId => {
-  const navElement = document.getElementById(navId);
-  if (navElement) {
-    navElement.addEventListener("click", (e)=>{
-      e.preventDefault(); 
-      const targetId = navId.replace('nav-', '');
-      const targetElement = document.getElementById(targetId);
-      if (targetElement) {
-        targetElement.scrollIntoView({behavior:"smooth"}); 
-        clearActiveNav(); 
-        navElement.classList.add('active');
+const saveFeeConfigBtn = document.getElementById("saveFeeConfigBtn");
+if (saveFeeConfigBtn) {
+  saveFeeConfigBtn.addEventListener("click", async () => {
+    if (currentRole !== "admin") return alert("Only admin can save config");
+    const memberId = document.getElementById("feeMemberSelect")?.value;
+    const monthlyFee = Number(document.getElementById("feeAmountInput")?.value) || 100;
+    if (!memberId) return alert("Select a member");
+    try {
+      await membershipFeesCollectionFor(selectedYear).doc(memberId).update({
+        monthlyFee
+      });
+      showToast("Fee config saved");
+      addActivity(`Saved fee config for member ID ${memberId}`, 'info');
+      loadFeeYearlySummary();
+      recalcTotalCollected();
+    } catch (e) {
+      console.error("Save fee config error:", e);
+      alert("Save failed: " + e.message);
+      addActivity(`Failed to save fee config: ${e.message}`, 'error');
+    }
+  });
+}
+
+const clearFeeRecordBtn = document.getElementById("clearFeeRecordBtn");
+if (clearFeeRecordBtn) {
+  clearFeeRecordBtn.addEventListener("click", async () => {
+    if (currentRole !== "admin") return alert("Only admin can clear records");
+    if (!confirm("Clear all fee records for this member in this year?")) return;
+    const memberId = document.getElementById("feeMemberSelect")?.value;
+    if (!memberId) return alert("Select a member");
+    try {
+      await membershipFeesCollectionFor(selectedYear).doc(memberId).delete();
+      showToast("Fee record cleared");
+      addActivity(`Cleared fee record for member ID ${memberId}`, 'info');
+      loadFeeYearlySummary();
+      document.querySelector("#fee-months-table tbody").innerHTML = "";
+      safeSetTextContent("fee-member-summary", "Select member to load fees");
+      recalcTotalCollected();
+    } catch (e) {
+      console.error("Clear fee record error:", e);
+      alert("Clear failed: " + e.message);
+      addActivity(`Failed to clear fee record: ${e.message}`, 'error');
+    }
+  });
+}
+
+const showPaidBtn = document.getElementById("show-paid-btn");
+if (showPaidBtn) {
+  showPaidBtn.addEventListener("click", async () => {
+    const paidList = document.getElementById("paid-members-list");
+    if (!paidList) return;
+    paidList.innerHTML = "";
+    try {
+      const [membersSnap, feesSnap] = await Promise.all([
+        membersCol.orderBy("name").get(),
+        selectedYear === 'all' ? null : membershipFeesCollectionFor(selectedYear).get()
+      ]);
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th style="cursor:pointer" onclick="sortPaidTable()">Member</th>
+            ${MONTHS.map(m => `<th>${m}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector("tbody");
+      let count = 0;
+      if (selectedYear === 'all') {
+        membersSnap.forEach(doc => {
+          const member = doc.data();
+          const tr = document.createElement("tr");
+          let rowHtml = `<td>${escapeHtml(member.name)}</td>`;
+          MONTHS.forEach(month => {
+            let paid = false;
+            for (const year in allYearsFeesData) {
+              if (allYearsFeesData[year][doc.id]?.months[month]?.paid) {
+                paid = true;
+                break;
+              }
+            }
+            rowHtml += `<td class="center"><span class="paid-box ${paid ? 'paid-yes' : 'paid-no'}">${paid ? '✓' : '✗'}</span></td>`;
+          });
+          tr.innerHTML = rowHtml;
+          tbody.appendChild(tr);
+          count++;
+        });
+      } else {
+        membersSnap.forEach(doc => {
+          const member = doc.data();
+          const tr = document.createElement("tr");
+          let rowHtml = `<td>${escapeHtml(member.name)}</td>`;
+          const feeDoc = feesSnap.docs.find(f => f.id === doc.id);
+          const feeData = feeDoc ? feeDoc.data() : { months: {} };
+          MONTHS.forEach(month => {
+            const paid = feeData.months[month]?.paid || false;
+            rowHtml += `<td class="center"><span class="paid-box ${paid ? 'paid-yes' : 'paid-no'}">${paid ? '✓' : '✗'}</span></td>`;
+          });
+          tr.innerHTML = rowHtml;
+          tbody.appendChild(tr);
+          count++;
+        });
+      }
+      paidList.appendChild(table);
+      safeSetTextContent("paid-tracker-count", `Loaded: ${count}`);
+      addActivity(`Loaded paid members for ${selectedYear === 'all' ? 'all years' : selectedYear}`, 'info');
+    } catch (e) {
+      console.error("Load paid members error:", e);
+      alert("Failed to load paid members: " + e.message);
+      addActivity(`Failed to load paid members: ${e.message}`, 'error');
+    }
+  });
+}
+
+function sortPaidTable() {
+  const table = document.querySelector("#paid-members-list table");
+  if (!table) return;
+  const tbody = table.querySelector("tbody");
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  rows.sort((a, b) => a.cells[0].textContent.localeCompare(b.cells[0].textContent));
+  tbody.innerHTML = "";
+  rows.forEach(row => tbody.appendChild(row));
+}
+
+const clearPaidViewBtn = document.getElementById("clear-paid-view");
+if (clearPaidViewBtn) {
+  clearPaidViewBtn.addEventListener("click", () => {
+    const paidList = document.getElementById("paid-members-list");
+    if (paidList) paidList.innerHTML = "";
+    safeSetTextContent("paid-tracker-count", "Loaded: 0");
+    addActivity('Cleared paid members view', 'info');
+  });
+}
+
+async function updateMonthlySummary() {
+  try {
+    const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
+    let totalCollected = 0;
+    feesSnap.forEach(doc => {
+      const d = doc.data();
+      for (const month in d.months) {
+        if (d.months[month].paid) {
+          totalCollected += Number(d.monthlyFee) || 100;
+        }
       }
     });
+    safeSetTextContent("breakdown-membership", `₹${totalCollected.toLocaleString()}`);
+    recalcTotalCollected();
+  } catch (e) {
+    console.error("Update monthly summary error:", e);
   }
+}
+
+const exportCsvBtn = document.getElementById("exportCsvBtn");
+if (exportCsvBtn) {
+  exportCsvBtn.addEventListener("click", async () => {
+    try {
+      const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
+      const membersSnap = await membersCol.get();
+      const memberMap = {};
+      membersSnap.forEach(doc => memberMap[doc.id] = doc.data().name);
+      let csv = "Member,Monthly Fee," + MONTHS.join(",") + "\n";
+      feesSnap.forEach(doc => {
+        const d = doc.data();
+        const memberName = memberMap[doc.id] || doc.id;
+        const monthlyFee = d.monthlyFee || 100;
+        const statuses = MONTHS.map(month => d.months[month]?.paid ? "Paid" : "Unpaid");
+        csv += `"${memberName}",${monthlyFee},${statuses.join(",")}\n`;
+      });
+      const blob = new Blob([csv], { type: "text/csv" });
+      downloadBlob(blob, `membership_fees_${selectedYear}.csv`);
+      showToast("Exported fees as CSV");
+      addActivity(`Exported membership fees for ${selectedYear} as CSV`, 'success');
+    } catch (e) {
+      console.error("Export CSV error:", e);
+      alert("Export failed: " + e.message);
+      addActivity(`Failed to export CSV: ${e.message}`, 'error');
+    }
+  });
+}
+
+const filterVillage = document.getElementById("filter-village");
+const filterStatus = document.getElementById("filter-status");
+const filterDateFrom = document.getElementById("filter-date-from");
+const filterDateTo = document.getElementById("filter-date-to");
+
+async function applyInvitationFilters() {
+  const village = filterVillage?.value;
+  const status = filterStatus?.value;
+  const dateFrom = filterDateFrom?.value ? new Date(filterDateFrom.value) : null;
+  const dateTo = filterDateTo?.value ? new Date(filterDateTo.value) : null;
+  let query = invitationCol.orderBy("dateAdded", "desc");
+  if (village) query = query.where("village", "==", village);
+  if (status) query = query.where("sent", "==", status === "paid");
+  try {
+    const snap = await query.get();
+    const tbody = document.querySelector("#invitation-table tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    snap.forEach(doc => {
+      const d = doc.data();
+      const dateAdded = d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate() : null;
+      if (dateFrom && dateAdded && dateAdded < dateFrom) return;
+      if (dateTo && dateAdded && dateAdded > new Date(dateTo.setHours(23, 59, 59, 999))) return;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.name || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.village || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.mobile || "")}</td>
+        <td contenteditable="${currentRole === 'admin'}" class="${currentRole === 'admin' ? 'editable' : ''}">${escapeHtml(d.remarks || "")}</td>
+        <td class="center">${d.sent ? '<span class="badge ok">Sent</span>' : '<span class="badge warn">Pending</span>'}</td>
+        <td>${dateAdded ? dateAdded.toLocaleString() : ""}</td>
+        <td></td>
+      `;
+      tbody.appendChild(tr);
+      if (currentRole === "admin") {
+        const toggle = document.createElement("button");
+        toggle.textContent = d.sent ? "Mark Pending" : "Mark Sent";
+        toggle.className = "btn small";
+        toggle.onclick = () => doc.ref.update({ sent: !d.sent }).then(() => {
+          showToast("Updated");
+          addActivity(`Updated invitation status for ${d.name}`, 'info');
+          applyInvitationFilters();
+          updateSummaryCards();
+        }).catch(err => alert(err.message));
+        tr.querySelector("td:last-child").appendChild(toggle);
+        const del = document.createElement("button");
+        del.style.marginLeft = "8px";
+        del.textContent = "Delete";
+        del.className = "btn small ghost";
+        del.onclick = () => {
+          if (confirm("Delete invitation?")) doc.ref.delete().then(() => {
+            showToast("Deleted");
+            addActivity(`Deleted invitation for ${d.name}`, 'info');
+            applyInvitationFilters();
+            updateSummaryCards();
+          });
+        };
+        tr.querySelector("td:last-child").appendChild(del);
+        const editable = tr.querySelectorAll("td[contenteditable='true']");
+        editable.forEach((cell, idx) => {
+          const map = ["name", "village", "mobile", "remarks"];
+          cell.onblur = async () => {
+            try {
+              const val = cell.textContent.trim();
+              const upd = {};
+              upd[map[idx]] = val;
+              await doc.ref.update(upd);
+              showToast("Saved");
+              addActivity(`Updated ${map[idx]} for ${d.name}`, 'info');
+            } catch (e) {
+              console.error(e);
+              alert("Save failed: " + (e.message || e));
+            }
+          };
+        });
+      }
+    });
+  } catch (e) {
+    console.error("Apply filters error:", e);
+    alert("Failed to apply filters: " + e.message);
+  }
+}
+
+if (filterVillage) filterVillage.addEventListener("change", applyInvitationFilters);
+if (filterStatus) filterStatus.addEventListener("change", applyInvitationFilters);
+if (filterDateFrom) filterDateFrom.addEventListener("change", applyInvitationFilters);
+if (filterDateTo) filterDateTo.addEventListener("change", applyInvitationFilters);
+
+const searchVc = document.getElementById("search-vc");
+if (searchVc) searchVc.addEventListener("input", e => debouncedFilterTable("vc-table", e.target.value));
+
+document.querySelectorAll(".topbar a").forEach(link => {
+  link.addEventListener("click", e => {
+    e.preventDefault();
+    document.querySelectorAll(".topbar a").forEach(l => l.classList.remove("active"));
+    link.classList.add("active");
+    const sectionId = link.getAttribute("href").substring(1);
+    document.querySelectorAll(".card").forEach(card => {
+      card.style.display = card.id === sectionId || (sectionId === "invitations" && card.id === "year-info-card") ? "block" : "none";
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    addActivity(`Navigated to ${link.textContent}`, 'info');
+  });
 });
 
-/* Expose for debugging */
-window.loadAllData = loadAllData;
-window.loadPaidMembersTracker = loadPaidMembersTracker;
-window.recalcTotalCollected = recalcTotalCollected;
-window.addActivity = addActivity;
-window.showNotification = showNotification;
-window.changeGlobalYear = changeGlobalYear;
-window.loadAllYearsFees = loadAllYearsFees;
-
-// Add some initial activities when the page loads
-setTimeout(() => {
-  if (auth.currentUser) {
-    addActivity('Dashboard initialized successfully', 'success');
-    addActivity(`Global year set to ${selectedYear}`, 'info');
-    addActivity('Welcome to Club Bornoporichoy Dashboard!', 'info');
-  }
-}, 1000);
-
+document.addEventListener("DOMContentLoaded", () => {
+  loadVillageCollectors();
+  loadFeeMembersDropdown();
+  initCollectionChart();
+  updateChartData();
+  recalcTotalCollected();
+  loadVillageBreakdown();
+});
 </script>
 </body>
 </html>
