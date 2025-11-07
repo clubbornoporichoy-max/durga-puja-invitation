@@ -218,6 +218,131 @@
     margin-left: 8px;
   }
 
+  /* Bulk Upload Styles */
+  .bulk-upload-section {
+    background: rgba(183,28,28,0.03);
+    border-radius: var(--radius);
+    padding: 15px;
+    margin-top: 15px;
+    border: 1px dashed var(--primary-red);
+  }
+  
+  .upload-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+  }
+  
+  .upload-textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.1);
+    font-family: monospace;
+    font-size: 13px;
+    resize: vertical;
+  }
+  
+  .upload-preview {
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 15px 0;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    padding: 10px;
+  }
+  
+  .preview-table {
+    font-size: 12px;
+  }
+  
+  .preview-table table {
+    width: 100%;
+    margin: 0;
+  }
+  
+  .preview-table th {
+    background: rgba(183,28,28,0.1);
+    padding: 8px;
+    font-size: 11px;
+  }
+  
+  .preview-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  
+  .entry-status {
+    font-size: 10px;
+    font-weight: bold;
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    margin: 10px 0;
+    overflow: hidden;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: var(--primary-red);
+    transition: width 0.3s ease;
+  }
+  
+  .progress-text {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  
+  .modal-content {
+    background: white;
+    border-radius: var(--radius);
+    padding: 20px;
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow);
+  }
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+  }
+  
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+
   /* responsive */
   @media (max-width: 768px) {
     .summary-cards {
@@ -257,6 +382,15 @@
     .global-year-selector {
       margin-left: 0;
       margin-top: 10px;
+    }
+    
+    .upload-options {
+      flex-direction: column;
+    }
+    
+    .modal-content {
+      margin: 10px;
+      padding: 15px;
     }
   }
 
@@ -410,10 +544,11 @@
       <h3>⚡ Quick Actions</h3>
       <div class="quick-actions">
         <button class="btn small" onclick="exportAllData()">📊 Export All Data</button>
-        <button class="btn small secondary" onclick="sendBulkReminders()">📧 Send Reminders</button>
+        <button class="btn small secondary" onclick="exportInvitationsBulk()">📋 Export Invitations Bulk</button>
         <button class="btn small ghost" onclick="generateReport()">📋 Generate Report</button>
         <button class="btn small" onclick="backupData()">💾 Backup Data</button>
         <button class="btn small secondary" onclick="showAllYearsData()">📅 View All Years</button>
+        <button class="btn small" onclick="showBulkUploadModal()">📤 Bulk Upload</button>
       </div>
     </div>
 
@@ -439,6 +574,20 @@
     <div class="card" id="invitations">
       <h2>🪔 Invitation List <span class="year-info">All Years</span></h2>
       <div class="subtitle">Add, search and track invitation card distribution (shows data from all years)</div>
+
+      <!-- Bulk Upload Section -->
+      <div class="bulk-upload-section">
+        <h4>📤 Bulk Upload Invitations</h4>
+        <div class="upload-options">
+          <button onclick="showBulkUploadModal()" class="btn small">📝 Paste Data</button>
+          <button onclick="downloadUploadTemplate()" class="btn small secondary">📋 Download Template</button>
+          <input type="file" id="fileUpload" accept=".txt,.csv" style="display: none" onchange="handleFileUpload(this.files[0])">
+          <button onclick="document.getElementById('fileUpload').click()" class="btn small">📁 Upload File</button>
+        </div>
+        <div class="muted note">
+          Supported formats: Plain text with "|" separator, CSV files, or table data
+        </div>
+      </div>
 
       <!-- Enhanced Search & Filters -->
       <div class="advanced-filters">
@@ -645,6 +794,45 @@
 
 <!-- Toast container -->
 <div class="toast-container" id="toast-container"></div>
+
+<!-- Bulk Upload Modal -->
+<div id="bulkUploadModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📤 Bulk Upload Invitations</h3>
+      <button class="modal-close" onclick="closeBulkUploadModal()">&times;</button>
+    </div>
+    
+    <div class="bulk-upload-section">
+      <div class="upload-options">
+        <button onclick="downloadUploadTemplate()" class="btn small secondary">📋 Download Template</button>
+        <input type="file" id="modalFileUpload" accept=".txt,.csv" style="display: none" onchange="handleFileUpload(this.files[0])">
+        <button onclick="document.getElementById('modalFileUpload').click()" class="btn small">📁 Upload File</button>
+      </div>
+      
+      <div style="margin: 15px 0;">
+        <label class="muted">Paste your data here (use template format):</label>
+        <textarea id="bulkUploadTextarea" class="upload-textarea" placeholder="Paste data in format: Name | Village | Amount | Mobile | Remarks&#10;Sanjay Manna | Madhabpur | 1000 | 9876543210 | Regular donor&#10;Santosh Payra | Paldhui | 1000 | 9876543211 | "></textarea>
+      </div>
+      
+      <div id="uploadPreview" class="upload-preview hidden">
+        <!-- Preview will be shown here -->
+      </div>
+      
+      <div id="uploadProgress" class="hidden">
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+        </div>
+        <div id="progressText" class="progress-text">Processing...</div>
+      </div>
+      
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button id="processUploadBtn" class="btn" onclick="processBulkUpload()" disabled>✅ Process Upload</button>
+        <button class="btn ghost" onclick="closeBulkUploadModal()">❌ Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ---------------- Firebase config (hardcoded) ---------------- */
@@ -2252,6 +2440,497 @@ setInterval(()=>{
   } 
 }, 12000);
 
+/* ---------------- Bulk Upload Functions ---------------- */
+
+// Show bulk upload modal
+function showBulkUploadModal() {
+  if (currentRole !== "admin") {
+    showNotification('Only admin can perform bulk uploads', 'error');
+    return;
+  }
+  
+  const modal = document.getElementById('bulkUploadModal');
+  const textarea = document.getElementById('bulkUploadTextarea');
+  
+  if (modal && textarea) {
+    modal.classList.remove('hidden');
+    textarea.value = '';
+    textarea.focus();
+    
+    // Clear previous preview and progress
+    document.getElementById('uploadPreview').innerHTML = '';
+    document.getElementById('uploadPreview').classList.add('hidden');
+    document.getElementById('uploadProgress').classList.add('hidden');
+    document.getElementById('processUploadBtn').disabled = true;
+  }
+}
+
+// Close bulk upload modal
+function closeBulkUploadModal() {
+  const modal = document.getElementById('bulkUploadModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+// Download upload template
+function downloadUploadTemplate() {
+  const template = `Name | Village | Amount | Mobile | Remarks
+Sanjay Manna | Madhabpur | 1000 | 9876543210 | Regular donor
+Santosh Payra | Paldhui | 1000 | 9876543211 | 
+Rabindranath Jana | Paldhui | 1000 | 9876543212 | Committee member
+
+INSTRUCTIONS:
+- Use "|" as separator between columns
+- Amount can be with or without ₹ symbol
+- Mobile and Remarks are optional
+- Remove header row before uploading
+- Supported villages: Madhabpur, Paldhui, Sabitrapur, Lalupool, Mahakal, Others`.trim();
+  
+  const blob = new Blob([template], { type: 'text/plain' });
+  downloadBlob(blob, 'bulk-upload-template.txt');
+  showNotification('Template downloaded successfully', 'success');
+}
+
+// Handle file upload
+function handleFileUpload(file) {
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const textarea = document.getElementById('bulkUploadTextarea');
+    if (textarea) {
+      textarea.value = e.target.result;
+      previewBulkUpload();
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Preview bulk upload data
+function previewBulkUpload() {
+  const textarea = document.getElementById('bulkUploadTextarea');
+  const previewDiv = document.getElementById('uploadPreview');
+  const processBtn = document.getElementById('processUploadBtn');
+  
+  if (!textarea || !previewDiv) return;
+  
+  const text = textarea.value.trim();
+  if (!text) {
+    previewDiv.classList.add('hidden');
+    processBtn.disabled = true;
+    return;
+  }
+  
+  try {
+    const parsedData = parseBulkData(text);
+    
+    if (parsedData.length === 0) {
+      previewDiv.innerHTML = '<p style="color: #dc3545; text-align: center;">No valid data found. Please check the format.</p>';
+      previewDiv.classList.remove('hidden');
+      processBtn.disabled = true;
+      return;
+    }
+    
+    let previewHtml = `
+      <h4>📋 Upload Preview (${parsedData.length} entries)</h4>
+      <div class="preview-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Village</th>
+              <th>Amount</th>
+              <th>Mobile</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    parsedData.forEach((entry, index) => {
+      const errors = validateBulkEntry(entry);
+      const status = errors.length > 0 ? 
+        `<span style="color: #dc3545;">❌ ${errors[0]}</span>` : 
+        '<span style="color: #28a745;">🟢 Ready</span>';
+      
+      previewHtml += `
+        <tr>
+          <td>${escapeHtml(entry.name)}</td>
+          <td>${escapeHtml(entry.village)}</td>
+          <td>₹${entry.amount}</td>
+          <td>${entry.mobile || ''}</td>
+          <td class="entry-status">${status}</td>
+        </tr>
+      `;
+    });
+    
+    previewHtml += `
+          </tbody>
+        </table>
+      </div>
+      <div class="muted note" style="margin-top: 10px;">
+        Total amount: ₹${parsedData.reduce((sum, entry) => sum + entry.amount, 0).toLocaleString()}
+      </div>
+    `;
+    
+    previewDiv.innerHTML = previewHtml;
+    previewDiv.classList.remove('hidden');
+    processBtn.disabled = false;
+    
+  } catch (error) {
+    previewDiv.innerHTML = `<p style="color: #dc3545; text-align: center;">Error parsing data: ${error.message}</p>`;
+    previewDiv.classList.remove('hidden');
+    processBtn.disabled = true;
+  }
+}
+
+// Parse bulk data from text
+function parseBulkData(text) {
+  const lines = text.split('\n').filter(line => line.trim());
+  const parsedData = [];
+  
+  lines.forEach((line, index) => {
+    // Skip header-like lines
+    if (line.toLowerCase().includes('name') && line.toLowerCase().includes('village') && line.toLowerCase().includes('amount')) {
+      return;
+    }
+    
+    // Try different delimiters
+    let parts;
+    if (line.includes('|')) {
+      parts = line.split('|').map(part => part.trim());
+    } else if (line.includes('\t')) {
+      parts = line.split('\t').map(part => part.trim());
+    } else {
+      parts = line.split(',').map(part => part.trim());
+    }
+    
+    if (parts.length >= 3) {
+      const name = parts[0].replace(/\*\*/g, '').trim();
+      const village = parts[1] || '';
+      const amount = parseAmount(parts[2]);
+      const mobile = parts[3] || '';
+      const remarks = parts[4] || '';
+      
+      if (name && village) {
+        parsedData.push({
+          name,
+          village,
+          amount,
+          mobile,
+          remarks,
+          originalLine: line
+        });
+      }
+    }
+  });
+  
+  return parsedData;
+}
+
+// Parse amount from string
+function parseAmount(amountStr) {
+  if (!amountStr) return 500;
+  
+  const amount = amountStr
+    .replace(/₹/g, '')
+    .replace(/,/g, '')
+    .replace(/\s+/g, '')
+    .replace(/[^\d.]/g, '');
+  
+  const parsed = parseFloat(amount);
+  return isNaN(parsed) ? 500 : parsed;
+}
+
+// Validate bulk entry
+function validateBulkEntry(entry) {
+  const errors = [];
+  
+  if (!entry.name || entry.name.trim().length < 2) {
+    errors.push('Name too short');
+  }
+  
+  if (!entry.village || entry.village.trim().length < 2) {
+    errors.push('Village required');
+  }
+  
+  if (!entry.amount || entry.amount < 0) {
+    errors.push('Invalid amount');
+  }
+  
+  if (entry.mobile && !/^\d{10}$/.test(entry.mobile.replace(/\D/g, ''))) {
+    errors.push('Invalid mobile');
+  }
+  
+  return errors;
+}
+
+// Process bulk upload
+async function processBulkUpload() {
+  const textarea = document.getElementById('bulkUploadTextarea');
+  const progressDiv = document.getElementById('uploadProgress');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  const processBtn = document.getElementById('processUploadBtn');
+  
+  if (!textarea) return;
+  
+  const text = textarea.value.trim();
+  if (!text) {
+    showNotification('No data to process', 'error');
+    return;
+  }
+  
+  try {
+    const parsedData = parseBulkData(text);
+    
+    if (parsedData.length === 0) {
+      showNotification('No valid data found', 'error');
+      return;
+    }
+    
+    // Show progress
+    progressDiv.classList.remove('hidden');
+    processBtn.disabled = true;
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    // Process in batches to avoid overwhelming the database
+    const BATCH_SIZE = 10;
+    
+    for (let i = 0; i < parsedData.length; i += BATCH_SIZE) {
+      const batch = parsedData.slice(i, i + BATCH_SIZE);
+      const batchPromises = batch.map(async (entry) => {
+        try {
+          // Check for duplicates
+          const existingQuery = await invitationCol
+            .where('name', '==', entry.name)
+            .where('village', '==', entry.village)
+            .get();
+          
+          if (!existingQuery.empty) {
+            // Update existing entry
+            const existingDoc = existingQuery.docs[0];
+            await existingDoc.ref.update({
+              amount: entry.amount,
+              mobile: entry.mobile || existingDoc.data().mobile,
+              remarks: entry.remarks || existingDoc.data().remarks
+            });
+            return { status: 'updated', entry };
+          } else {
+            // Add new entry
+            await invitationCol.add({
+              name: entry.name,
+              village: entry.village,
+              amount: entry.amount,
+              mobile: entry.mobile || '',
+              remarks: entry.remarks || `Added via bulk upload - ${new Date().toLocaleDateString()}`,
+              sent: false,
+              dateAdded: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            return { status: 'created', entry };
+          }
+        } catch (error) {
+          return { status: 'error', entry, error: error.message };
+        }
+      });
+      
+      const results = await Promise.allSettled(batchPromises);
+      
+      // Update counts
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          if (result.value.status !== 'error') successCount++;
+          else errorCount++;
+        } else {
+          errorCount++;
+        }
+      });
+      
+      // Update progress
+      const progress = ((i + batch.length) / parsedData.length) * 100;
+      progressFill.style.width = `${progress}%`;
+      progressText.textContent = `Processed ${i + batch.length} of ${parsedData.length} (${successCount} success, ${errorCount} errors)`;
+      
+      // Small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // Complete
+    progressFill.style.width = '100%';
+    progressText.textContent = `Completed! ${successCount} successful, ${errorCount} errors`;
+    
+    showNotification(`Bulk upload completed: ${successCount} successful, ${errorCount} errors`, 
+                    errorCount > 0 ? 'warning' : 'success');
+    
+    addActivity(`Bulk upload: ${successCount} invitations processed`, 
+                errorCount > 0 ? 'warning' : 'success');
+    
+    // Reload invitations and close modal after delay
+    setTimeout(() => {
+      loadInvitations();
+      closeBulkUploadModal();
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    showNotification('Bulk upload failed: ' + error.message, 'error');
+    addActivity('Bulk upload failed: ' + error.message, 'error');
+  }
+}
+
+/* ---------------- Export Invitations Bulk ---------------- */
+async function exportInvitationsBulk() {
+  try {
+    addActivity('Preparing bulk invitation export...', 'info');
+    
+    // Get all invitations
+    const invitationsSnap = await invitationCol.orderBy("name").get();
+    
+    if (invitationsSnap.empty) {
+      showNotification('No invitations found to export', 'info');
+      return;
+    }
+
+    // Prepare data
+    const invitationsData = [];
+    let totalAmount = 0;
+    
+    invitationsSnap.forEach(doc => {
+      const data = doc.data();
+      const amount = data.amount || calculateInvitationAmount(data);
+      totalAmount += amount;
+      
+      invitationsData.push({
+        name: data.name || '',
+        village: data.village || '',
+        amount: amount,
+        mobile: data.mobile || '',
+        remarks: data.remarks || '',
+        sent: data.sent || false
+      });
+    });
+
+    // Sort by amount (highest first) then by name
+    invitationsData.sort((a, b) => {
+      if (b.amount !== a.amount) {
+        return b.amount - a.amount;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    // Generate formatted text
+    const formattedText = formatInvitationsForExport(invitationsData, totalAmount);
+    
+    // Create and download file
+    const blob = new Blob([formattedText], { type: 'text/plain;charset=utf-8' });
+    const filename = `Club-Bornoporichoy-Invitations-${new Date().toISOString().split('T')[0]}.txt`;
+    
+    downloadBlob(blob, filename);
+    
+    showNotification(`Exported ${invitationsData.length} invitations`, 'success');
+    addActivity(`Bulk exported ${invitationsData.length} invitations`, 'success');
+    
+  } catch (error) {
+    console.error('Export error:', error);
+    showNotification('Export failed: ' + error.message, 'error');
+    addActivity('Bulk export failed: ' + error.message, 'error');
+  }
+}
+
+function calculateInvitationAmount(invitationData) {
+  // Default amounts based on village
+  const villageAmounts = {
+    'Madhabpur': 1000,
+    'Paldhui': 1000,
+    'Sabitrapur': 1000,
+    'Lalupool': 1000,
+    'Mahakal': 1000,
+    'Others': 500
+  };
+  
+  return villageAmounts[invitationData.village] || 500;
+}
+
+function formatInvitationsForExport(invitationsData, totalAmount) {
+  let output = `CLUB BORNOPORICHOY - INVITATION LIST\n`;
+  output += `Generated on: ${new Date().toLocaleDateString()}\n`;
+  output += `Total Invitations: ${invitationsData.length} | Total Amount: ₹${totalAmount.toLocaleString()}\n\n`;
+  
+  // Header
+  output += `${'Name'.padEnd(35)} ${'Village'.padEnd(15)} ${'Amount'.padEnd(10)} ${'Status'.padEnd(10)}\n`;
+  output += `${'='.repeat(35)} ${'='.repeat(15)} ${'='.repeat(10)} ${'='.repeat(10)}\n`;
+  
+  // Data rows
+  invitationsData.forEach(invitation => {
+    const name = `**${invitation.name}**`.padEnd(35);
+    const village = (invitation.village || '').padEnd(15);
+    const amount = `₹${invitation.amount}`.padEnd(10);
+    const status = invitation.sent ? 'Sent' : 'Pending';
+    
+    output += `${name} ${village} ${amount} ${status}\n`;
+  });
+  
+  // Summary sections
+  output += `\n\n${'='.repeat(80)}\n`;
+  output += `SUMMARY BY AMOUNT RANGE\n`;
+  output += `${'='.repeat(80)}\n\n`;
+  
+  // Group by amount ranges
+  const ranges = {
+    '₹1000 and above': invitationsData.filter(i => i.amount >= 1000),
+    '₹500 - ₹999': invitationsData.filter(i => i.amount >= 500 && i.amount < 1000),
+    'Below ₹500': invitationsData.filter(i => i.amount < 500)
+  };
+  
+  Object.entries(ranges).forEach(([range, items]) => {
+    if (items.length > 0) {
+      output += `\n${range} (${items.length} invitations):\n`;
+      output += `${'-'.repeat(60)}\n`;
+      
+      items.forEach(item => {
+        output += `**${item.name}** - ${item.village} - ₹${item.amount}\n`;
+      });
+      
+      const rangeTotal = items.reduce((sum, item) => sum + item.amount, 0);
+      output += `Total for ${range}: ₹${rangeTotal.toLocaleString()}\n`;
+    }
+  });
+  
+  // Village-wise summary
+  output += `\n\n${'='.repeat(80)}\n`;
+  output += `VILLAGE-WISE SUMMARY\n`;
+  output += `${'='.repeat(80)}\n\n`;
+  
+  const villageSummary = {};
+  invitationsData.forEach(invitation => {
+    const village = invitation.village || 'Unknown';
+    if (!villageSummary[village]) {
+      villageSummary[village] = { count: 0, amount: 0 };
+    }
+    villageSummary[village].count++;
+    villageSummary[village].amount += invitation.amount;
+  });
+  
+  Object.entries(villageSummary)
+    .sort(([,a], [,b]) => b.amount - a.amount)
+    .forEach(([village, data]) => {
+      output += `${village.padEnd(20)}: ${data.count.toString().padEnd(3)} invitations | ₹${data.amount.toLocaleString()}\n`;
+    });
+  
+  return output;
+}
+
+// Add event listener for textarea changes
+document.addEventListener('DOMContentLoaded', function() {
+  const textarea = document.getElementById('bulkUploadTextarea');
+  if (textarea) {
+    textarea.addEventListener('input', debounce(previewBulkUpload, 500));
+  }
+});
+
 /* ---------------- Navigation ---------------- */
 function clearActiveNav(){ 
   document.querySelectorAll('nav.topbar a').forEach(a=>{
@@ -2286,6 +2965,8 @@ window.showNotification = showNotification;
 window.changeGlobalYear = changeGlobalYear;
 window.loadAllYearsFees = loadAllYearsFees;
 window.loadAllYearsVillageCollections = loadAllYearsVillageCollections;
+window.exportInvitationsBulk = exportInvitationsBulk;
+window.showBulkUploadModal = showBulkUploadModal;
 
 // Add some initial activities when the page loads
 setTimeout(() => {
