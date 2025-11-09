@@ -1764,7 +1764,9 @@ auth.onAuthStateChanged(user => {
     if (userInfo) userInfo.textContent = `${user.email} (${currentRole})`;
     
     applyRoleToUI();
-    setTimeout(()=>{ 
+    
+    // Initialize everything with a slight delay to ensure DOM is ready
+    setTimeout(() => { 
       loadAllData(); 
       loadFeeMembersDropdown(); 
       loadFeeYearlySummary(); 
@@ -1773,16 +1775,15 @@ auth.onAuthStateChanged(user => {
       updateSummaryCards(); 
       loadVillageBreakdown();
       updateYearDisplays();
-      loadAllYearsFees(); // Load all years data initially
-      loadAllYearsVillageCollections(); // Load all years village collection data initially
-      loadFinancialData(); // Load financial data
-      initMembershipFeesEvents(); // Initialize membership fees events
+      
+      // CRITICAL: Initialize event listeners
+      initializeAllEventListeners();
       
       // Force refresh of dropdowns
       setTimeout(() => {
         loadFeeMembersDropdown();
       }, 1000);
-    }, 120);
+    }, 500);
   } else {
     // Show auth card, hide main content
     const authCard = document.getElementById("auth-card");
@@ -2472,10 +2473,59 @@ async function loadFeeMembersDropdown() {
 
 /* ---------------- MEMBERSHIP FEES FUNCTIONALITY ---------------- */
 
+// Initialize membership fees event listeners
+function initMembershipFeesEvents() {
+  console.log('Initializing membership fees events...');
+  
+  // Load member fee data when member is selected
+  const feeMemberSelect = document.getElementById('feeMemberSelect');
+  if (feeMemberSelect) {
+    feeMemberSelect.addEventListener('change', function() {
+      console.log('Member selected:', this.value);
+      loadMemberFeeData(this.value);
+    });
+  }
+
+  // Load button
+  const loadMemberFeeBtn = document.getElementById('loadMemberFeeBtn');
+  if (loadMemberFeeBtn) {
+    loadMemberFeeBtn.addEventListener('click', function() {
+      const memberSelect = document.getElementById('feeMemberSelect');
+      if (memberSelect.value) {
+        console.log('Load button clicked for member:', memberSelect.value);
+        loadMemberFeeData(memberSelect.value);
+      } else {
+        showNotification('Please select a member first', 'error');
+      }
+    });
+  }
+
+  // Save config button
+  const saveFeeConfigBtn = document.getElementById('saveFeeConfigBtn');
+  if (saveFeeConfigBtn) {
+    saveFeeConfigBtn.addEventListener('click', saveFeeConfiguration);
+  }
+
+  // Clear record button
+  const clearFeeRecordBtn = document.getElementById('clearFeeRecordBtn');
+  if (clearFeeRecordBtn) {
+    clearFeeRecordBtn.addEventListener('click', clearFeeRecord);
+  }
+
+  // Export CSV button
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', exportFeesCSV);
+  }
+}
+
 // Load member fee data when a member is selected
 async function loadMemberFeeData(memberId) {
+  console.log('Loading fee data for member:', memberId);
+  
   if (!memberId) {
-    document.getElementById('fee-months-table').querySelector('tbody').innerHTML = '';
+    const tbody = document.getElementById('fee-months-table')?.querySelector('tbody');
+    if (tbody) tbody.innerHTML = '';
     document.getElementById('fee-member-summary').textContent = 'Select member to load fees';
     return;
   }
@@ -2490,15 +2540,17 @@ async function loadMemberFeeData(memberId) {
     const memberData = memberDoc.data();
     const feeAmount = parseInt(document.getElementById('feeAmountInput').value) || 100;
     
-    // Get fee record
-    const feesCol = membershipFeesCollectionFor(selectedYear);
+    // Get fee record - FIXED: Use proper year selection
+    const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+    const feesCol = membershipFeesCollectionFor(targetYear);
     const feeDoc = await feesCol.doc(memberId).get();
     
     let feeData = {};
     if (feeDoc.exists) {
       feeData = feeDoc.data();
+      console.log('Found existing fee data:', feeData);
     } else {
-      // Initialize with default data - THIS WAS THE MAIN ISSUE
+      // Initialize with default data
       feeData = {
         memberId: memberId,
         memberName: memberData.name,
@@ -2518,63 +2570,72 @@ async function loadMemberFeeData(memberId) {
       
       // Save the initial structure to Firestore
       await feesCol.doc(memberId).set(feeData);
+      console.log('Created new fee record for member:', memberId);
     }
 
     // Update the table
-    const tbody = document.getElementById('fee-months-table').querySelector('tbody');
-    tbody.innerHTML = '';
+    updateFeeTable(memberData, feeData, feeAmount);
     
-    let paidMonths = 0;
-    let totalPaid = 0;
-
-    MONTHS.forEach(month => {
-      const monthData = feeData[month] || { paid: false, paidOn: null, amount: feeAmount };
-      const isPaid = monthData.paid === true;
-      
-      if (isPaid) {
-        paidMonths++;
-        totalPaid += monthData.amount || feeAmount;
-      }
-
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td style="font-weight: bold;">${month}</td>
-        <td>
-          <span class="badge ${isPaid ? 'ok' : 'warn'}">
-            ${isPaid ? 'Paid' : 'Pending'}
-          </span>
-        </td>
-        <td>${monthData.paidOn ? new Date(monthData.paidOn.seconds * 1000).toLocaleDateString() : '-'}</td>
-        <td class="center"></td>
-      `;
-
-      // Add toggle button for admin
-      const toggleTd = tr.querySelector('td:last-child');
-      if (currentRole === 'admin') {
-        const toggleBtn = document.createElement('button');
-        toggleBtn.textContent = isPaid ? 'Mark Unpaid' : 'Mark Paid';
-        toggleBtn.className = 'btn small';
-        toggleBtn.onclick = () => togglePaymentStatus(memberId, month, !isPaid, feeAmount);
-        toggleTd.appendChild(toggleBtn);
-      }
-
-      tbody.appendChild(tr);
-    });
-
-    // Update summary
-    const summaryText = `${memberData.name} - ${paidMonths}/12 months paid (₹${totalPaid})`;
-    document.getElementById('fee-member-summary').textContent = summaryText;
-
   } catch (error) {
     console.error('Error loading member fee data:', error);
     showNotification('Error loading fee data: ' + error.message, 'error');
   }
 }
 
+// Helper function to update the fee table
+function updateFeeTable(memberData, feeData, feeAmount) {
+  const tbody = document.getElementById('fee-months-table').querySelector('tbody');
+  if (!tbody) return;
+  
+  tbody.innerHTML = '';
+  
+  let paidMonths = 0;
+  let totalPaid = 0;
+
+  MONTHS.forEach(month => {
+    const monthData = feeData[month] || { paid: false, paidOn: null, amount: feeAmount };
+    const isPaid = monthData.paid === true;
+    
+    if (isPaid) {
+      paidMonths++;
+      totalPaid += monthData.amount || feeAmount;
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight: bold;">${month}</td>
+      <td>
+        <span class="badge ${isPaid ? 'ok' : 'warn'}">
+          ${isPaid ? 'Paid' : 'Pending'}
+        </span>
+      </td>
+      <td>${monthData.paidOn ? new Date(monthData.paidOn.seconds * 1000).toLocaleDateString() : '-'}</td>
+      <td class="center"></td>
+    `;
+
+    // Add toggle button for admin
+    const toggleTd = tr.querySelector('td:last-child');
+    if (currentRole === 'admin') {
+      const toggleBtn = document.createElement('button');
+      toggleBtn.textContent = isPaid ? 'Mark Unpaid' : 'Mark Paid';
+      toggleBtn.className = 'btn small';
+      toggleBtn.onclick = () => togglePaymentStatus(feeData.memberId, month, !isPaid, feeAmount);
+      toggleTd.appendChild(toggleBtn);
+    }
+
+    tbody.appendChild(tr);
+  });
+
+  // Update summary
+  const summaryText = `${memberData.name} - ${paidMonths}/12 months paid (₹${totalPaid})`;
+  document.getElementById('fee-member-summary').textContent = summaryText;
+}
+
 // Toggle payment status
 async function togglePaymentStatus(memberId, month, paid, amount) {
   try {
-    const feesCol = membershipFeesCollectionFor(selectedYear);
+    const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+    const feesCol = membershipFeesCollectionFor(targetYear);
     const updateData = {
       [`${month}.paid`]: paid,
       [`${month}.amount`]: amount,
@@ -2619,6 +2680,8 @@ async function loadFeeYearlySummary() {
 
     // Get fees data based on selected year
     let feesData = [];
+    const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+    
     if (selectedYear === 'all') {
       // Aggregate from all years
       if (Object.keys(allYearsFeesData).length === 0) {
@@ -2632,7 +2695,8 @@ async function loadFeeYearlySummary() {
       });
     } else {
       // Single year
-      const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
+      const feesCol = membershipFeesCollectionFor(targetYear);
+      const feesSnap = await feesCol.get();
       feesSnap.forEach(doc => {
         feesData.push(doc.data());
       });
@@ -2695,7 +2759,8 @@ async function saveFeeConfiguration() {
   const monthlyFee = parseInt(amountInput.value) || 100;
 
   try {
-    const feesCol = membershipFeesCollectionFor(selectedYear);
+    const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+    const feesCol = membershipFeesCollectionFor(targetYear);
     const memberDoc = await membersCol.doc(memberId).get();
     
     if (!memberDoc.exists) {
@@ -2743,7 +2808,8 @@ async function clearFeeRecord() {
   const memberId = memberSelect.value;
 
   try {
-    const feesCol = membershipFeesCollectionFor(selectedYear);
+    const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+    const feesCol = membershipFeesCollectionFor(targetYear);
     const memberDoc = await membersCol.doc(memberId).get();
     
     if (!memberDoc.exists) {
@@ -2789,6 +2855,7 @@ async function clearFeeRecord() {
 async function exportFeesCSV() {
   try {
     let feesData = [];
+    const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
     
     if (selectedYear === 'all') {
       // Aggregate from all years
@@ -2803,7 +2870,8 @@ async function exportFeesCSV() {
       });
     } else {
       // Single year
-      const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
+      const feesCol = membershipFeesCollectionFor(targetYear);
+      const feesSnap = await feesCol.get();
       feesSnap.forEach(doc => {
         feesData.push({ memberId: doc.id, ...doc.data() });
       });
@@ -2846,48 +2914,6 @@ async function exportFeesCSV() {
   }
 }
 
-// Initialize membership fees event listeners
-function initMembershipFeesEvents() {
-  // Load member fee data when member is selected
-  const feeMemberSelect = document.getElementById('feeMemberSelect');
-  if (feeMemberSelect) {
-    feeMemberSelect.addEventListener('change', function() {
-      loadMemberFeeData(this.value);
-    });
-  }
-
-  // Load button
-  const loadMemberFeeBtn = document.getElementById('loadMemberFeeBtn');
-  if (loadMemberFeeBtn) {
-    loadMemberFeeBtn.addEventListener('click', function() {
-      const memberSelect = document.getElementById('feeMemberSelect');
-      if (memberSelect.value) {
-        loadMemberFeeData(memberSelect.value);
-      } else {
-        showNotification('Please select a member first', 'error');
-      }
-    });
-  }
-
-  // Save config button
-  const saveFeeConfigBtn = document.getElementById('saveFeeConfigBtn');
-  if (saveFeeConfigBtn) {
-    saveFeeConfigBtn.addEventListener('click', saveFeeConfiguration);
-  }
-
-  // Clear record button
-  const clearFeeRecordBtn = document.getElementById('clearFeeRecordBtn');
-  if (clearFeeRecordBtn) {
-    clearFeeRecordBtn.addEventListener('click', clearFeeRecord);
-  }
-
-  // Export CSV button
-  const exportCsvBtn = document.getElementById('exportCsvBtn');
-  if (exportCsvBtn) {
-    exportCsvBtn.addEventListener('click', exportFeesCSV);
-  }
-}
-
 /* ---------------- VILLAGE COLLECTIONS ---------------- */
 async function loadVillageCollections() {
   const tbody = document.querySelector('#vc-table tbody');
@@ -2912,7 +2938,8 @@ async function loadVillageCollections() {
       });
     } else {
       // Single year
-      const villageCol = villageCollectionsCollectionFor(selectedYear);
+      const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+      const villageCol = villageCollectionsCollectionFor(targetYear);
       const snap = await villageCol.orderBy('dateAdded', 'desc').get();
       snap.forEach(doc => {
         collectionsData.push({ id: doc.id, ...doc.data() });
@@ -2951,7 +2978,8 @@ async function loadVillageCollections() {
               showNotification('Cannot delete from "All Years" view. Switch to specific year.', 'error');
               return;
             }
-            villageCollectionsCollectionFor(selectedYear).doc(collection.id).delete()
+            const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+            villageCollectionsCollectionFor(targetYear).doc(collection.id).delete()
               .then(() => {
                 showToast('Deleted');
                 addActivity(`Deleted collection record for ${d.donor}`, 'info');
@@ -3018,7 +3046,8 @@ if (addVcBtn) {
     }
 
     try {
-      await villageCollectionsCollectionFor(selectedYear).add({
+      const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+      await villageCollectionsCollectionFor(targetYear).add({
         bill,
         collectorId,
         donor,
@@ -3057,10 +3086,14 @@ if (searchVc) {
 async function loadPaidMembersTracker() {
   const container = document.getElementById("paid-members-list");
   const countSpan = document.getElementById("paid-tracker-count");
-  if (!container) return;
+  if (!container) {
+    console.error('Paid members container not found');
+    return;
+  }
   
   try {
     container.innerHTML = "<p>Loading paid members...</p>";
+    console.log('Starting to load paid members tracker...');
     
     // Get all members
     const membersSnap = await membersCol.orderBy("name").get();
@@ -3069,41 +3102,29 @@ async function loadPaidMembersTracker() {
       members.push({ id: doc.id, ...doc.data() });
     });
     
+    console.log(`Found ${members.length} members`);
+    
     if (members.length === 0) {
-      container.innerHTML = "<p>No members found</p>";
+      container.innerHTML = "<p>No members found in database</p>";
       if (countSpan) countSpan.textContent = "Loaded: 0";
       return;
     }
     
     // Get fees data based on selected year
     let feesData = {};
-    if (selectedYear === 'all') {
-      // Use aggregated data from all years
-      if (Object.keys(allYearsFeesData).length === 0) {
-        await loadAllYearsFees();
-      }
+    const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+    console.log(`Loading fees for year: ${targetYear}`);
+    
+    try {
+      const feesCol = membershipFeesCollectionFor(targetYear);
+      const feesSnap = await feesCol.get();
+      console.log(`Found ${feesSnap.size} fee records`);
       
-      // Combine fees data from all years
-      Object.values(allYearsFeesData).forEach(yearData => {
-        Object.entries(yearData).forEach(([memberId, feeData]) => {
-          if (!feesData[memberId]) {
-            feesData[memberId] = { ...feeData };
-          } else {
-            // Merge months from different years
-            MONTHS.forEach(month => {
-              if (feeData[month] && feeData[month].paid) {
-                feesData[memberId][month] = feeData[month];
-              }
-            });
-          }
-        });
-      });
-    } else {
-      // Single year data
-      const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
       feesSnap.forEach(doc => {
         feesData[doc.id] = doc.data();
       });
+    } catch (error) {
+      console.log('No fee data found for selected year:', error);
     }
     
     // Create the tracker table
@@ -3112,8 +3133,8 @@ async function loadPaidMembersTracker() {
         <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
           <thead>
             <tr>
-              <th style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; cursor: pointer;" onclick="sortMembersTable()">Member ▲</th>
-    `;
+              <th style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; cursor: pointer;" onclick="sortMembersTable()">Member</th>
+            `;
     
     // Add month headers
     MONTHS.forEach(month => {
@@ -3126,13 +3147,18 @@ async function loadPaidMembersTracker() {
     members.sort((a, b) => a.name.localeCompare(b.name));
     
     let paidCount = 0;
+    let membersWithPayments = 0;
     
     // Add member rows
     members.forEach(member => {
       const memberFees = feesData[member.id] || {};
       let memberPaidMonths = 0;
       
-      html += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${escapeHtml(member.name)}<br><small style="color: #666;">${member.village}</small></td>`;
+      html += `<tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">
+          ${escapeHtml(member.name)}<br>
+          <small style="color: #666;">${member.village}</small>
+        </td>`;
       
       MONTHS.forEach(month => {
         const monthData = memberFees[month];
@@ -3151,7 +3177,10 @@ async function loadPaidMembersTracker() {
       
       html += `</tr>`;
       
-      if (memberPaidMonths > 0) paidCount++;
+      if (memberPaidMonths > 0) {
+        paidCount += memberPaidMonths;
+        membersWithPayments++;
+      }
     });
     
     html += `</tbody></table></div>`;
@@ -3159,16 +3188,16 @@ async function loadPaidMembersTracker() {
     container.innerHTML = html;
     
     if (countSpan) {
-      countSpan.textContent = `Loaded: ${members.length} members, ${paidCount} with payments`;
+      countSpan.textContent = `Loaded: ${members.length} members, ${membersWithPayments} with payments, ${paidCount} total payments`;
     }
     
     showNotification(`Loaded ${members.length} members payment status`, 'success');
-    addActivity(`Loaded paid members tracker for ${selectedYear === 'all' ? 'all years' : selectedYear}`, 'info');
+    addActivity(`Loaded paid members tracker for ${selectedYear}`, 'info');
     
   } catch (error) {
     console.error("Load paid members tracker error:", error);
     container.innerHTML = `<p style="color: red;">Error loading paid members: ${error.message}</p>`;
-    showNotification('Error loading paid members tracker', 'error');
+    showNotification('Error loading paid members tracker: ' + error.message, 'error');
   }
 }
 
@@ -3195,6 +3224,19 @@ if (showPaidBtn) {
   showPaidBtn.addEventListener("click", loadPaidMembersTracker);
 }
 
+/* ---------------- Initialize All Event Listeners ---------------- */
+function initializeAllEventListeners() {
+  console.log('Initializing all event listeners...');
+  initMembershipFeesEvents();
+  
+  // Re-bind the show paid members button
+  const showPaidBtn = document.getElementById("show-paid-btn");
+  if (showPaidBtn) {
+    showPaidBtn.removeEventListener("click", loadPaidMembersTracker);
+    showPaidBtn.addEventListener("click", loadPaidMembersTracker);
+  }
+}
+
 /* ---------------- RECALC TOTAL COLLECTED ---------------- */
 async function recalcTotalCollected() {
   try {
@@ -3215,7 +3257,9 @@ async function recalcTotalCollected() {
       });
     } else {
       // Single year
-      const villageSnap = await villageCollectionsCollectionFor(selectedYear).get();
+      const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+      const villageCol = villageCollectionsCollectionFor(targetYear);
+      const villageSnap = await villageCol.get();
       villageSnap.forEach(doc => {
         totalVillage += doc.data().amount || 0;
       });
@@ -3235,7 +3279,9 @@ async function recalcTotalCollected() {
       });
     } else {
       // Single year - we need to calculate from monthly summary
-      const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
+      const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+      const feesCol = membershipFeesCollectionFor(targetYear);
+      const feesSnap = await feesCol.get();
       feesSnap.forEach(doc => {
         const data = doc.data();
         MONTHS.forEach(month => {
@@ -3871,7 +3917,8 @@ async function processVillageBulkUpload() {
           const collectorId = collectorDoc.id;
           
           // Check for duplicates
-          const existingQuery = await villageCollectionsCollectionFor(selectedYear)
+          const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+          const existingQuery = await villageCollectionsCollectionFor(targetYear)
             .where('bill', '==', entry.billNo)
             .get();
           
@@ -3888,7 +3935,7 @@ async function processVillageBulkUpload() {
             return { status: 'updated', entry };
           } else {
             // Add new entry
-            await villageCollectionsCollectionFor(selectedYear).add({
+            await villageCollectionsCollectionFor(targetYear).add({
               bill: entry.billNo,
               collectorId: collectorId,
               donor: entry.donorName,
@@ -4198,6 +4245,7 @@ window.loadMemberFeeData = loadMemberFeeData;
 window.loadFeeYearlySummary = loadFeeYearlySummary;
 window.loadVillageCollections = loadVillageCollections;
 window.exportVillageCollectionBulk = exportVillageCollectionBulk;
+window.initializeAllEventListeners = initializeAllEventListeners;
 
 // Add some initial activities when the page loads
 setTimeout(() => {
