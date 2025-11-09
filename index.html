@@ -1054,7 +1054,6 @@
     </div>
   </div>
 </div>
-
 <script>
 /* ---------------- Firebase config (hardcoded) ---------------- */
 const firebaseConfig = {
@@ -2301,7 +2300,6 @@ async function loadInvitations(){
       }
     });
     safeSetTextContent("summary-invitees", `${total}`);
-    safeSetTextContent("summary-invitees-inline", `${total}`);
   } catch(e){
     console.error("Load invitations error:", e);
     alert("Failed to load invitations: " + (e.message || e));
@@ -2857,6 +2855,164 @@ function initMembershipFeesEvents() {
   if (exportCsvBtn) {
     exportCsvBtn.addEventListener('click', exportFeesCSV);
   }
+}
+
+/* ---------------- VILLAGE COLLECTIONS ---------------- */
+async function loadVillageCollections() {
+  const tbody = document.querySelector('#vc-table tbody');
+  if (!tbody) return;
+
+  try {
+    tbody.innerHTML = '';
+    
+    let totalAmount = 0;
+    let collectionsData = [];
+
+    if (selectedYear === 'all') {
+      // Aggregate from all years
+      if (Object.keys(allYearsVillageData).length === 0) {
+        await loadAllYearsVillageCollections();
+      }
+      
+      Object.values(allYearsVillageData).forEach(yearData => {
+        Object.entries(yearData).forEach(([id, data]) => {
+          collectionsData.push({ id, ...data });
+        });
+      });
+    } else {
+      // Single year
+      const villageCol = villageCollectionsCollectionFor(selectedYear);
+      const snap = await villageCol.orderBy('dateAdded', 'desc').get();
+      snap.forEach(doc => {
+        collectionsData.push({ id: doc.id, ...doc.data() });
+      });
+    }
+
+    collectionsData.forEach(collection => {
+      const d = collection;
+      totalAmount += d.amount || 0;
+      
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(d.bill || '')}</td>
+        <td>${escapeHtml(d.collectorId || '')}</td>
+        <td>${escapeHtml(d.donor || '')}</td>
+        <td>₹${(d.amount || 0).toLocaleString()}</td>
+        <td>${escapeHtml(d.remarks || '')}</td>
+        <td>${escapeHtml(d.village || '')}</td>
+        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ''}</td>
+        <td></td>
+      `;
+      tbody.appendChild(tr);
+
+      const actionsTd = tr.querySelector('td:last-child');
+      if (currentRole === 'admin') {
+        const del = document.createElement('button');
+        del.textContent = 'Delete';
+        del.className = 'btn small ghost';
+        del.onclick = () => {
+          if (confirm('Delete collection record?')) {
+            if (selectedYear === 'all') {
+              showNotification('Cannot delete from "All Years" view. Switch to specific year.', 'error');
+              return;
+            }
+            villageCollectionsCollectionFor(selectedYear).doc(collection.id).delete()
+              .then(() => {
+                showToast('Deleted');
+                addActivity(`Deleted collection record for ${d.donor}`, 'info');
+                loadVillageCollections();
+                recalcTotalCollected();
+              });
+          }
+        };
+        actionsTd.appendChild(del);
+      }
+    });
+
+    // Update total display
+    const totalDisplay = document.getElementById('vc-total-amount');
+    const totalContainer = document.getElementById('vc-total-collection');
+    if (totalDisplay) totalDisplay.textContent = totalAmount.toLocaleString();
+    if (totalContainer) totalContainer.style.display = totalAmount > 0 ? 'block' : 'none';
+
+    // Update collection chart
+    if (collectionChart) {
+      const monthlyData = Array(12).fill(0);
+      collectionsData.forEach(collection => {
+        if (collection.dateAdded && collection.dateAdded.toDate) {
+          const month = collection.dateAdded.toDate().getMonth();
+          monthlyData[month] += collection.amount || 0;
+        }
+      });
+      collectionChart.data.datasets[0].data = monthlyData;
+      collectionChart.update();
+    }
+
+  } catch (error) {
+    console.error('Error loading village collections:', error);
+  }
+}
+
+// Add village collection
+const addVcBtn = document.getElementById('add-vc-btn');
+if (addVcBtn) {
+  addVcBtn.addEventListener('click', async () => {
+    if (currentRole !== 'admin') {
+      showNotification('Only admin can add collections', 'error');
+      return;
+    }
+
+    const bill = document.getElementById('vc-bill').value.trim();
+    const collectorId = document.getElementById('vc-collector').value.trim();
+    const donor = document.getElementById('vc-donor').value.trim();
+    const amount = parseFloat(document.getElementById('vc-amount').value);
+    const remarks = document.getElementById('vc-remarks').value.trim();
+    const village = document.getElementById('vc-village').value;
+
+    if (!bill || !collectorId || !donor || !amount || !village) {
+      showNotification('Please fill all required fields', 'error');
+      return;
+    }
+
+    if (amount <= 0) {
+      showNotification('Amount must be greater than 0', 'error');
+      return;
+    }
+
+    try {
+      await villageCollectionsCollectionFor(selectedYear).add({
+        bill,
+        collectorId,
+        donor,
+        amount,
+        remarks,
+        village,
+        dateAdded: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Clear form
+      ['vc-bill', 'vc-donor', 'vc-amount', 'vc-remarks'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+
+      showNotification('Collection added successfully', 'success');
+      addActivity(`Added collection from ${donor} in ${village}`, 'success');
+      
+      loadVillageCollections();
+      recalcTotalCollected();
+      
+    } catch (error) {
+      console.error('Error adding collection:', error);
+      showNotification('Error adding collection: ' + error.message, 'error');
+    }
+  });
+}
+
+// Search village collections
+const searchVc = document.getElementById('search-vc');
+if (searchVc) {
+  searchVc.addEventListener('input', (e) => debouncedFilterTable('vc-table', e.target.value));
 }
 
 /* ---------------- LOAD PAID MEMBERS TRACKER ---------------- */
@@ -3602,6 +3758,7 @@ window.generateFinancialReport = generateFinancialReport;
 window.loadFinancialData = loadFinancialData;
 window.loadMemberFeeData = loadMemberFeeData;
 window.loadFeeYearlySummary = loadFeeYearlySummary;
+window.loadVillageCollections = loadVillageCollections;
 
 // Add some initial activities when the page loads
 setTimeout(() => {
