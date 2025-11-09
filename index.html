@@ -1775,6 +1775,7 @@ auth.onAuthStateChanged(user => {
       loadAllYearsFees(); // Load all years data initially
       loadAllYearsVillageCollections(); // Load all years village collection data initially
       loadFinancialData(); // Load financial data
+      initMembershipFeesEvents(); // Initialize membership fees events
     }, 120);
   } else {
     // Show auth card, hide main content and summary bar
@@ -2443,6 +2444,421 @@ async function loadFeeMembersDropdown() {
   }
 }
 
+/* ---------------- MEMBERSHIP FEES FUNCTIONALITY ---------------- */
+
+// Load member fee data when a member is selected
+async function loadMemberFeeData(memberId) {
+  if (!memberId) {
+    document.getElementById('fee-months-table').querySelector('tbody').innerHTML = '';
+    document.getElementById('fee-member-summary').textContent = 'Select member to load fees';
+    return;
+  }
+
+  try {
+    const memberDoc = await membersCol.doc(memberId).get();
+    if (!memberDoc.exists) {
+      showNotification('Member not found', 'error');
+      return;
+    }
+
+    const memberData = memberDoc.data();
+    const feeAmount = parseInt(document.getElementById('feeAmountInput').value) || 100;
+    
+    // Get or create fee record
+    const feesCol = membershipFeesCollectionFor(selectedYear);
+    const feeDoc = await feesCol.doc(memberId).get();
+    
+    let feeData = {};
+    if (feeDoc.exists) {
+      feeData = feeDoc.data();
+    } else {
+      // Initialize with default data
+      feeData = {
+        memberId: memberId,
+        memberName: memberData.name,
+        memberVillage: memberData.village,
+        monthlyFee: feeAmount,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      
+      // Initialize all months as unpaid
+      MONTHS.forEach(month => {
+        feeData[month] = {
+          paid: false,
+          paidOn: null,
+          amount: feeAmount
+        };
+      });
+    }
+
+    // Update the table
+    const tbody = document.getElementById('fee-months-table').querySelector('tbody');
+    tbody.innerHTML = '';
+    
+    let paidMonths = 0;
+    let totalPaid = 0;
+
+    MONTHS.forEach(month => {
+      const monthData = feeData[month] || { paid: false, paidOn: null, amount: feeAmount };
+      const isPaid = monthData.paid === true;
+      
+      if (isPaid) {
+        paidMonths++;
+        totalPaid += monthData.amount || feeAmount;
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-weight: bold;">${month}</td>
+        <td>
+          <span class="badge ${isPaid ? 'ok' : 'warn'}">
+            ${isPaid ? 'Paid' : 'Pending'}
+          </span>
+        </td>
+        <td>${monthData.paidOn ? new Date(monthData.paidOn.seconds * 1000).toLocaleDateString() : '-'}</td>
+        <td class="center"></td>
+      `;
+
+      // Add toggle button for admin
+      const toggleTd = tr.querySelector('td:last-child');
+      if (currentRole === 'admin') {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.textContent = isPaid ? 'Mark Unpaid' : 'Mark Paid';
+        toggleBtn.className = 'btn small';
+        toggleBtn.onclick = () => togglePaymentStatus(memberId, month, !isPaid, feeAmount);
+        toggleTd.appendChild(toggleBtn);
+      }
+
+      tbody.appendChild(tr);
+    });
+
+    // Update summary
+    const summaryText = `${memberData.name} - ${paidMonths}/12 months paid (₹${totalPaid})`;
+    document.getElementById('fee-member-summary').textContent = summaryText;
+
+  } catch (error) {
+    console.error('Error loading member fee data:', error);
+    showNotification('Error loading fee data: ' + error.message, 'error');
+  }
+}
+
+// Toggle payment status
+async function togglePaymentStatus(memberId, month, paid, amount) {
+  try {
+    const feesCol = membershipFeesCollectionFor(selectedYear);
+    const updateData = {
+      [`${month}.paid`]: paid,
+      [`${month}.amount`]: amount,
+      monthlyFee: amount,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    if (paid) {
+      updateData[`${month}.paidOn`] = firebase.firestore.FieldValue.serverTimestamp();
+    } else {
+      updateData[`${month}.paidOn`] = null;
+    }
+
+    await feesCol.doc(memberId).set(updateData, { merge: true });
+    
+    showNotification(`Payment status updated for ${month}`, 'success');
+    addActivity(`Updated ${month} payment for member ID: ${memberId}`, 'info');
+    
+    // Reload the data
+    loadMemberFeeData(memberId);
+    loadFeeYearlySummary();
+    recalcTotalCollected();
+    
+  } catch (error) {
+    console.error('Error updating payment status:', error);
+    showNotification('Error updating payment: ' + error.message, 'error');
+  }
+}
+
+// Load yearly summary
+async function loadFeeYearlySummary() {
+  const tbody = document.querySelector('#fees-yearly-summary tbody');
+  if (!tbody) return;
+
+  try {
+    tbody.innerHTML = '';
+    
+    let monthlyTotals = {};
+    MONTHS.forEach(month => {
+      monthlyTotals[month] = { paidCount: 0, totalAmount: 0 };
+    });
+
+    // Get fees data based on selected year
+    let feesData = [];
+    if (selectedYear === 'all') {
+      // Aggregate from all years
+      if (Object.keys(allYearsFeesData).length === 0) {
+        await loadAllYearsFees();
+      }
+      
+      Object.values(allYearsFeesData).forEach(yearData => {
+        Object.values(yearData).forEach(feeData => {
+          feesData.push(feeData);
+        });
+      });
+    } else {
+      // Single year
+      const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
+      feesSnap.forEach(doc => {
+        feesData.push(doc.data());
+      });
+    }
+
+    // Calculate monthly totals
+    feesData.forEach(feeData => {
+      MONTHS.forEach(month => {
+        const monthData = feeData[month];
+        if (monthData && monthData.paid) {
+          monthlyTotals[month].paidCount++;
+          monthlyTotals[month].totalAmount += monthData.amount || feeData.monthlyFee || 100;
+        }
+      });
+    });
+
+    // Populate table
+    MONTHS.forEach(month => {
+      const tr = document.createElement('tr');
+      const data = monthlyTotals[month];
+      tr.innerHTML = `
+        <td style="font-weight: bold;">${month}</td>
+        <td>${data.paidCount}</td>
+        <td>₹${data.totalAmount.toLocaleString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Add total row
+    const totalPaidCount = Object.values(monthlyTotals).reduce((sum, data) => sum + data.paidCount, 0);
+    const totalAmount = Object.values(monthlyTotals).reduce((sum, data) => sum + data.totalAmount, 0);
+    
+    const totalTr = document.createElement('tr');
+    totalTr.style.fontWeight = 'bold';
+    totalTr.style.background = 'rgba(183,28,28,0.1)';
+    totalTr.innerHTML = `
+      <td>TOTAL</td>
+      <td>${totalPaidCount}</td>
+      <td>₹${totalAmount.toLocaleString()}</td>
+    `;
+    tbody.appendChild(totalTr);
+
+  } catch (error) {
+    console.error('Error loading yearly summary:', error);
+    tbody.innerHTML = '<tr><td colspan="3">Error loading data</td></tr>';
+  }
+}
+
+// Save fee configuration
+async function saveFeeConfiguration() {
+  const memberSelect = document.getElementById('feeMemberSelect');
+  const amountInput = document.getElementById('feeAmountInput');
+  
+  if (!memberSelect.value) {
+    showNotification('Please select a member first', 'error');
+    return;
+  }
+
+  const memberId = memberSelect.value;
+  const monthlyFee = parseInt(amountInput.value) || 100;
+
+  try {
+    const feesCol = membershipFeesCollectionFor(selectedYear);
+    const memberDoc = await membersCol.doc(memberId).get();
+    
+    if (!memberDoc.exists) {
+      showNotification('Member not found', 'error');
+      return;
+    }
+
+    const memberData = memberDoc.data();
+    
+    // Update the monthly fee for all future months
+    const updateData = {
+      monthlyFee: monthlyFee,
+      memberName: memberData.name,
+      memberVillage: memberData.village,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await feesCol.doc(memberId).set(updateData, { merge: true });
+    
+    showNotification('Fee configuration saved', 'success');
+    addActivity(`Updated monthly fee to ₹${monthlyFee} for ${memberData.name}`, 'info');
+    
+    // Reload the data
+    loadMemberFeeData(memberId);
+    
+  } catch (error) {
+    console.error('Error saving fee configuration:', error);
+    showNotification('Error saving configuration: ' + error.message, 'error');
+  }
+}
+
+// Clear fee record
+async function clearFeeRecord() {
+  const memberSelect = document.getElementById('feeMemberSelect');
+  
+  if (!memberSelect.value) {
+    showNotification('Please select a member first', 'error');
+    return;
+  }
+
+  if (!confirm('Are you sure you want to clear all payment records for this member?')) {
+    return;
+  }
+
+  const memberId = memberSelect.value;
+
+  try {
+    const feesCol = membershipFeesCollectionFor(selectedYear);
+    const memberDoc = await membersCol.doc(memberId).get();
+    
+    if (!memberDoc.exists) {
+      showNotification('Member not found', 'error');
+      return;
+    }
+
+    const memberData = memberDoc.data();
+    
+    // Reset all months to unpaid
+    const resetData = {
+      monthlyFee: parseInt(document.getElementById('feeAmountInput').value) || 100,
+      memberName: memberData.name,
+      memberVillage: memberData.village,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    MONTHS.forEach(month => {
+      resetData[month] = {
+        paid: false,
+        paidOn: null,
+        amount: resetData.monthlyFee
+      };
+    });
+
+    await feesCol.doc(memberId).set(resetData);
+    
+    showNotification('Payment records cleared', 'success');
+    addActivity(`Cleared all payment records for ${memberData.name}`, 'info');
+    
+    // Reload the data
+    loadMemberFeeData(memberId);
+    loadFeeYearlySummary();
+    recalcTotalCollected();
+    
+  } catch (error) {
+    console.error('Error clearing fee record:', error);
+    showNotification('Error clearing records: ' + error.message, 'error');
+  }
+}
+
+// Export CSV
+async function exportFeesCSV() {
+  try {
+    let feesData = [];
+    
+    if (selectedYear === 'all') {
+      // Aggregate from all years
+      if (Object.keys(allYearsFeesData).length === 0) {
+        await loadAllYearsFees();
+      }
+      
+      Object.values(allYearsFeesData).forEach(yearData => {
+        Object.entries(yearData).forEach(([memberId, feeData]) => {
+          feesData.push({ memberId, ...feeData });
+        });
+      });
+    } else {
+      // Single year
+      const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
+      feesSnap.forEach(doc => {
+        feesData.push({ memberId: doc.id, ...doc.data() });
+      });
+    }
+
+    if (feesData.length === 0) {
+      showNotification('No fee data to export', 'info');
+      return;
+    }
+
+    // Create CSV content
+    let csvContent = 'Member Name,Village,Monthly Fee,Total Paid Months,Total Amount\n';
+    
+    feesData.forEach(fee => {
+      let paidMonths = 0;
+      let totalAmount = 0;
+      
+      MONTHS.forEach(month => {
+        if (fee[month] && fee[month].paid) {
+          paidMonths++;
+          totalAmount += fee[month].amount || fee.monthlyFee || 100;
+        }
+      });
+
+      csvContent += `"${fee.memberName || 'Unknown'}","${fee.memberVillage || ''}",${fee.monthlyFee || 100},${paidMonths},${totalAmount}\n`;
+    });
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const filename = `membership-fees-${selectedYear === 'all' ? 'all-years' : selectedYear}-${new Date().toISOString().split('T')[0]}.csv`;
+    
+    downloadBlob(blob, filename);
+    
+    showNotification('CSV exported successfully', 'success');
+    addActivity(`Exported fees CSV for ${selectedYear === 'all' ? 'all years' : selectedYear}`, 'success');
+    
+  } catch (error) {
+    console.error('Error exporting CSV:', error);
+    showNotification('Error exporting CSV: ' + error.message, 'error');
+  }
+}
+
+// Initialize membership fees event listeners
+function initMembershipFeesEvents() {
+  // Load member fee data when member is selected
+  const feeMemberSelect = document.getElementById('feeMemberSelect');
+  if (feeMemberSelect) {
+    feeMemberSelect.addEventListener('change', function() {
+      loadMemberFeeData(this.value);
+    });
+  }
+
+  // Load button
+  const loadMemberFeeBtn = document.getElementById('loadMemberFeeBtn');
+  if (loadMemberFeeBtn) {
+    loadMemberFeeBtn.addEventListener('click', function() {
+      const memberSelect = document.getElementById('feeMemberSelect');
+      if (memberSelect.value) {
+        loadMemberFeeData(memberSelect.value);
+      } else {
+        showNotification('Please select a member first', 'error');
+      }
+    });
+  }
+
+  // Save config button
+  const saveFeeConfigBtn = document.getElementById('saveFeeConfigBtn');
+  if (saveFeeConfigBtn) {
+    saveFeeConfigBtn.addEventListener('click', saveFeeConfiguration);
+  }
+
+  // Clear record button
+  const clearFeeRecordBtn = document.getElementById('clearFeeRecordBtn');
+  if (clearFeeRecordBtn) {
+    clearFeeRecordBtn.addEventListener('click', clearFeeRecord);
+  }
+
+  // Export CSV button
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', exportFeesCSV);
+  }
+}
+
 /* ---------------- LOAD PAID MEMBERS TRACKER ---------------- */
 async function loadPaidMembersTracker() {
   const container = document.getElementById("paid-members-list");
@@ -2594,6 +3010,10 @@ async function recalcTotalCollected() {
     // Calculate village collections
     if (selectedYear === 'all') {
       // Aggregate from all years
+      if (Object.keys(allYearsVillageData).length === 0) {
+        await loadAllYearsVillageCollections();
+      }
+      
       Object.values(allYearsVillageData).forEach(yearData => {
         Object.values(yearData).forEach(collection => {
           totalVillage += collection.amount || 0;
@@ -3180,6 +3600,8 @@ window.showBulkUploadModal = showBulkUploadModal;
 window.showTransactionModal = showTransactionModal;
 window.generateFinancialReport = generateFinancialReport;
 window.loadFinancialData = loadFinancialData;
+window.loadMemberFeeData = loadMemberFeeData;
+window.loadFeeYearlySummary = loadFeeYearlySummary;
 
 // Add some initial activities when the page loads
 setTimeout(() => {
