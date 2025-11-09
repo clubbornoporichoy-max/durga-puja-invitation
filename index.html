@@ -146,26 +146,6 @@
   .paid-yes { background:#28a745; color:white; box-shadow: 0 4px 10px rgba(40,167,69,0.12); }
   .paid-no { background:#fff; color:#888; border:1px solid #eee; }
 
-  /* Sticky summary bar below header */
-  .summary-bar {
-    position: fixed; top:64px; left:0; right:0; z-index:90;
-    background: linear-gradient(90deg, rgba(255,255,255,0.97), rgba(255,250,240,0.97));
-    border-bottom: 1px solid rgba(0,0,0,0.03);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
-    padding: 10px 18px;
-  }
-  .summary-inner { max-width:1200px; margin:0 auto; display:flex; gap:18px; align-items:center; }
-  .summary-card { background: #fff; padding:10px 14px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.03); display:flex; gap:8px; align-items:center; min-width:160px; }
-  .summary-card .value { font-weight:700; color:var(--primary-red); }
-
-  /* Toasts */
-  .toast-container { position: fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
-  .toast {
-    background: var(--toast-bg); color: #fff; padding:10px 14px; border-radius:8px; min-width:220px; box-shadow:0 8px 26px rgba(0,0,0,0.3);
-    opacity:0; transform: translateY(10px); transition: all 300ms ease;
-  }
-  .toast.show { opacity:1; transform: translateY(0); }
-
   /* Summary Cards */
   .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
   .summary-card-item { text-align: center; background: var(--card); border-radius: var(--radius); padding: 15px; box-shadow: var(--shadow); }
@@ -432,7 +412,6 @@
     nav.topbar{flex-wrap:wrap}
     .flex{flex-direction:column; align-items:stretch}
     .spacer{height:140px}
-    .summary-bar { display:none; }
     
     .global-year-selector {
       margin-left: 0;
@@ -530,34 +509,6 @@
     </div>
   </div>
 </header>
-
-<!-- sticky summary bar under header - HIDDEN BY DEFAULT -->
-<div class="summary-bar hidden" id="summary-bar">
-  <div class="summary-inner">
-    <div class="summary-card">
-      <div style="font-size:12px;color:#666">Invitees</div>
-      <div class="value" id="summary-invitees">—</div>
-    </div>
-    <div class="summary-card">
-      <div style="font-size:12px;color:#666">Members</div>
-      <div class="value" id="summary-members">—</div>
-    </div>
-    <div class="summary-card" style="margin-left:auto">
-      <div style="font-size:12px;color:#666">Total Collected</div>
-      <div class="value" id="summary-collection">₹0</div>
-      <div class="breakdown-container">
-        <div class="breakdown-item">
-          <div class="breakdown-label">Village Collection</div>
-          <div class="breakdown-value" id="breakdown-village">₹0</div>
-        </div>
-        <div class="breakdown-item">
-          <div class="breakdown-label">Membership Fees</div>
-          <div class="breakdown-value" id="breakdown-membership">₹0</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <div class="spacer"></div>
 
@@ -902,6 +853,21 @@
       <h2>🏘️ Village Collection Tracker (<span id="village-collection-year-display">2025</span>)</h2>
       <div class="subtitle">Track donations per village and collector (year-specific data) - Data is copy-pasteable</div>
 
+      <!-- Bulk Upload Section for Village Collections -->
+      <div class="bulk-upload-section">
+        <h4>📤 Bulk Upload Village Collections</h4>
+        <div class="upload-options">
+          <button onclick="showVillageBulkUploadModal()" class="btn small">📝 Paste Data</button>
+          <button onclick="downloadVillageUploadTemplate()" class="btn small secondary">📋 Download Template</button>
+          <input type="file" id="villageFileUpload" accept=".txt,.csv" style="display: none" onchange="handleVillageFileUpload(this.files[0])">
+          <button onclick="document.getElementById('villageFileUpload').click()" class="btn small">📁 Upload File</button>
+          <button class="btn small secondary" onclick="exportVillageCollectionBulk()">📋 Copy Data</button>
+        </div>
+        <div class="muted note">
+          Supported formats: Plain text with "|" separator, CSV files, or table data
+        </div>
+      </div>
+
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
         <input id="vc-bill" type="text" placeholder="Bill No" style="min-width:120px" />
         
@@ -925,7 +891,6 @@
         </select>
 
         <button id="add-vc-btn" class="btn small">Add Collection</button>
-        <button class="btn small secondary" onclick="exportVillageCollectionBulk()">📋 Copy Data</button>
       </div>
 
       <!-- Total Collection Display -->
@@ -972,7 +937,7 @@
 <!-- Toast container -->
 <div class="toast-container" id="toast-container"></div>
 
-<!-- Bulk Upload Modal -->
+<!-- Bulk Upload Modal for Invitations -->
 <div id="bulkUploadModal" class="modal-overlay hidden">
   <div class="modal-content">
     <div class="modal-header">
@@ -1006,6 +971,45 @@
       <div style="display: flex; gap: 10px; margin-top: 15px;">
         <button id="processUploadBtn" class="btn" onclick="processBulkUpload()" disabled>✅ Process Upload</button>
         <button class="btn ghost" onclick="closeBulkUploadModal()">❌ Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Upload Modal for Village Collections -->
+<div id="villageBulkUploadModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📤 Bulk Upload Village Collections</h3>
+      <button class="modal-close" onclick="closeVillageBulkUploadModal()">&times;</button>
+    </div>
+    
+    <div class="bulk-upload-section">
+      <div class="upload-options">
+        <button onclick="downloadVillageUploadTemplate()" class="btn small secondary">📋 Download Template</button>
+        <input type="file" id="villageModalFileUpload" accept=".txt,.csv" style="display: none" onchange="handleVillageFileUpload(this.files[0])">
+        <button onclick="document.getElementById('villageModalFileUpload').click()" class="btn small">📁 Upload File</button>
+      </div>
+      
+      <div style="margin: 15px 0;">
+        <label class="muted">Paste your data here (use template format):</label>
+        <textarea id="villageBulkUploadTextarea" class="upload-textarea" placeholder="Paste data in format: Bill No | Collector Name | Donor Name | Amount | Village | Remarks&#10;001 | Sanjay Manna | Ramesh Das | 1000 | Madhabpur | Regular donor&#10;002 | Santosh Payra | Amit Roy | 500 | Paldhui | "></textarea>
+      </div>
+      
+      <div id="villageUploadPreview" class="upload-preview hidden">
+        <!-- Preview will be shown here -->
+      </div>
+      
+      <div id="villageUploadProgress" class="hidden">
+        <div class="progress-bar">
+          <div id="villageProgressFill" class="progress-fill" style="width: 0%"></div>
+        </div>
+        <div id="villageProgressText" class="progress-text">Processing...</div>
+      </div>
+      
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button id="processVillageUploadBtn" class="btn" onclick="processVillageBulkUpload()" disabled>✅ Process Upload</button>
+        <button class="btn ghost" onclick="closeVillageBulkUploadModal()">❌ Cancel</button>
       </div>
     </div>
   </div>
@@ -1683,7 +1687,6 @@ const logoutBtn = document.getElementById("logout-btn");
 const userInfo = document.getElementById("user-info");
 const mainContent = document.getElementById("main-content");
 const authCard = document.getElementById("auth-card");
-const summaryBar = document.getElementById("summary-bar");
 
 /* ---------------- Toast helpers ---------------- */
 function showToast(msg, ttl=2500) {
@@ -1746,16 +1749,14 @@ if (logoutBtn) {
 auth.onAuthStateChanged(user => {
   if(user){
     currentRole = ROLES[user.uid] || "viewer";
-    // Show main content and summary bar, hide auth card
+    // Show main content, hide auth card
     const authCard = document.getElementById("auth-card");
     const mainContent = document.getElementById("main-content");
-    const summaryBar = document.getElementById("summary-bar");
     const logoutBtn = document.getElementById("logout-btn");
     const globalYearSelector = document.getElementById('global-year-selector');
     
     if (authCard) authCard.classList.add("hidden");
     if (mainContent) mainContent.classList.remove("hidden");
-    if (summaryBar) summaryBar.classList.remove("hidden");
     if (logoutBtn) logoutBtn.classList.remove("hidden");
     if (globalYearSelector) globalYearSelector.classList.remove("hidden");
     
@@ -1783,16 +1784,14 @@ auth.onAuthStateChanged(user => {
       }, 1000);
     }, 120);
   } else {
-    // Show auth card, hide main content and summary bar
+    // Show auth card, hide main content
     const authCard = document.getElementById("auth-card");
     const mainContent = document.getElementById("main-content");
-    const summaryBar = document.getElementById("summary-bar");
     const logoutBtn = document.getElementById("logout-btn");
     const globalYearSelector = document.getElementById('global-year-selector');
     
     if (authCard) authCard.classList.remove("hidden");
     if (mainContent) mainContent.classList.add("hidden");
-    if (summaryBar) summaryBar.classList.add("hidden");
     if (logoutBtn) logoutBtn.classList.add("hidden");
     if (globalYearSelector) globalYearSelector.classList.add("hidden");
     
@@ -1832,12 +1831,6 @@ function clearAllTables(){
     const tb = document.getElementById(id)?.querySelector("tbody");
     if(tb) tb.innerHTML="";
   });
-  
-  safeSetTextContent("summary-invitees", "—");
-  safeSetTextContent("summary-members", "—");
-  safeSetTextContent("summary-collection", "₹0");
-  safeSetTextContent("breakdown-village", "₹0");
-  safeSetTextContent("breakdown-membership", "₹0");
 }
 
 /* ---------------- Load all static data ---------------- */
@@ -2305,7 +2298,6 @@ async function loadInvitations(){
         });
       }
     });
-    safeSetTextContent("summary-invitees", `${total}`);
   } catch(e){
     console.error("Load invitations error:", e);
     alert("Failed to load invitations: " + (e.message || e));
@@ -2377,7 +2369,6 @@ async function loadMembers() {
       }
     });
     
-    safeSetTextContent("summary-members", `${total}`);
     updateSummaryCards();
   } catch(e){
     console.error("Load members error:", e);
@@ -2447,9 +2438,15 @@ async function loadFeeMembersDropdown() {
       return;
     }
     
+    // Create a map to store member names by ID for quick lookup
+    window.memberNamesMap = {};
+    
     snapshot.forEach(doc => {
       const d = doc.data();
       const displayText = `${d.name} (${d.village})`;
+      
+      // Store in global map for later lookup
+      window.memberNamesMap[doc.id] = d.name;
       
       // Add to fee member dropdown
       const option = document.createElement("option");
@@ -2926,10 +2923,14 @@ async function loadVillageCollections() {
       const d = collection;
       totalAmount += d.amount || 0;
       
+      // Get collector name from our memberNamesMap
+      const collectorName = window.memberNamesMap && window.memberNamesMap[d.collectorId] ? 
+        window.memberNamesMap[d.collectorId] : d.collectorId;
+      
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(d.bill || '')}</td>
-        <td>${escapeHtml(d.collectorId || '')}</td>
+        <td>${escapeHtml(collectorName)}</td>
         <td>${escapeHtml(d.donor || '')}</td>
         <td>₹${(d.amount || 0).toLocaleString()}</td>
         <td>${escapeHtml(d.remarks || '')}</td>
@@ -2981,6 +2982,9 @@ async function loadVillageCollections() {
       collectionChart.data.datasets[0].data = monthlyData;
       collectionChart.update();
     }
+
+    // Update village breakdown
+    loadVillageBreakdown();
 
   } catch (error) {
     console.error('Error loading village collections:', error);
@@ -3244,11 +3248,6 @@ async function recalcTotalCollected() {
     
     const totalCollection = totalVillage + totalMembership;
     
-    // Update summary displays
-    safeSetTextContent("summary-collection", `₹${totalCollection.toLocaleString()}`);
-    safeSetTextContent("breakdown-village", `₹${totalVillage.toLocaleString()}`);
-    safeSetTextContent("breakdown-membership", `₹${totalMembership.toLocaleString()}`);
-    
   } catch (error) {
     console.error("Recalc total collected error:", error);
   }
@@ -3260,7 +3259,7 @@ async function updateMonthlySummary() {
   await recalcTotalCollected();
 }
 
-/* ---------------- Bulk Upload Functions ---------------- */
+/* ---------------- Bulk Upload Functions for Invitations ---------------- */
 
 // Show bulk upload modal
 function showBulkUploadModal() {
@@ -3601,6 +3600,354 @@ async function processBulkUpload() {
   }
 }
 
+/* ---------------- Bulk Upload Functions for Village Collections ---------------- */
+
+// Show village bulk upload modal
+function showVillageBulkUploadModal() {
+  if (currentRole !== "admin") {
+    showNotification('Only admin can perform bulk uploads', 'error');
+    return;
+  }
+  
+  const modal = document.getElementById('villageBulkUploadModal');
+  const textarea = document.getElementById('villageBulkUploadTextarea');
+  
+  if (modal && textarea) {
+    modal.classList.remove('hidden');
+    textarea.value = '';
+    textarea.focus();
+    
+    // Clear previous preview and progress
+    document.getElementById('villageUploadPreview').innerHTML = '';
+    document.getElementById('villageUploadPreview').classList.add('hidden');
+    document.getElementById('villageUploadProgress').classList.add('hidden');
+    document.getElementById('processVillageUploadBtn').disabled = true;
+  }
+}
+
+// Close village bulk upload modal
+function closeVillageBulkUploadModal() {
+  const modal = document.getElementById('villageBulkUploadModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+// Download village upload template
+function downloadVillageUploadTemplate() {
+  const template = `Bill No | Collector Name | Donor Name | Amount | Village | Remarks
+001 | Sanjay Manna | Ramesh Das | 1000 | Madhabpur | Regular donor
+002 | Santosh Payra | Amit Roy | 500 | Paldhui | 
+003 | Rabindranath Jana | Subhash Ghosh | 2000 | Sabitrapur | Committee member
+
+INSTRUCTIONS:
+- Use "|" as separator between columns
+- Collector Name must match existing member names
+- Amount can be with or without ₹ symbol
+- Village must be one of: Madhabpur, Paldhui, Sabitrapur, Lalupool, Mahakal, Others
+- Remove header row before uploading`.trim();
+  
+  const blob = new Blob([template], { type: 'text/plain' });
+  downloadBlob(blob, 'village-collection-upload-template.txt');
+  showNotification('Village collection template downloaded successfully', 'success');
+}
+
+// Handle village file upload
+function handleVillageFileUpload(file) {
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const textarea = document.getElementById('villageBulkUploadTextarea');
+    if (textarea) {
+      textarea.value = e.target.result;
+      previewVillageBulkUpload();
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Preview village bulk upload data
+function previewVillageBulkUpload() {
+  const textarea = document.getElementById('villageBulkUploadTextarea');
+  const previewDiv = document.getElementById('villageUploadPreview');
+  const processBtn = document.getElementById('processVillageUploadBtn');
+  
+  if (!textarea || !previewDiv) return;
+  
+  const text = textarea.value.trim();
+  if (!text) {
+    previewDiv.classList.add('hidden');
+    processBtn.disabled = true;
+    return;
+  }
+  
+  try {
+    const parsedData = parseVillageBulkData(text);
+    
+    if (parsedData.length === 0) {
+      previewDiv.innerHTML = '<p style="color: #dc3545; text-align: center;">No valid data found. Please check the format.</p>';
+      previewDiv.classList.remove('hidden');
+      processBtn.disabled = true;
+      return;
+    }
+    
+    let previewHtml = `
+      <h4>📋 Upload Preview (${parsedData.length} entries)</h4>
+      <div class="preview-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Bill No</th>
+              <th>Collector</th>
+              <th>Donor</th>
+              <th>Amount</th>
+              <th>Village</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    parsedData.forEach((entry, index) => {
+      const errors = validateVillageBulkEntry(entry);
+      const status = errors.length > 0 ? 
+        `<span style="color: #dc3545;">❌ ${errors[0]}</span>` : 
+        '<span style="color: #28a745;">🟢 Ready</span>';
+      
+      previewHtml += `
+        <tr>
+          <td>${escapeHtml(entry.billNo)}</td>
+          <td>${escapeHtml(entry.collectorName)}</td>
+          <td>${escapeHtml(entry.donorName)}</td>
+          <td>₹${entry.amount}</td>
+          <td>${escapeHtml(entry.village)}</td>
+          <td class="entry-status">${status}</td>
+        </tr>
+      `;
+    });
+    
+    previewHtml += `
+          </tbody>
+        </table>
+      </div>
+      <div class="muted note" style="margin-top: 10px;">
+        Total amount: ₹${parsedData.reduce((sum, entry) => sum + entry.amount, 0).toLocaleString()}
+      </div>
+    `;
+    
+    previewDiv.innerHTML = previewHtml;
+    previewDiv.classList.remove('hidden');
+    processBtn.disabled = false;
+    
+  } catch (error) {
+    previewDiv.innerHTML = `<p style="color: #dc3545; text-align: center;">Error parsing data: ${error.message}</p>`;
+    previewDiv.classList.remove('hidden');
+    processBtn.disabled = true;
+  }
+}
+
+// Parse village bulk data from text
+function parseVillageBulkData(text) {
+  const lines = text.split('\n').filter(line => line.trim());
+  const parsedData = [];
+  
+  lines.forEach((line, index) => {
+    // Skip header-like lines
+    if (line.toLowerCase().includes('bill') && line.toLowerCase().includes('collector') && line.toLowerCase().includes('donor')) {
+      return;
+    }
+    
+    // Try different delimiters
+    let parts;
+    if (line.includes('|')) {
+      parts = line.split('|').map(part => part.trim());
+    } else if (line.includes('\t')) {
+      parts = line.split('\t').map(part => part.trim());
+    } else {
+      parts = line.split(',').map(part => part.trim());
+    }
+    
+    if (parts.length >= 5) {
+      const billNo = parts[0] || '';
+      const collectorName = parts[1] || '';
+      const donorName = parts[2] || '';
+      const amount = parseAmount(parts[3]);
+      const village = parts[4] || '';
+      const remarks = parts[5] || '';
+      
+      if (billNo && collectorName && donorName && village) {
+        parsedData.push({
+          billNo,
+          collectorName,
+          donorName,
+          amount,
+          village,
+          remarks,
+          originalLine: line
+        });
+      }
+    }
+  });
+  
+  return parsedData;
+}
+
+// Validate village bulk entry
+function validateVillageBulkEntry(entry) {
+  const errors = [];
+  
+  if (!entry.billNo || entry.billNo.trim().length === 0) {
+    errors.push('Bill number required');
+  }
+  
+  if (!entry.collectorName || entry.collectorName.trim().length < 2) {
+    errors.push('Collector name required');
+  }
+  
+  if (!entry.donorName || entry.donorName.trim().length < 2) {
+    errors.push('Donor name required');
+  }
+  
+  if (!entry.amount || entry.amount < 0) {
+    errors.push('Invalid amount');
+  }
+  
+  if (!entry.village || entry.village.trim().length < 2) {
+    errors.push('Village required');
+  }
+  
+  return errors;
+}
+
+// Process village bulk upload
+async function processVillageBulkUpload() {
+  const textarea = document.getElementById('villageBulkUploadTextarea');
+  const progressDiv = document.getElementById('villageUploadProgress');
+  const progressFill = document.getElementById('villageProgressFill');
+  const progressText = document.getElementById('villageProgressText');
+  const processBtn = document.getElementById('processVillageUploadBtn');
+  
+  if (!textarea) return;
+  
+  const text = textarea.value.trim();
+  if (!text) {
+    showNotification('No data to process', 'error');
+    return;
+  }
+  
+  try {
+    const parsedData = parseVillageBulkData(text);
+    
+    if (parsedData.length === 0) {
+      showNotification('No valid data found', 'error');
+      return;
+    }
+    
+    // Show progress
+    progressDiv.classList.remove('hidden');
+    processBtn.disabled = true;
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    // Process in batches to avoid overwhelming the database
+    const BATCH_SIZE = 10;
+    
+    for (let i = 0; i < parsedData.length; i += BATCH_SIZE) {
+      const batch = parsedData.slice(i, i + BATCH_SIZE);
+      const batchPromises = batch.map(async (entry) => {
+        try {
+          // Find collector ID by name
+          const collectorQuery = await membersCol
+            .where('name', '==', entry.collectorName)
+            .get();
+          
+          if (collectorQuery.empty) {
+            return { status: 'error', entry, error: `Collector "${entry.collectorName}" not found` };
+          }
+          
+          const collectorDoc = collectorQuery.docs[0];
+          const collectorId = collectorDoc.id;
+          
+          // Check for duplicates
+          const existingQuery = await villageCollectionsCollectionFor(selectedYear)
+            .where('bill', '==', entry.billNo)
+            .get();
+          
+          if (!existingQuery.empty) {
+            // Update existing entry
+            const existingDoc = existingQuery.docs[0];
+            await existingDoc.ref.update({
+              collectorId: collectorId,
+              donor: entry.donorName,
+              amount: entry.amount,
+              village: entry.village,
+              remarks: entry.remarks || existingDoc.data().remarks
+            });
+            return { status: 'updated', entry };
+          } else {
+            // Add new entry
+            await villageCollectionsCollectionFor(selectedYear).add({
+              bill: entry.billNo,
+              collectorId: collectorId,
+              donor: entry.donorName,
+              amount: entry.amount,
+              village: entry.village,
+              remarks: entry.remarks || `Added via bulk upload - ${new Date().toLocaleDateString()}`,
+              dateAdded: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            return { status: 'created', entry };
+          }
+        } catch (error) {
+          return { status: 'error', entry, error: error.message };
+        }
+      });
+      
+      const results = await Promise.allSettled(batchPromises);
+      
+      // Update counts
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          if (result.value.status !== 'error') successCount++;
+          else errorCount++;
+        } else {
+          errorCount++;
+        }
+      });
+      
+      // Update progress
+      const progress = ((i + batch.length) / parsedData.length) * 100;
+      progressFill.style.width = `${progress}%`;
+      progressText.textContent = `Processed ${i + batch.length} of ${parsedData.length} (${successCount} success, ${errorCount} errors)`;
+      
+      // Small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // Complete
+    progressFill.style.width = '100%';
+    progressText.textContent = `Completed! ${successCount} successful, ${errorCount} errors`;
+    
+    showNotification(`Village collection bulk upload completed: ${successCount} successful, ${errorCount} errors`, 
+                    errorCount > 0 ? 'warning' : 'success');
+    
+    addActivity(`Village collection bulk upload: ${successCount} entries processed`, 
+                errorCount > 0 ? 'warning' : 'success');
+    
+    // Reload village collections and close modal after delay
+    setTimeout(() => {
+      loadVillageCollections();
+      closeVillageBulkUploadModal();
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Village bulk upload error:', error);
+    showNotification('Village collection bulk upload failed: ' + error.message, 'error');
+    addActivity('Village collection bulk upload failed: ' + error.message, 'error');
+  }
+}
+
 /* ---------------- Export Invitations Bulk ---------------- */
 async function exportInvitationsBulk() {
   try {
@@ -3800,6 +4147,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (textarea) {
     textarea.addEventListener('input', debounce(previewBulkUpload, 500));
   }
+  
+  const villageTextarea = document.getElementById('villageBulkUploadTextarea');
+  if (villageTextarea) {
+    villageTextarea.addEventListener('input', debounce(previewVillageBulkUpload, 500));
+  }
 });
 
 /* ---------------- Navigation ---------------- */
@@ -3838,6 +4190,7 @@ window.loadAllYearsFees = loadAllYearsFees;
 window.loadAllYearsVillageCollections = loadAllYearsVillageCollections;
 window.exportInvitationsBulk = exportInvitationsBulk;
 window.showBulkUploadModal = showBulkUploadModal;
+window.showVillageBulkUploadModal = showVillageBulkUploadModal;
 window.showTransactionModal = showTransactionModal;
 window.generateFinancialReport = generateFinancialReport;
 window.loadFinancialData = loadFinancialData;
