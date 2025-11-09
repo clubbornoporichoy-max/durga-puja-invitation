@@ -900,7 +900,7 @@
     <!-- Village Collection Tracker -->
     <div class="card" id="village-collection">
       <h2>🏘️ Village Collection Tracker (<span id="village-collection-year-display">2025</span>)</h2>
-      <div class="subtitle">Track donations per village and collector (year-specific data)</div>
+      <div class="subtitle">Track donations per village and collector (year-specific data) - Data is copy-pasteable</div>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px">
         <input id="vc-bill" type="text" placeholder="Bill No" style="min-width:120px" />
@@ -925,6 +925,7 @@
         </select>
 
         <button id="add-vc-btn" class="btn small">Add Collection</button>
+        <button class="btn small secondary" onclick="exportVillageCollectionBulk()">📋 Copy Data</button>
       </div>
 
       <!-- Total Collection Display -->
@@ -1775,6 +1776,11 @@ auth.onAuthStateChanged(user => {
       loadAllYearsVillageCollections(); // Load all years village collection data initially
       loadFinancialData(); // Load financial data
       initMembershipFeesEvents(); // Initialize membership fees events
+      
+      // Force refresh of dropdowns
+      setTimeout(() => {
+        loadFeeMembersDropdown();
+      }, 1000);
     }, 120);
   } else {
     // Show auth card, hide main content and summary bar
@@ -2424,21 +2430,46 @@ if (searchMembers) {
 /* ---------------- LOAD FEE MEMBERS DROPDOWN ---------------- */
 async function loadFeeMembersDropdown() {
   const select = document.getElementById("feeMemberSelect");
+  const vcCollectorSelect = document.getElementById("vc-collector"); // Village collection dropdown
+  
   if (!select) return;
   
   select.innerHTML = '<option value="">-- Select member --</option>';
+  if (vcCollectorSelect) {
+    vcCollectorSelect.innerHTML = '<option value="">-- Select Collector --</option>';
+  }
   
   try {
     const snapshot = await membersCol.orderBy("name").get();
+    
+    if (snapshot.empty) {
+      console.log("No members found in database");
+      return;
+    }
+    
     snapshot.forEach(doc => {
       const d = doc.data();
+      const displayText = `${d.name} (${d.village})`;
+      
+      // Add to fee member dropdown
       const option = document.createElement("option");
       option.value = doc.id;
-      option.textContent = `${d.name} (${d.village})`;
+      option.textContent = displayText;
       select.appendChild(option);
+      
+      // Also add to village collection collector dropdown
+      if (vcCollectorSelect) {
+        const collectorOption = document.createElement("option");
+        collectorOption.value = doc.id;
+        collectorOption.textContent = displayText;
+        vcCollectorSelect.appendChild(collectorOption);
+      }
     });
+    
+    console.log(`Loaded ${snapshot.size} members into dropdowns`);
   } catch(e) {
     console.error("Load fee members dropdown error:", e);
+    showNotification('Error loading members dropdown: ' + e.message, 'error');
   }
 }
 
@@ -2462,7 +2493,7 @@ async function loadMemberFeeData(memberId) {
     const memberData = memberDoc.data();
     const feeAmount = parseInt(document.getElementById('feeAmountInput').value) || 100;
     
-    // Get or create fee record
+    // Get fee record
     const feesCol = membershipFeesCollectionFor(selectedYear);
     const feeDoc = await feesCol.doc(memberId).get();
     
@@ -2470,7 +2501,7 @@ async function loadMemberFeeData(memberId) {
     if (feeDoc.exists) {
       feeData = feeDoc.data();
     } else {
-      // Initialize with default data
+      // Initialize with default data - THIS WAS THE MAIN ISSUE
       feeData = {
         memberId: memberId,
         memberName: memberData.name,
@@ -2487,6 +2518,9 @@ async function loadMemberFeeData(memberId) {
           amount: feeAmount
         };
       });
+      
+      // Save the initial structure to Firestore
+      await feesCol.doc(memberId).set(feeData);
     }
 
     // Update the table
@@ -3709,6 +3743,57 @@ function formatInvitationsForExport(invitationsData, totalAmount) {
   return output;
 }
 
+/* ---------------- Export Village Collection Bulk ---------------- */
+function exportVillageCollectionBulk() {
+  try {
+    const table = document.getElementById('vc-table');
+    if (!table) {
+      showNotification('Village collection table not found', 'error');
+      return;
+    }
+
+    const rows = table.querySelectorAll('tbody tr');
+    if (rows.length === 0) {
+      showNotification('No village collection data to export', 'info');
+      return;
+    }
+
+    let output = `🏘️ VILLAGE COLLECTION DATA - CLUB BORNOPORICHOY\n`;
+    output += `Generated on: ${new Date().toLocaleDateString()}\n`;
+    output += `Format: Bill No | Collector | Donor Name | Amount | Village | Remarks\n`;
+    output += `=====================================================================\n\n`;
+
+    rows.forEach(row => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 6) {
+        const billNo = cells[0].textContent.trim();
+        const collector = cells[1].textContent.trim();
+        const donor = cells[2].textContent.trim();
+        const amount = cells[3].textContent.replace('₹', '').trim();
+        const village = cells[5].textContent.trim();
+        const remarks = cells[4].textContent.trim();
+
+        output += `${billNo} | ${collector} | ${donor} | ${amount} | ${village} | ${remarks}\n`;
+      }
+    });
+
+    // Create temporary textarea for copying
+    const textarea = document.createElement('textarea');
+    textarea.value = output;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    showNotification('Village collection data copied to clipboard!', 'success');
+    addActivity('Copied village collection data to clipboard', 'success');
+
+  } catch (error) {
+    console.error('Error exporting village collection data:', error);
+    showNotification('Error copying data: ' + error.message, 'error');
+  }
+}
+
 // Add event listener for textarea changes
 document.addEventListener('DOMContentLoaded', function() {
   const textarea = document.getElementById('bulkUploadTextarea');
@@ -3759,6 +3844,7 @@ window.loadFinancialData = loadFinancialData;
 window.loadMemberFeeData = loadMemberFeeData;
 window.loadFeeYearlySummary = loadFeeYearlySummary;
 window.loadVillageCollections = loadVillageCollections;
+window.exportVillageCollectionBulk = exportVillageCollectionBulk;
 
 // Add some initial activities when the page loads
 setTimeout(() => {
