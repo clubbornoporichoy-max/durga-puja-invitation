@@ -1776,7 +1776,7 @@ auth.onAuthStateChanged(user => {
       loadVillageBreakdown();
       updateYearDisplays();
       
-      // CRITICAL: Initialize event listeners
+      // CRITICAL: Initialize event listeners - FIXED
       initializeAllEventListeners();
       
       // Load financial data
@@ -1785,6 +1785,12 @@ auth.onAuthStateChanged(user => {
       // Force refresh of dropdowns
       setTimeout(() => {
         loadFeeMembersDropdown();
+        // Also trigger a test load if there are members
+        const feeMemberSelect = document.getElementById('feeMemberSelect');
+        if (feeMemberSelect && feeMemberSelect.options.length > 1) {
+          feeMemberSelect.value = feeMemberSelect.options[1].value;
+          loadMemberFeeData(feeMemberSelect.value);
+        }
       }, 1000);
     }, 500);
   } else {
@@ -2487,7 +2493,7 @@ async function loadFeeMembersDropdown() {
 
 /* ---------------- MEMBERSHIP FEES FUNCTIONALITY ---------------- */
 
-// Initialize membership fees event listeners
+// Initialize membership fees event listeners - FIXED VERSION
 function initMembershipFeesEvents() {
   console.log('Initializing membership fees events...');
   
@@ -2505,7 +2511,7 @@ function initMembershipFeesEvents() {
   if (loadMemberFeeBtn) {
     loadMemberFeeBtn.addEventListener('click', function() {
       const memberSelect = document.getElementById('feeMemberSelect');
-      if (memberSelect.value) {
+      if (memberSelect && memberSelect.value) {
         console.log('Load button clicked for member:', memberSelect.value);
         loadMemberFeeData(memberSelect.value);
       } else {
@@ -2548,16 +2554,19 @@ function initMembershipFeesEvents() {
       if (countSpan) countSpan.textContent = "Loaded: 0";
     });
   }
+
+  console.log('Membership fees events initialized successfully');
 }
 
-// Load member fee data when a member is selected
+// Load member fee data when a member is selected - FIXED VERSION
 async function loadMemberFeeData(memberId) {
   console.log('Loading fee data for member:', memberId);
   
   if (!memberId) {
     const tbody = document.getElementById('fee-months-table')?.querySelector('tbody');
     if (tbody) tbody.innerHTML = '';
-    document.getElementById('fee-member-summary').textContent = 'Select member to load fees';
+    const summaryEl = document.getElementById('fee-member-summary');
+    if (summaryEl) summaryEl.textContent = 'Select member to load fees';
     return;
   }
 
@@ -2571,7 +2580,7 @@ async function loadMemberFeeData(memberId) {
     const memberData = memberDoc.data();
     const feeAmount = parseInt(document.getElementById('feeAmountInput').value) || 100;
     
-    // Get fee record - FIXED: Use proper year selection
+    // Get fee record
     const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
     const feesCol = membershipFeesCollectionFor(targetYear);
     const feeDoc = await feesCol.doc(memberId).get();
@@ -2581,7 +2590,7 @@ async function loadMemberFeeData(memberId) {
       feeData = feeDoc.data();
       console.log('Found existing fee data:', feeData);
     } else {
-      // Initialize with default data
+      // Initialize with default data using the NEW structure
       feeData = {
         memberId: memberId,
         memberName: memberData.name,
@@ -2590,7 +2599,7 @@ async function loadMemberFeeData(memberId) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       
-      // Initialize all months as unpaid
+      // Initialize all months as unpaid using NEW structure
       MONTHS.forEach(month => {
         feeData[month] = {
           paid: false,
