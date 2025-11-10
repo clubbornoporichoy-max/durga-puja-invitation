@@ -2586,9 +2586,22 @@ async function loadMemberFeeData(memberId) {
     const feeDoc = await feesCol.doc(memberId).get();
     
     let feeData = {};
+    let needsMigration = false;
+    
     if (feeDoc.exists) {
       feeData = feeDoc.data();
       console.log('Found existing fee data:', feeData);
+      
+      // Check if data uses old structure (nested months object)
+      if (feeData.months && typeof feeData.months === 'object') {
+        console.log('Detected OLD data structure, migrating to new structure...');
+        needsMigration = true;
+        feeData = migrateToNewStructure(feeData, memberId, memberData, feeAmount);
+        
+        // Save migrated data back to Firestore
+        await feesCol.doc(memberId).set(feeData);
+        console.log('Data migrated to new structure');
+      }
     } else {
       // Initialize with default data using the NEW structure
       feeData = {
@@ -2622,18 +2635,66 @@ async function loadMemberFeeData(memberId) {
   }
 }
 
-// Helper function to update the fee table
+// Migrate from old structure to new structure
+function migrateToNewStructure(oldData, memberId, memberData, feeAmount) {
+  const newData = {
+    memberId: memberId,
+    memberName: memberData.name || oldData.memberName,
+    memberVillage: memberData.village || oldData.memberVillage,
+    monthlyFee: oldData.feeAmount || feeAmount,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  
+  // Migrate months data from old structure to new structure
+  MONTHS.forEach(month => {
+    const oldMonthData = oldData.months && oldData.months[month];
+    if (oldMonthData) {
+      newData[month] = {
+        paid: oldMonthData.paid || false,
+        paidOn: oldMonthData.paidAt || null,
+        amount: oldMonthData.amount || oldData.feeAmount || feeAmount
+      };
+    } else {
+      newData[month] = {
+        paid: false,
+        paidOn: null,
+        amount: oldData.feeAmount || feeAmount
+      };
+    }
+  });
+  
+  return newData;
+}
+
+// Enhanced updateFeeTable function with better debugging
 function updateFeeTable(memberData, feeData, feeAmount) {
   const tbody = document.getElementById('fee-months-table').querySelector('tbody');
-  if (!tbody) return;
+  if (!tbody) {
+    console.error('Fee months table tbody not found');
+    return;
+  }
   
   tbody.innerHTML = '';
   
   let paidMonths = 0;
   let totalPaid = 0;
 
+  console.log('Updating fee table with data:', feeData);
+
   MONTHS.forEach(month => {
-    const monthData = feeData[month] || { paid: false, paidOn: null, amount: feeAmount };
+    // Handle both old and new data structures
+    let monthData;
+    if (feeData[month]) {
+      // New structure: direct month properties
+      monthData = feeData[month];
+    } else if (feeData.months && feeData.months[month]) {
+      // Old structure: nested months object
+      monthData = feeData.months[month];
+    } else {
+      // Default structure
+      monthData = { paid: false, paidOn: null, amount: feeAmount };
+    }
+    
     const isPaid = monthData.paid === true;
     
     if (isPaid) {
@@ -2668,14 +2729,20 @@ function updateFeeTable(memberData, feeData, feeAmount) {
 
   // Update summary
   const summaryText = `${memberData.name} - ${paidMonths}/12 months paid (₹${totalPaid})`;
-  document.getElementById('fee-member-summary').textContent = summaryText;
+  const summaryEl = document.getElementById('fee-member-summary');
+  if (summaryEl) {
+    summaryEl.textContent = summaryText;
+  }
+  
+  console.log(`Updated table: ${paidMonths} paid months, total ₹${totalPaid}`);
 }
 
-// Toggle payment status
+// Enhanced togglePaymentStatus function
 async function togglePaymentStatus(memberId, month, paid, amount) {
   try {
     const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
     const feesCol = membershipFeesCollectionFor(targetYear);
+    
     const updateData = {
       [`${month}.paid`]: paid,
       [`${month}.amount`]: amount,
@@ -2742,13 +2809,23 @@ async function loadFeeYearlySummary() {
       });
     }
 
-    // Calculate monthly totals
+    console.log('Processing fees data for yearly summary:', feesData.length, 'records');
+
+    // Calculate monthly totals - handle both data structures
     feesData.forEach(feeData => {
       MONTHS.forEach(month => {
-        const monthData = feeData[month];
+        let monthData;
+        if (feeData[month]) {
+          // New structure
+          monthData = feeData[month];
+        } else if (feeData.months && feeData.months[month]) {
+          // Old structure
+          monthData = feeData.months[month];
+        }
+        
         if (monthData && monthData.paid) {
           monthlyTotals[month].paidCount++;
-          monthlyTotals[month].totalAmount += monthData.amount || feeData.monthlyFee || 100;
+          monthlyTotals[month].totalAmount += monthData.amount || feeData.monthlyFee || feeData.feeAmount || 100;
         }
       });
     });
@@ -2778,6 +2855,8 @@ async function loadFeeYearlySummary() {
       <td>₹${totalAmount.toLocaleString()}</td>
     `;
     tbody.appendChild(totalTr);
+
+    console.log('Yearly summary updated:', { totalPaidCount, totalAmount });
 
   } catch (error) {
     console.error('Error loading yearly summary:', error);
@@ -3321,8 +3400,149 @@ async function updateMonthlySummary() {
   await recalcTotalCollected();
 }
 
-// ... (rest of the bulk upload functions remain the same as in the previous code)
-// The bulk upload functions are quite long, but they remain unchanged from your original working code
+/* ---------------- Bulk Upload Functions ---------------- */
+
+// Export invitations bulk
+function exportInvitationsBulk() {
+  showNotification('Export invitations feature coming soon!', 'info');
+  addActivity('Export invitations triggered', 'info');
+}
+
+// Show bulk upload modal
+function showBulkUploadModal() {
+  const modal = document.getElementById('bulkUploadModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+  }
+}
+
+// Close bulk upload modal
+function closeBulkUploadModal() {
+  const modal = document.getElementById('bulkUploadModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+// Show village bulk upload modal
+function showVillageBulkUploadModal() {
+  const modal = document.getElementById('villageBulkUploadModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+  }
+}
+
+// Close village bulk upload modal
+function closeVillageBulkUploadModal() {
+  const modal = document.getElementById('villageBulkUploadModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+// Download upload template
+function downloadUploadTemplate() {
+  showNotification('Download template feature coming soon!', 'info');
+}
+
+// Download village upload template
+function downloadVillageUploadTemplate() {
+  showNotification('Download village template feature coming soon!', 'info');
+}
+
+// Handle file upload
+function handleFileUpload(file) {
+  showNotification('File upload feature coming soon!', 'info');
+}
+
+// Handle village file upload
+function handleVillageFileUpload(file) {
+  showNotification('Village file upload feature coming soon!', 'info');
+}
+
+// Process bulk upload
+function processBulkUpload() {
+  showNotification('Bulk upload processing feature coming soon!', 'info');
+}
+
+// Process village bulk upload
+function processVillageBulkUpload() {
+  showNotification('Village bulk upload processing feature coming soon!', 'info');
+}
+
+// Export village collection bulk
+function exportVillageCollectionBulk() {
+  showNotification('Export village collection feature coming soon!', 'info');
+  addActivity('Export village collection triggered', 'info');
+}
+
+// Debug function to check data structure
+async function debugFeeStructure() {
+  const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+  const feesCol = membershipFeesCollectionFor(targetYear);
+  const feesSnap = await feesCol.get();
+  
+  console.log('=== FEE DATA STRUCTURE DEBUG ===');
+  console.log(`Total records: ${feesSnap.size}`);
+  
+  feesSnap.forEach(doc => {
+    const data = doc.data();
+    console.log(`Member: ${data.memberName || 'Unknown'} (${doc.id})`);
+    console.log('Data structure:', data);
+    
+    // Check structure type
+    if (data.months) {
+      console.log('📁 OLD STRUCTURE: Uses nested months object');
+    } else {
+      let hasNewStructure = false;
+      MONTHS.forEach(month => {
+        if (data[month]) hasNewStructure = true;
+      });
+      if (hasNewStructure) {
+        console.log('🆕 NEW STRUCTURE: Uses flat month properties');
+      } else {
+        console.log('❓ UNKNOWN STRUCTURE: No recognizable month data');
+      }
+    }
+    console.log('---');
+  });
+}
+
+// Make debug function available globally
+window.debugFeeStructure = debugFeeStructure;
+
+// Add debug button to fees section for testing
+function addDebugButton() {
+  const feesCard = document.getElementById('fees');
+  if (feesCard && currentRole === 'admin') {
+    // Remove existing debug button if any
+    const existingDebugBtn = feesCard.querySelector('[data-debug-button]');
+    if (existingDebugBtn) {
+      existingDebugBtn.remove();
+    }
+    
+    const debugButton = document.createElement('button');
+    debugButton.textContent = '🐛 Debug Data Structure';
+    debugButton.className = 'btn small ghost';
+    debugButton.style.marginLeft = '10px';
+    debugButton.setAttribute('data-debug-button', 'true');
+    debugButton.onclick = debugFeeStructure;
+    
+    const summaryDiv = feesCard.querySelector('#fee-member-summary');
+    if (summaryDiv) {
+      summaryDiv.parentNode.insertBefore(debugButton, summaryDiv.nextSibling);
+    }
+  }
+}
+
+// Update initializeAllEventListeners to include debug button
+function initializeAllEventListeners() {
+  console.log('Initializing all event listeners...');
+  initMembershipFeesEvents();
+  
+  // Add debug button after a short delay to ensure DOM is ready
+  setTimeout(addDebugButton, 1000);
+}
 
 /* ---------------- Navigation ---------------- */
 function clearActiveNav(){ 
