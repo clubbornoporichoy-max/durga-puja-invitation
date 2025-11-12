@@ -3613,7 +3613,7 @@ if (searchVc) {
   searchVc.addEventListener('input', (e) => debouncedFilterTable('vc-table', e.target.value));
 }
 
-/* ---------------- LOAD PAID MEMBERS TRACKER ---------------- */
+/* ---------------- LOAD PAID MEMBERS TRACKER - FIXED VERSION ---------------- */
 async function loadPaidMembersTracker() {
   const container = document.getElementById("paid-members-list");
   const countSpan = document.getElementById("paid-tracker-count");
@@ -3692,8 +3692,17 @@ async function loadPaidMembersTracker() {
         </td>`;
       
       MONTHS.forEach(month => {
-        const monthData = memberFees[month];
-        const isPaid = monthData && monthData.paid === true;
+        // Check both data structures
+        let isPaid = false;
+        
+        // NEW STRUCTURE: Check direct month properties
+        if (memberFees[month] && memberFees[month].paid === true) {
+          isPaid = true;
+        } 
+        // OLD STRUCTURE: Check nested months object
+        else if (memberFees.months && memberFees.months[month] && memberFees.months[month].paid === true) {
+          isPaid = true;
+        }
         
         if (isPaid) memberPaidMonths++;
         
