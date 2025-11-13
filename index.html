@@ -299,7 +299,7 @@
     background: white;
     border-radius: var(--radius);
     padding: 20px;
-    max-width: 800px;
+    max-width: 500px;
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
@@ -447,6 +447,23 @@
     border: 0;
   }
 
+  /* Enhanced Action Buttons */
+  .action-buttons {
+    display: flex;
+    gap: 5px;
+    flex-wrap: nowrap;
+  }
+
+  .action-buttons .btn {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  /* Table action column */
+  td:last-child {
+    min-width: 200px;
+  }
+
   /* responsive */
   @media (max-width: 768px) {
     .summary-cards {
@@ -494,6 +511,7 @@
     .modal-content {
       margin: 10px;
       padding: 15px;
+      max-width: 95%;
     }
     
     .financial-overview-cards {
@@ -502,6 +520,10 @@
     
     .budget-grid {
       grid-template-columns: 1fr !important;
+    }
+
+    td:last-child {
+      min-width: 150px;
     }
   }
 
@@ -766,7 +788,7 @@
       </div>
     </div>
 
-    <!-- Invitations -->
+    <!-- Enhanced Invitations Table with Edit Buttons -->
     <div class="card" id="invitations">
       <h2>🪔 Invitation List <span class="year-info">All Years</span></h2>
       <div class="subtitle">Add, search and track invitation card distribution (shows data from all years)</div>
@@ -812,7 +834,15 @@
 
       <table id="invitation-table" style="margin-top:12px">
         <thead>
-          <tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Sent</th><th>Date Added</th><th>Actions</th></tr>
+          <tr>
+            <th>Name</th>
+            <th>Village</th>
+            <th>Mobile</th>
+            <th>Remarks</th>
+            <th>Sent</th>
+            <th>Date Added</th>
+            <th>Actions</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -828,7 +858,7 @@
       </div>
     </div>
 
-    <!-- Members -->
+    <!-- Enhanced Members Table with Edit Buttons -->
     <div class="card" id="members">
       <h2>🌸 Members List <span class="year-info">All Years</span></h2>
       <div class="subtitle">Manage members — linked to membership fee tracker (shows data from all years)</div>
@@ -839,7 +869,16 @@
       </div>
 
       <table id="members-table" style="margin-top:12px">
-        <thead><tr><th>Name</th><th>Village</th><th>Mobile</th><th>Remarks</th><th>Actions</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Village</th>
+            <th>Mobile</th>
+            <th>Remarks</th>
+            <th>Date Added</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
         <tbody></tbody>
       </table>
 
@@ -917,7 +956,7 @@
       <div id="paid-members-list" style="margin-top:14px;overflow:auto;"></div>
     </div>
 
-    <!-- Village Collection Tracker -->
+    <!-- Enhanced Village Collection Tracker with Edit Buttons -->
     <div class="card" id="village-collection">
       <h2>🏘️ Village Collection Tracker (<span id="village-collection-year-display">2025</span>)</h2>
       <div class="subtitle">Track donations per village and collector (year-specific data) - Data is copy-pasteable</div>
@@ -1125,6 +1164,127 @@
     <div style="display: flex; gap: 10px; margin-top: 20px;">
       <button class="btn" onclick="saveTransaction()">💾 Save Transaction</button>
       <button class="btn ghost" onclick="closeTransactionModal()">❌ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Member Modal -->
+<div id="editMemberModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>✏️ Edit Member</h3>
+      <button class="modal-close" onclick="closeEditMemberModal()">&times;</button>
+    </div>
+    <div style="display: grid; gap: 15px; margin-top: 15px;">
+      <div>
+        <label class="muted">Name *</label>
+        <input type="text" id="edit-mem-name" placeholder="Member Name" style="width: 100%;">
+      </div>
+      <div>
+        <label class="muted">Village *</label>
+        <input type="text" id="edit-mem-village" placeholder="Village" style="width: 100%;">
+      </div>
+      <div>
+        <label class="muted">Mobile</label>
+        <input type="text" id="edit-mem-mobile" placeholder="Mobile Number" style="width: 100%;">
+      </div>
+      <div>
+        <label class="muted">Remarks</label>
+        <textarea id="edit-mem-remarks" placeholder="Remarks" style="width: 100%; min-height: 80px;"></textarea>
+      </div>
+    </div>
+    <div style="display: flex; gap: 10px; margin-top: 20px;">
+      <button class="btn" onclick="saveMemberEdit()">💾 Save Changes</button>
+      <button class="btn ghost" onclick="closeEditMemberModal()">❌ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Invitation Modal -->
+<div id="editInvitationModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>✏️ Edit Invitation</h3>
+      <button class="modal-close" onclick="closeEditInvitationModal()">&times;</button>
+    </div>
+    <div style="display: grid; gap: 15px; margin-top: 15px;">
+      <div>
+        <label class="muted">Name *</label>
+        <input type="text" id="edit-inv-name" placeholder="Name" style="width: 100%;">
+      </div>
+      <div>
+        <label class="muted">Village *</label>
+        <input type="text" id="edit-inv-village" placeholder="Village" style="width: 100%;">
+      </div>
+      <div>
+        <label class="muted">Mobile</label>
+        <input type="text" id="edit-inv-mobile" placeholder="Mobile Number" style="width: 100%;">
+      </div>
+      <div>
+        <label class="muted">Remarks</label>
+        <textarea id="edit-inv-remarks" placeholder="Remarks" style="width: 100%; min-height: 80px;"></textarea>
+      </div>
+      <div>
+        <label class="muted">Status</label>
+        <select id="edit-inv-sent" style="width: 100%;">
+          <option value="false">Pending</option>
+          <option value="true">Sent</option>
+        </select>
+      </div>
+    </div>
+    <div style="display: flex; gap: 10px; margin-top: 20px;">
+      <button class="btn" onclick="saveInvitationEdit()">💾 Save Changes</button>
+      <button class="btn ghost" onclick="closeEditInvitationModal()">❌ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Collection Modal -->
+<div id="editCollectionModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>✏️ Edit Collection</h3>
+      <button class="modal-close" onclick="closeEditCollectionModal()">&times;</button>
+    </div>
+    <div style="display: grid; gap: 15px; margin-top: 15px;">
+      <div>
+        <label class="muted">Bill No *</label>
+        <input type="text" id="edit-vc-bill" placeholder="Bill Number" style="width: 100%;">
+      </div>
+      <div>
+        <label class="muted">Collector *</label>
+        <select id="edit-vc-collector" style="width: 100%;">
+          <option value="">-- Select Collector --</option>
+        </select>
+      </div>
+      <div>
+        <label class="muted">Donor Name *</label>
+        <input type="text" id="edit-vc-donor" placeholder="Donor Name" style="width: 100%;">
+      </div>
+      <div>
+        <label class="muted">Amount (₹) *</label>
+        <input type="number" id="edit-vc-amount" placeholder="Amount" style="width: 100%;">
+      </div>
+      <div>
+        <label class="muted">Village *</label>
+        <select id="edit-vc-village" style="width: 100%;">
+          <option value="">-- Select Village --</option>
+          <option value="Madhabpur">Madhabpur</option>
+          <option value="Paldhui">Paldhui</option>
+          <option value="Sabitrapur">Sabitrapur</option>
+          <option value="Lalupool">Lalupool</option>
+          <option value="Mahakal">Mahakal</option>
+          <option value="Others">Others</option>
+        </select>
+      </div>
+      <div>
+        <label class="muted">Remarks</label>
+        <textarea id="edit-vc-remarks" placeholder="Remarks" style="width: 100%; min-height: 80px;"></textarea>
+      </div>
+    </div>
+    <div style="display: flex; gap: 10px; margin-top: 20px;">
+      <button class="btn" onclick="saveCollectionEdit()">💾 Save Changes</button>
+      <button class="btn ghost" onclick="closeEditCollectionModal()">❌ Cancel</button>
     </div>
   </div>
 </div>
@@ -2633,7 +2793,215 @@ function filterTransactions() {
   showNotification('Filter functionality coming soon!', 'info');
 }
 
-/* ---------------- INVITATIONS ---------------- */
+/* ---------------- ENHANCED INVITATIONS MANAGEMENT ---------------- */
+let editingInvitationId = null;
+
+// Enhanced load invitations function with edit capabilities
+async function loadInvitations(){
+  const tbody = document.querySelector("#invitation-table tbody");
+  if (!tbody) {
+    console.error("Invitations table body not found");
+    return;
+  }
+  
+  tbody.innerHTML = "";
+  try {
+    const snapshot = await cachedLoadInvitations();
+    let total=0, sent=0;
+    
+    snapshot.forEach(doc => {
+      total++;
+      const d = doc.data();
+      if(d.sent) sent++;
+      
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(d.name||"")}</td>
+        <td>${escapeHtml(d.village||"")}</td>
+        <td>${escapeHtml(d.mobile||"")}</td>
+        <td>${escapeHtml(d.remarks||"")}</td>
+        <td class="center">${d.sent?'<span class="badge ok">Sent</span>':'<span class="badge warn">Pending</span>'}</td>
+        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleDateString() : ""}</td>
+        <td style="white-space: nowrap;"></td>
+      `;
+      tbody.appendChild(tr);
+
+      const actionsTd = tr.querySelector("td:last-child");
+      if(currentRole==="admin"){
+        // Edit button
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "✏️ Edit";
+        editBtn.className = "btn small secondary";
+        editBtn.style.marginRight = "5px";
+        editBtn.onclick = () => showEditInvitationModal(doc.id, d);
+        actionsTd.appendChild(editBtn);
+
+        // Toggle sent status button
+        const toggleBtn = document.createElement("button");
+        toggleBtn.textContent = d.sent ? "↶ Mark Pending" : "✓ Mark Sent";
+        toggleBtn.className = "btn small";
+        toggleBtn.style.marginRight = "5px";
+        toggleBtn.onclick = () => toggleInvitationStatus(doc.id, d.sent, d.name);
+        actionsTd.appendChild(toggleBtn);
+
+        // Delete button
+        const delBtn = document.createElement("button");
+        delBtn.textContent = "🗑️ Delete";
+        delBtn.className = "btn small ghost";
+        delBtn.onclick = () => deleteInvitation(doc.id, d.name);
+        actionsTd.appendChild(delBtn);
+        
+      } else {
+        actionsTd.innerHTML = '<span class="muted">View only</span>';
+      }
+    });
+  } catch(e){
+    console.error("Load invitations error:", e);
+    alert("Failed to load invitations: " + (e.message || e));
+  }
+}
+
+// Show edit invitation modal
+function showEditInvitationModal(invitationId, invitationData) {
+  editingInvitationId = invitationId;
+  
+  let modal = document.getElementById('editInvitationModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'editInvitationModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✏️ Edit Invitation</h3>
+          <button class="modal-close" onclick="closeEditInvitationModal()">&times;</button>
+        </div>
+        <div style="display: grid; gap: 15px; margin-top: 15px;">
+          <div>
+            <label class="muted">Name *</label>
+            <input type="text" id="edit-inv-name" placeholder="Name" style="width: 100%;">
+          </div>
+          <div>
+            <label class="muted">Village *</label>
+            <input type="text" id="edit-inv-village" placeholder="Village" style="width: 100%;">
+          </div>
+          <div>
+            <label class="muted">Mobile</label>
+            <input type="text" id="edit-inv-mobile" placeholder="Mobile Number" style="width: 100%;">
+          </div>
+          <div>
+            <label class="muted">Remarks</label>
+            <textarea id="edit-inv-remarks" placeholder="Remarks" style="width: 100%; min-height: 80px;"></textarea>
+          </div>
+          <div>
+            <label class="muted">Status</label>
+            <select id="edit-inv-sent" style="width: 100%;">
+              <option value="false">Pending</option>
+              <option value="true">Sent</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button class="btn" onclick="saveInvitationEdit()">💾 Save Changes</button>
+          <button class="btn ghost" onclick="closeEditInvitationModal()">❌ Cancel</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  
+  // Populate form with current data
+  document.getElementById('edit-inv-name').value = invitationData.name || '';
+  document.getElementById('edit-inv-village').value = invitationData.village || '';
+  document.getElementById('edit-inv-mobile').value = invitationData.mobile || '';
+  document.getElementById('edit-inv-remarks').value = invitationData.remarks || '';
+  document.getElementById('edit-inv-sent').value = invitationData.sent ? 'true' : 'false';
+  
+  modal.classList.remove('hidden');
+}
+
+// Close edit invitation modal
+function closeEditInvitationModal() {
+  const modal = document.getElementById('editInvitationModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+  editingInvitationId = null;
+}
+
+// Save invitation edits
+async function saveInvitationEdit() {
+  if (!editingInvitationId) return;
+  
+  const name = document.getElementById('edit-inv-name').value.trim();
+  const village = document.getElementById('edit-inv-village').value.trim();
+  const mobile = document.getElementById('edit-inv-mobile').value.trim();
+  const remarks = document.getElementById('edit-inv-remarks').value.trim();
+  const sent = document.getElementById('edit-inv-sent').value === 'true';
+  
+  if (!name || !village) {
+    showNotification('Name and Village are required', 'error');
+    return;
+  }
+  
+  try {
+    await invitationCol.doc(editingInvitationId).update({
+      name,
+      village,
+      mobile,
+      remarks,
+      sent,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    showNotification('Invitation updated successfully', 'success');
+    addActivity(`Updated invitation for ${name}`, 'success');
+    closeEditInvitationModal();
+    loadInvitations();
+    updateSummaryCards();
+    
+  } catch (error) {
+    console.error('Error updating invitation:', error);
+    showNotification('Error updating invitation: ' + error.message, 'error');
+  }
+}
+
+// Toggle invitation status
+async function toggleInvitationStatus(invitationId, currentStatus, name) {
+  try {
+    await invitationCol.doc(invitationId).update({
+      sent: !currentStatus,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    showNotification(`Invitation marked as ${!currentStatus ? 'Sent' : 'Pending'}`, 'success');
+    addActivity(`Updated invitation status for ${name}`, 'info');
+    loadInvitations();
+    updateSummaryCards();
+    
+  } catch (error) {
+    console.error('Error toggling invitation status:', error);
+    showNotification('Error updating invitation status: ' + error.message, 'error');
+  }
+}
+
+// Delete invitation
+async function deleteInvitation(invitationId, name) {
+  if (!confirm(`Are you sure you want to delete invitation for ${name}?`)) return;
+  
+  try {
+    await invitationCol.doc(invitationId).delete();
+    showToast("Deleted"); 
+    addActivity(`Deleted invitation for ${name}`, 'info');
+    loadInvitations(); 
+    updateSummaryCards();
+  } catch (error) {
+    console.error('Error deleting invitation:', error);
+    alert("Delete failed: " + (error.message || error));
+  }
+}
+
+// Add invitation event listener
 const addInvBtn = document.getElementById("add-inv-btn");
 if (addInvBtn) {
   addInvBtn.addEventListener("click", async () => {
@@ -2669,81 +3037,16 @@ if (addInvBtn) {
   });
 }
 
-async function loadInvitations(){
-  const tbody = document.querySelector("#invitation-table tbody");
-  if (!tbody) {
-    console.error("Invitations table body not found");
-    return;
-  }
-  
-  tbody.innerHTML = "";
-  try {
-    const snapshot = await cachedLoadInvitations();
-    let total=0, sent=0;
-    snapshot.forEach(doc => {
-      total++;
-      const d = doc.data();
-      if(d.sent) sent++;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.name||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.village||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.remarks||"")}</td>
-        <td class="center">${d.sent?'<span class="badge ok">Sent</span>':'<span class="badge warn">Pending</span>'}</td>
-        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ""}</td>
-        <td></td>
-      `;
-      tbody.appendChild(tr);
-
-      const actionsTd = tr.querySelector("td:last-child");
-      if(currentRole==="admin"){
-        const toggle=document.createElement("button"); toggle.textContent=d.sent?"Mark Pending":"Mark Sent"; toggle.className="btn small";
-        toggle.onclick=()=> doc.ref.update({sent:!d.sent}).then(()=>{ 
-          showToast("Updated"); 
-          addActivity(`Updated invitation status for ${d.name}`, 'info');
-          loadInvitations(); 
-          updateSummaryCards();
-        }).catch(err=>alert(err.message));
-        actionsTd.appendChild(toggle);
-
-        const del=document.createElement("button"); del.style.marginLeft="8px"; del.textContent="Delete"; del.className="btn small ghost";
-        del.onclick=()=>{ if(confirm("Delete invitation?")) doc.ref.delete().then(()=>{ 
-          showToast("Deleted"); 
-          addActivity(`Deleted invitation for ${d.name}`, 'info');
-          loadInvitations(); 
-          updateSummaryCards();
-        }); };
-        actionsTd.appendChild(del);
-
-        const editable=tr.querySelectorAll("td[contenteditable='true']");
-        editable.forEach((cell,idx)=> {
-          const map=["name","village","mobile","remarks"];
-          cell.onblur = async ()=> {
-            try {
-              const val = cell.textContent.trim();
-              const upd = {}; upd[map[idx]] = val;
-              await doc.ref.update(upd);
-              showToast("Saved");
-              addActivity(`Updated ${map[idx]} for ${d.name}`, 'info');
-            } catch(e) { console.error(e); alert("Save failed: "+(e.message||e)); }
-          };
-        });
-      }
-    });
-  } catch(e){
-    console.error("Load invitations error:", e);
-    alert("Failed to load invitations: " + (e.message || e));
-  }
-}
-
 // Use debounced search
 const searchInvite = document.getElementById("search-invite");
 if (searchInvite) {
   searchInvite.addEventListener("input",(e)=> debouncedFilterTable("invitation-table", e.target.value));
 }
 
-/* ---------------- MEMBERS ---------------- */
+/* ---------------- ENHANCED MEMBERS MANAGEMENT ---------------- */
+let editingMemberId = null;
+
+// Enhanced load members function with edit capabilities
 async function loadMembers() {
   const tbody = document.querySelector("#members-table tbody");
   if (!tbody) {
@@ -2761,21 +3064,31 @@ async function loadMembers() {
       const d = doc.data();
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.name||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.village||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.mobile||"")}</td>
-        <td contenteditable="${currentRole==='admin'}" class="${currentRole==='admin'?'editable':''}">${escapeHtml(d.remarks||"")}</td>
-        <td></td>
+        <td>${escapeHtml(d.name||"")}</td>
+        <td>${escapeHtml(d.village||"")}</td>
+        <td>${escapeHtml(d.mobile||"")}</td>
+        <td>${escapeHtml(d.remarks||"")}</td>
+        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleDateString() : ""}</td>
+        <td style="white-space: nowrap;"></td>
       `;
       tbody.appendChild(tr);
 
       const actionsTd = tr.querySelector("td:last-child");
       if(currentRole==="admin"){
-        const del=document.createElement("button"); 
-        del.textContent="Delete"; 
-        del.className="btn small ghost";
-        del.onclick=()=>{ 
-          if(confirm("Delete member?")) doc.ref.delete().then(()=>{ 
+        // Edit button
+        const editBtn = document.createElement("button"); 
+        editBtn.textContent = "✏️ Edit"; 
+        editBtn.className = "btn small secondary";
+        editBtn.style.marginRight = "5px";
+        editBtn.onclick = () => showEditMemberModal(doc.id, d);
+        actionsTd.appendChild(editBtn);
+
+        // Delete button
+        const delBtn = document.createElement("button"); 
+        delBtn.textContent = "🗑️ Delete"; 
+        delBtn.className = "btn small ghost";
+        delBtn.onclick = () => { 
+          if(confirm("Delete member?")) doc.ref.delete().then(() => { 
             showToast("Deleted"); 
             addActivity(`Deleted member ${d.name}`, 'info');
             loadMembers(); 
@@ -2783,22 +3096,10 @@ async function loadMembers() {
             updateSummaryCards();
           }); 
         };
-        actionsTd.appendChild(del);
-
-        const editable=tr.querySelectorAll("td[contenteditable='true']");
-        editable.forEach((cell,idx)=> {
-          const map=["name","village","mobile","remarks"];
-          cell.onblur = async ()=> {
-            try {
-              const val = cell.textContent.trim();
-              const upd = {}; upd[map[idx]] = val;
-              await doc.ref.update(upd);
-              showToast("Saved");
-              addActivity(`Updated ${map[idx]} for ${d.name}`, 'info');
-              loadFeeMembersDropdown(); // Refresh dropdown
-            } catch(e) { console.error(e); alert("Save failed: "+(e.message||e)); }
-          };
-        });
+        actionsTd.appendChild(delBtn);
+      } else {
+        // View-only mode for non-admins
+        actionsTd.innerHTML = '<span class="muted">View only</span>';
       }
     });
     
@@ -2806,6 +3107,102 @@ async function loadMembers() {
   } catch(e){
     console.error("Load members error:", e);
     alert("Failed to load members: " + (e.message || e));
+  }
+}
+
+// Show edit member modal
+function showEditMemberModal(memberId, memberData) {
+  editingMemberId = memberId;
+  
+  // Create or show modal
+  let modal = document.getElementById('editMemberModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'editMemberModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✏️ Edit Member</h3>
+          <button class="modal-close" onclick="closeEditMemberModal()">&times;</button>
+        </div>
+        <div style="display: grid; gap: 15px; margin-top: 15px;">
+          <div>
+            <label class="muted">Name *</label>
+            <input type="text" id="edit-mem-name" placeholder="Member Name" style="width: 100%;">
+          </div>
+          <div>
+            <label class="muted">Village *</label>
+            <input type="text" id="edit-mem-village" placeholder="Village" style="width: 100%;">
+          </div>
+          <div>
+            <label class="muted">Mobile</label>
+            <input type="text" id="edit-mem-mobile" placeholder="Mobile Number" style="width: 100%;">
+          </div>
+          <div>
+            <label class="muted">Remarks</label>
+            <textarea id="edit-mem-remarks" placeholder="Remarks" style="width: 100%; min-height: 80px;"></textarea>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button class="btn" onclick="saveMemberEdit()">💾 Save Changes</button>
+          <button class="btn ghost" onclick="closeEditMemberModal()">❌ Cancel</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  
+  // Populate form with current data
+  document.getElementById('edit-mem-name').value = memberData.name || '';
+  document.getElementById('edit-mem-village').value = memberData.village || '';
+  document.getElementById('edit-mem-mobile').value = memberData.mobile || '';
+  document.getElementById('edit-mem-remarks').value = memberData.remarks || '';
+  
+  modal.classList.remove('hidden');
+}
+
+// Close edit member modal
+function closeEditMemberModal() {
+  const modal = document.getElementById('editMemberModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+  editingMemberId = null;
+}
+
+// Save member edits
+async function saveMemberEdit() {
+  if (!editingMemberId) return;
+  
+  const name = document.getElementById('edit-mem-name').value.trim();
+  const village = document.getElementById('edit-mem-village').value.trim();
+  const mobile = document.getElementById('edit-mem-mobile').value.trim();
+  const remarks = document.getElementById('edit-mem-remarks').value.trim();
+  
+  if (!name || !village) {
+    showNotification('Name and Village are required', 'error');
+    return;
+  }
+  
+  try {
+    await membersCol.doc(editingMemberId).update({
+      name,
+      village,
+      mobile,
+      remarks,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    showNotification('Member updated successfully', 'success');
+    addActivity(`Updated member: ${name}`, 'success');
+    closeEditMemberModal();
+    loadMembers();
+    loadFeeMembersDropdown();
+    
+  } catch (error) {
+    console.error('Error updating member:', error);
+    showNotification('Error updating member: ' + error.message, 'error');
   }
 }
 
@@ -3445,7 +3842,10 @@ async function exportFeesCSV() {
   }
 }
 
-/* ---------------- VILLAGE COLLECTIONS ---------------- */
+/* ---------------- ENHANCED VILLAGE COLLECTIONS MANAGEMENT ---------------- */
+let editingCollectionId = null;
+
+// Enhanced load village collections function with edit capabilities
 async function loadVillageCollections() {
   const tbody = document.querySelector('#vc-table tbody');
   if (!tbody) return;
@@ -3493,33 +3893,29 @@ async function loadVillageCollections() {
         <td>₹${(d.amount || 0).toLocaleString()}</td>
         <td>${escapeHtml(d.remarks || '')}</td>
         <td>${escapeHtml(d.village || '')}</td>
-        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleString() : ''}</td>
-        <td></td>
+        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleDateString() : ''}</td>
+        <td style="white-space: nowrap;"></td>
       `;
       tbody.appendChild(tr);
 
       const actionsTd = tr.querySelector('td:last-child');
       if (currentRole === 'admin') {
-        const del = document.createElement('button');
-        del.textContent = 'Delete';
-        del.className = 'btn small ghost';
-        del.onclick = () => {
-          if (confirm('Delete collection record?')) {
-            if (selectedYear === 'all') {
-              showNotification('Cannot delete from "All Years" view. Switch to specific year.', 'error');
-              return;
-            }
-            const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
-            villageCollectionsCollectionFor(targetYear).doc(collection.id).delete()
-              .then(() => {
-                showToast('Deleted');
-                addActivity(`Deleted collection record for ${d.donor}`, 'info');
-                loadVillageCollections();
-                recalcTotalCollected();
-              });
-          }
-        };
-        actionsTd.appendChild(del);
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✏️ Edit';
+        editBtn.className = 'btn small secondary';
+        editBtn.style.marginRight = '5px';
+        editBtn.onclick = () => showEditCollectionModal(collection.id, d);
+        actionsTd.appendChild(editBtn);
+
+        // Delete button
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '🗑️ Delete';
+        delBtn.className = 'btn small ghost';
+        delBtn.onclick = () => deleteCollection(collection.id, d.donor);
+        actionsTd.appendChild(delBtn);
+      } else {
+        actionsTd.innerHTML = '<span class="muted">View only</span>';
       }
     });
 
@@ -3547,6 +3943,167 @@ async function loadVillageCollections() {
 
   } catch (error) {
     console.error('Error loading village collections:', error);
+  }
+}
+
+// Show edit collection modal
+function showEditCollectionModal(collectionId, collectionData) {
+  editingCollectionId = collectionId;
+  
+  let modal = document.getElementById('editCollectionModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'editCollectionModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>✏️ Edit Collection</h3>
+          <button class="modal-close" onclick="closeEditCollectionModal()">&times;</button>
+        </div>
+        <div style="display: grid; gap: 15px; margin-top: 15px;">
+          <div>
+            <label class="muted">Bill No *</label>
+            <input type="text" id="edit-vc-bill" placeholder="Bill Number" style="width: 100%;">
+          </div>
+          <div>
+            <label class="muted">Collector *</label>
+            <select id="edit-vc-collector" style="width: 100%;">
+              <option value="">-- Select Collector --</option>
+            </select>
+          </div>
+          <div>
+            <label class="muted">Donor Name *</label>
+            <input type="text" id="edit-vc-donor" placeholder="Donor Name" style="width: 100%;">
+          </div>
+          <div>
+            <label class="muted">Amount (₹) *</label>
+            <input type="number" id="edit-vc-amount" placeholder="Amount" style="width: 100%;">
+          </div>
+          <div>
+            <label class="muted">Village *</label>
+            <select id="edit-vc-village" style="width: 100%;">
+              <option value="">-- Select Village --</option>
+              <option value="Madhabpur">Madhabpur</option>
+              <option value="Paldhui">Paldhui</option>
+              <option value="Sabitrapur">Sabitrapur</option>
+              <option value="Lalupool">Lalupool</option>
+              <option value="Mahakal">Mahakal</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+          <div>
+            <label class="muted">Remarks</label>
+            <textarea id="edit-vc-remarks" placeholder="Remarks" style="width: 100%; min-height: 80px;"></textarea>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button class="btn" onclick="saveCollectionEdit()">💾 Save Changes</button>
+          <button class="btn ghost" onclick="closeEditCollectionModal()">❌ Cancel</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  
+  // Populate collectors dropdown
+  const collectorSelect = document.getElementById('edit-vc-collector');
+  collectorSelect.innerHTML = '<option value="">-- Select Collector --</option>';
+  if (window.memberNamesMap) {
+    Object.entries(window.memberNamesMap).forEach(([id, name]) => {
+      const option = document.createElement('option');
+      option.value = id;
+      option.textContent = name;
+      collectorSelect.appendChild(option);
+    });
+  }
+  
+  // Populate form with current data
+  document.getElementById('edit-vc-bill').value = collectionData.bill || '';
+  document.getElementById('edit-vc-collector').value = collectionData.collectorId || '';
+  document.getElementById('edit-vc-donor').value = collectionData.donor || '';
+  document.getElementById('edit-vc-amount').value = collectionData.amount || '';
+  document.getElementById('edit-vc-village').value = collectionData.village || '';
+  document.getElementById('edit-vc-remarks').value = collectionData.remarks || '';
+  
+  modal.classList.remove('hidden');
+}
+
+// Close edit collection modal
+function closeEditCollectionModal() {
+  const modal = document.getElementById('editCollectionModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+  editingCollectionId = null;
+}
+
+// Save collection edits
+async function saveCollectionEdit() {
+  if (!editingCollectionId) return;
+  
+  const bill = document.getElementById('edit-vc-bill').value.trim();
+  const collectorId = document.getElementById('edit-vc-collector').value;
+  const donor = document.getElementById('edit-vc-donor').value.trim();
+  const amount = parseFloat(document.getElementById('edit-vc-amount').value);
+  const village = document.getElementById('edit-vc-village').value;
+  const remarks = document.getElementById('edit-vc-remarks').value.trim();
+  
+  if (!bill || !collectorId || !donor || !amount || !village) {
+    showNotification('Please fill all required fields', 'error');
+    return;
+  }
+  
+  if (amount <= 0) {
+    showNotification('Amount must be greater than 0', 'error');
+    return;
+  }
+  
+  try {
+    const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+    await villageCollectionsCollectionFor(targetYear).doc(editingCollectionId).update({
+      bill,
+      collectorId,
+      donor,
+      amount,
+      village,
+      remarks,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    showNotification('Collection updated successfully', 'success');
+    addActivity(`Updated collection from ${donor}`, 'success');
+    closeEditCollectionModal();
+    loadVillageCollections();
+    recalcTotalCollected();
+    
+  } catch (error) {
+    console.error('Error updating collection:', error);
+    showNotification('Error updating collection: ' + error.message, 'error');
+  }
+}
+
+// Delete collection
+async function deleteCollection(collectionId, donorName) {
+  if (!confirm(`Are you sure you want to delete collection from ${donorName}?`)) return;
+  
+  try {
+    if (selectedYear === 'all') {
+      showNotification('Cannot delete from "All Years" view. Switch to specific year.', 'error');
+      return;
+    }
+    
+    const targetYear = selectedYear === 'all' ? new Date().getFullYear() : selectedYear;
+    await villageCollectionsCollectionFor(targetYear).doc(collectionId).delete();
+    
+    showToast('Deleted');
+    addActivity(`Deleted collection record for ${donorName}`, 'info');
+    loadVillageCollections();
+    recalcTotalCollected();
+    
+  } catch (error) {
+    console.error('Error deleting collection:', error);
+    showNotification('Error deleting collection: ' + error.message, 'error');
   }
 }
 
