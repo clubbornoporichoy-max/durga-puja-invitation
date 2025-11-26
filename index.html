@@ -1293,7 +1293,333 @@
 <div id="sr-live-region" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 <script>
-/* ==================== FIXED CODE ==================== */
+/* ==================== ENHANCEMENTS IMPLEMENTATION ==================== */
+
+/* ---------------- Performance & Lazy Loading ---------------- */
+let observers = [];
+let lazyLoadObserver;
+
+function initLazyLoading() {
+  const observerOptions = {
+    rootMargin: '50px',
+    threshold: 0.1
+  };
+
+  lazyLoadObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const element = entry.target;
+        if (element.id === 'collectionChart' && !collectionChart) {
+          console.log('Lazy loading collection chart');
+          initCollectionChart();
+        }
+        if (element.id === 'budgetChart' && !budgetChart) {
+          console.log('Lazy loading budget chart');
+          initBudgetChart();
+        }
+      }
+    });
+  }, observerOptions);
+
+  // Observe chart containers
+  const chartElements = document.querySelectorAll('#collectionChart, #budgetChart');
+  chartElements.forEach(el => {
+    if (el) lazyLoadObserver.observe(el);
+  });
+}
+
+/* ---------------- Enhanced Error Handling ---------------- */
+function setupGlobalErrorHandlers() {
+  // Global error handler
+  window.addEventListener('error', (e) => {
+    console.error('Global error:', e.error);
+    showNotification('An unexpected error occurred', 'error');
+  });
+
+  // Unhandled promise rejection handler
+  window.addEventListener('unhandledrejection', (e) => {
+    console.error('Unhandled promise rejection:', e.reason);
+    showNotification('Operation failed: ' + (e.reason?.message || 'Unknown error'), 'error');
+    e.preventDefault();
+  });
+}
+
+// Enhanced Firebase error handling
+function withFirebaseErrorHandling(operation, customMessage) {
+  return async (...args) => {
+    try {
+      return await operation(...args);
+    } catch (error) {
+      console.error(`Firebase ${operation.name} error:`, error);
+      
+      if (error.code === 'permission-denied') {
+        showNotification('Permission denied: You cannot perform this action', 'error');
+      } else if (error.code === 'unavailable') {
+        showNotification('Network error: Please check your connection', 'error');
+      } else if (error.code === 'not-found') {
+        showNotification('Data not found', 'error');
+      } else {
+        showNotification(customMessage || 'Operation failed', 'error');
+      }
+      throw error;
+    }
+  };
+}
+
+/* ---------------- Loading States & User Feedback ---------------- */
+function withLoading(button, operation) {
+  return async (...args) => {
+    const originalText = button.textContent;
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<span class="loading-spinner"></span> Loading...';
+    button.disabled = true;
+    button.classList.add('loading');
+    
+    try {
+      const result = await operation(...args);
+      return result;
+    } finally {
+      button.innerHTML = originalHTML;
+      button.textContent = originalText;
+      button.disabled = false;
+      button.classList.remove('loading');
+    }
+  };
+}
+
+// Enhanced button loading for all major actions
+function enhanceButtonsWithLoading() {
+  const loginBtn = document.getElementById("login-btn");
+  if (loginBtn) {
+    const originalOnClick = loginBtn.onclick;
+    loginBtn.onclick = null;
+    loginBtn.addEventListener("click", () => {
+      withLoading(loginBtn, async () => {
+        const email = document.getElementById("email").value.trim();
+        const pw = document.getElementById("password").value;
+        if(!email || !pw) throw new Error("Enter email and password");
+        
+        await auth.signInWithEmailAndPassword(email,pw);
+        showToast("Logged in");
+        addActivity('User logged in successfully', 'success');
+      })().catch(error => {
+        alert("Login error: "+error.message);
+        addActivity('Login failed: ' + error.message, 'error');
+      });
+    });
+  }
+}
+
+/* ---------------- Data Caching Strategy ---------------- */
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function withCache(key, operation, ttl = CACHE_TTL) {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < ttl) {
+    console.log(`Cache hit for: ${key}`);
+    return Promise.resolve(cached.data);
+  }
+  
+  return operation().then(data => {
+    cache.set(key, { data, timestamp: Date.now() });
+    console.log(`Cache set for: ${key}`);
+    return data;
+  });
+}
+
+function clearCache(pattern) {
+  let cleared = 0;
+  for (const key of cache.keys()) {
+    if (key.includes(pattern)) {
+      cache.delete(key);
+      cleared++;
+    }
+  }
+  console.log(`Cleared ${cleared} cache entries for pattern: ${pattern}`);
+}
+
+// Enhanced load functions with caching
+const cachedLoadMembers = () => withCache('members', () => membersCol.orderBy("name").get());
+const cachedLoadInvitations = () => withCache('invitations', () => invitationCol.orderBy("dateAdded","desc").get());
+
+/* ---------------- Accessibility Improvements ---------------- */
+function enhanceAccessibility() {
+  // Add aria-live regions for dynamic content
+  const liveRegion = document.getElementById('sr-live-region');
+  
+  // Enhanced notifications for screen readers
+  const originalShowNotification = window.showNotification;
+  window.showNotification = (message, type = 'info', duration = 5000) => {
+    originalShowNotification(message, type, duration);
+    if (liveRegion) {
+      liveRegion.textContent = message;
+      // Clear after a delay so subsequent announcements work
+      setTimeout(() => liveRegion.textContent = '', 100);
+    }
+  };
+
+  // Add keyboard navigation to tables
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      // Ensure focus indicators are visible
+      document.body.classList.add('keyboard-navigation');
+    }
+  });
+
+  document.addEventListener('mousedown', () => {
+    document.body.classList.remove('keyboard-navigation');
+  });
+}
+
+/* ---------------- Memory Management ---------------- */
+function cleanup() {
+  // Clean up observers
+  if (lazyLoadObserver) {
+    lazyLoadObserver.disconnect();
+  }
+  observers.forEach(observer => observer.disconnect());
+  observers = [];
+  
+  // Clear intervals and timeouts
+  if (window.updateInterval) {
+    clearInterval(window.updateInterval);
+  }
+  
+  // Clear cache
+  cache.clear();
+  
+  // Remove global event listeners
+  document.removeEventListener('keydown', handleGlobalKeys);
+  
+  console.log('Cleanup completed');
+}
+
+/* ---------------- Enhanced Search & Filtering ---------------- */
+function enhancedFilterTable(tableId, term, searchColumns = []) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  
+  const rows = table.querySelectorAll("tbody tr");
+  const q = (term || "").toLowerCase().trim();
+  
+  if (!q) {
+    rows.forEach(r => r.style.display = "");
+    return;
+  }
+  
+  // Use requestAnimationFrame for smoother filtering
+  requestAnimationFrame(() => {
+    let visibleCount = 0;
+    rows.forEach(r => {
+      let match = false;
+      const cells = r.querySelectorAll('td');
+      
+      if (searchColumns.length > 0) {
+        // Search specific columns
+        searchColumns.forEach(colIndex => {
+          if (cells[colIndex] && cells[colIndex].textContent.toLowerCase().includes(q)) {
+            match = true;
+          }
+        });
+      } else {
+        // Search all columns
+        match = r.textContent.toLowerCase().includes(q);
+      }
+      
+      r.style.display = match ? "" : "none";
+      if (match) visibleCount++;
+    });
+    
+    // Update table info if available
+    const tableInfo = table.parentNode.querySelector('.table-info');
+    if (tableInfo) {
+      tableInfo.textContent = `Showing ${visibleCount} of ${rows.length} records`;
+    }
+  });
+}
+
+/* ---------------- Progressive Enhancement ---------------- */
+function checkBrowserCompatibility() {
+  const features = {
+    intersectionObserver: 'IntersectionObserver' in window,
+    firestore: 'firebase' in window && 'firestore' in firebase,
+    promises: 'Promise' in window,
+    fetch: 'fetch' in window,
+  };
+  
+  const missingFeatures = Object.entries(features).filter(([_, supported]) => !supported).map(([name]) => name);
+  
+  if (missingFeatures.length > 0) {
+    console.warn('Missing browser features:', missingFeatures);
+    
+    if (!features.intersectionObserver) {
+      console.warn('IntersectionObserver not supported, loading all charts immediately');
+      // Load charts immediately if IntersectionObserver is not supported
+      setTimeout(() => {
+        if (!collectionChart) initCollectionChart();
+        if (!budgetChart) initBudgetChart();
+      }, 1000);
+    }
+    
+    if (!features.promises) {
+      showNotification('Your browser may not support all features. Please update for best experience.', 'warning', 10000);
+    }
+  }
+}
+
+/* ---------------- Enhanced Navigation ---------------- */
+function navigateToSection(sectionId) {
+  const targetElement = document.getElementById(sectionId);
+  if (targetElement) {
+    // Update URL without page reload
+    history.pushState(null, '', `#${sectionId}`);
+    
+    targetElement.scrollIntoView({ 
+      behavior: "smooth",
+      block: "start"
+    });
+    
+    // Update active nav
+    clearActiveNav();
+    const navElement = document.getElementById(`nav-${sectionId}`);
+    if (navElement) navElement.classList.add('active');
+    
+    // Update screen reader
+    const liveRegion = document.getElementById('sr-live-region');
+    if (liveRegion) {
+      liveRegion.textContent = `Navigated to ${sectionId} section`;
+    }
+  }
+}
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', () => {
+  const hash = window.location.hash.substring(1);
+  if (hash && document.getElementById(hash)) {
+    navigateToSection(hash);
+  }
+});
+
+/* ---------------- Enhanced Utility Functions ---------------- */
+const DashboardUtils = {
+  debounce,
+  escapeHtml,
+  safeSetTextContent,
+  withLoading,
+  withCache,
+  enhancedFilterTable,
+  withFirebaseErrorHandling
+};
+
+const DashboardAPI = {
+  loadMembers: cachedLoadMembers,
+  loadInvitations: cachedLoadInvitations,
+  loadFinancialData,
+  // ... other data methods will be enhanced below
+};
+
+/* ==================== ORIGINAL CODE WITH ENHANCEMENTS ==================== */
 
 /* ---------------- Firebase config (hardcoded) ---------------- */
 const firebaseConfig = {
@@ -1673,12 +1999,12 @@ function initBudgetChart() {
 async function updateSummaryCards() {
   try {
     // Total invitations
-    const invitationsSnap = await invitationCol.orderBy("dateAdded","desc").get();
+    const invitationsSnap = await cachedLoadInvitations();
     const totalInvitations = invitationsSnap.size;
     safeSetTextContent('total-invitations', totalInvitations);
 
     // Total members
-    const membersSnap = await membersCol.orderBy("name").get();
+    const membersSnap = await cachedLoadMembers();
     const totalMembers = membersSnap.size;
     safeSetTextContent('total-members', totalMembers);
 
@@ -1826,8 +2152,8 @@ async function exportAllData() {
     addActivity('Starting data export...', 'info');
     
     const [invitations, members] = await Promise.all([
-      invitationCol.orderBy("dateAdded","desc").get(),
-      membersCol.orderBy("name").get()
+      cachedLoadInvitations(),
+      cachedLoadMembers()
     ]);
     
     // Get year-specific data
@@ -1980,6 +2306,7 @@ if (logoutBtn) {
       .then(()=> {
         showToast("Logged out");
         addActivity('User logged out', 'info');
+        cleanup();
       })
       .catch(e => {
         alert("Logout error: "+e.message);
@@ -2014,13 +2341,19 @@ auth.onAuthStateChanged(user => {
       loadAllData(); 
       loadFeeMembersDropdown(); 
       loadFeeYearlySummary(); 
+      initLazyLoading(); // Initialize lazy loading
       updateSummaryCards(); 
       loadVillageBreakdown();
       updateYearDisplays();
       
-      // Initialize charts
-      initCollectionChart();
-      initBudgetChart();
+      // Initialize enhanced features
+      setupGlobalErrorHandlers();
+      enhanceAccessibility();
+      checkBrowserCompatibility();
+      enhanceButtonsWithLoading();
+      
+      // CRITICAL: Initialize event listeners - FIXED
+      initializeAllEventListeners();
       
       // Load financial data
       loadFinancialData();
@@ -2477,7 +2810,7 @@ async function loadInvitations(){
   
   tbody.innerHTML = "";
   try {
-    const snapshot = await invitationCol.orderBy("dateAdded","desc").get();
+    const snapshot = await cachedLoadInvitations();
     let total=0, sent=0;
     
     snapshot.forEach(doc => {
@@ -2727,7 +3060,7 @@ async function loadMembers() {
   
   tbody.innerHTML = "";
   try {
-    const snapshot = await membersCol.orderBy("name").get();
+    const snapshot = await cachedLoadMembers();
     let total = 0;
     
     snapshot.forEach(doc => {
@@ -2932,7 +3265,7 @@ async function loadFeeMembersDropdown() {
   }
   
   try {
-    const snapshot = await membersCol.orderBy("name").get();
+    const snapshot = await cachedLoadMembers();
     
     if (snapshot.empty) {
       console.log("No members found in database");
@@ -3855,7 +4188,7 @@ async function loadPaidMembersTracker() {
     console.log('Starting to load paid members tracker...');
     
     // Get all members
-    const membersSnap = await membersCol.orderBy("name").get();
+    const membersSnap = await cachedLoadMembers();
     const members = [];
     membersSnap.forEach(doc => {
       members.push({ id: doc.id, ...doc.data() });
