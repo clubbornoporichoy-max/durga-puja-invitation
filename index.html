@@ -16,11 +16,7 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<!-- FileSaver for CSV/PDF exports -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
 <style>
-  /* Complete CSS - Same as before with enhancements */
   :root {
     --primary-red: #B71C1C;
     --deep-red: #8B0000;
@@ -39,7 +35,6 @@
     --font-family: 'Poppins', system-ui, -apple-system, sans-serif;
   }
   
-  /* ... (all existing CSS from previous version) ... */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
@@ -51,13 +46,11 @@
     font-size: 16px;
   }
   
-  /* Scrollbar Styling */
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
   ::-webkit-scrollbar-thumb { background: var(--primary-red); border-radius: 10px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--deep-red); }
 
-  /* Header - Fixed */
   header {
     position: fixed;
     top: 0;
@@ -218,11 +211,8 @@
     gap: 8px;
   }
   
-  .subtitle {
-    color: var(--muted);
-    font-size: 13px;
-    margin-bottom: 12px;
-  }
+  .card h3 { font-size: 16px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
 
   .btn {
     background: var(--primary-red);
@@ -273,10 +263,7 @@
     box-shadow: none;
   }
   
-  .btn.success {
-    background: var(--toast-success);
-    box-shadow: 0 4px 15px rgba(40,167,69,0.2);
-  }
+  .btn.success { background: var(--toast-success); box-shadow: 0 4px 15px rgba(40,167,69,0.2); }
 
   input, select, textarea {
     padding: 10px 14px;
@@ -420,9 +407,7 @@
     background: rgba(183,28,28,0.02);
   }
   
-  tbody tr:last-child td {
-    border-bottom: none;
-  }
+  tbody tr:last-child td { border-bottom: none; }
 
   .badge {
     display: inline-block;
@@ -755,6 +740,14 @@
     min-width: 200px;
   }
 
+  .pagination-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 12px;
+    align-items: center;
+  }
+
   .flex { display: flex; gap: 12px; align-items: center; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .flex-wrap { flex-wrap: wrap; }
@@ -780,6 +773,19 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+
+  .back-to-top {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 100;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    display: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   }
 
   @media (max-width: 1024px) {
@@ -814,6 +820,7 @@
     #auth-card .auth-form { flex-direction: column; align-items: stretch; }
     #auth-card .auth-form .form-group { min-width: auto; }
     .spacer { height: 140px; }
+    .back-to-top { bottom: 20px; right: 20px; width: 44px; height: 44px; }
   }
   
   @media (max-width: 480px) {
@@ -1158,6 +1165,7 @@
             <tbody></tbody>
           </table>
         </div>
+        <button id="exportSummaryBtn" class="btn small secondary" style="margin-top:10px;">📊 Export Summary</button>
       </div>
     </div>
 
@@ -1245,6 +1253,9 @@
 
   </div>
 </div>
+
+<!-- Back to Top Button -->
+<button id="backToTopBtn" class="btn back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">⬆</button>
 
 <!-- Toast Container -->
 <div class="toast-container" id="toast-container" role="alert" aria-live="polite"></div>
@@ -1455,6 +1466,7 @@ const ROLES = {
   "898Fi5sPKHY01GUgI4iu1xS4TBR2": "viewer"
 };
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const CURRENT_YEAR = new Date().getFullYear();
 
 const INCOME_CATEGORIES = [
   'Donations', 'Membership Fees', 'Sponsorships', 'Advertisement', 
@@ -1496,7 +1508,7 @@ function incomeCollectionFor(year){ return db.collection(`income_${year}`); }
 function expenseCollectionFor(year){ return db.collection(`expenses_${year}`); }
 
 // ==================== STATE ====================
-let selectedYear = new Date().getFullYear();
+let selectedYear = CURRENT_YEAR;
 let currentRole = "viewer";
 let editingInvitationId = null;
 let editingMemberId = null;
@@ -1512,19 +1524,18 @@ let transactionsData = [];
 let invitationsData = [];
 let membersData = [];
 let collectionsData = [];
+let realtimeInterval = null;
 
 // Sort state
 let sortState = {
   field: null,
+  subField: null,
   direction: 'asc'
 };
 
-// Real-time update interval
-let realtimeInterval = null;
-
 // ==================== CACHE SYSTEM ====================
 const cache = new Map();
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL = 2 * 60 * 1000;
 
 function getCached(key) {
   const cached = cache.get(key);
@@ -1538,12 +1549,8 @@ function setCached(key, data) {
   cache.set(key, { data, timestamp: Date.now() });
 }
 
-function clearCache(pattern) {
-  for (const key of cache.keys()) {
-    if (key.includes(pattern)) {
-      cache.delete(key);
-    }
-  }
+function clearCache() {
+  cache.clear();
 }
 
 // ==================== TOAST SYSTEM ====================
@@ -1552,7 +1559,6 @@ const toastContainer = document.getElementById('toast-container');
 function showToast(message, type = 'info', duration = 4000) {
   if (!toastContainer) return;
   
-  // Remove existing toasts of same message
   const existing = toastContainer.querySelectorAll('.toast');
   for (const t of existing) {
     if (t.querySelector('.message')?.textContent === message) {
@@ -1572,14 +1578,12 @@ function showToast(message, type = 'info', duration = 4000) {
   
   toastContainer.appendChild(toast);
   
-  const timeoutId = setTimeout(() => {
+  setTimeout(() => {
     if (toast.parentNode) {
       toast.style.animation = 'slideOutRight 0.3s ease forwards';
       setTimeout(() => toast.remove(), 300);
     }
   }, duration);
-  
-  toast._timeout = timeoutId;
 }
 
 function showNotification(message, type = 'info', duration = 4000) {
@@ -1653,11 +1657,17 @@ function validateAmount(amount) {
 }
 
 function getCurrentYear() {
-  return selectedYear === 'all' ? new Date().getFullYear() : parseInt(selectedYear);
+  return selectedYear === 'all' ? CURRENT_YEAR : parseInt(selectedYear);
 }
 
 function formatCurrency(amount) {
   return '₹' + Number(amount).toLocaleString('en-IN');
+}
+
+function showConfirmDialog(message, onConfirm) {
+  if (confirm(message)) {
+    onConfirm();
+  }
 }
 
 // ==================== DATA VALIDATION ====================
@@ -1690,114 +1700,73 @@ function validateCollectionData(data) {
 // ==================== YEAR SYSTEM ====================
 async function getAvailableYears(collectionPrefix) {
   const years = [];
-  const currentYear = new Date().getFullYear();
-  
-  for (let year = 2020; year <= currentYear + 2; year++) {
+  for (let year = 2020; year <= CURRENT_YEAR + 2; year++) {
     try {
       const collectionName = `${collectionPrefix}${year}`;
       const snapshot = await db.collection(collectionName).limit(1).get();
       if (!snapshot.empty) {
         years.push(year);
       }
-    } catch (error) {
-      // Collection doesn't exist
-    }
+    } catch (error) {}
   }
-  
   return years;
 }
 
 async function checkAvailableYears() {
   const yearSet = new Set();
-  const currentYear = new Date().getFullYear();
-  
-  for (let year = 2020; year <= currentYear + 2; year++) {
+  for (let year = 2020; year <= CURRENT_YEAR + 2; year++) {
     try {
       const feesSnap = await membershipFeesCollectionFor(year).limit(1).get();
       if (!feesSnap.empty) yearSet.add(year);
-      
       const villageSnap = await villageCollectionsCollectionFor(year).limit(1).get();
       if (!villageSnap.empty) yearSet.add(year);
-    } catch (error) {
-      // Collection doesn't exist
-    }
+    } catch (error) {}
   }
-  
   if (yearSet.size === 0) {
     yearSet.add(2024);
     yearSet.add(2025);
     yearSet.add(2026);
   }
-  
-  yearSet.add(currentYear);
-  
+  yearSet.add(CURRENT_YEAR);
   return Array.from(yearSet);
 }
 
-function populateYearDropdowns() {
+async function populateYearDropdowns() {
   const selects = ['loginYearSelect', 'globalYearSelect'];
+  const availableYears = await checkAvailableYears();
+  const sortedYears = availableYears.sort((a, b) => b - a);
   
-  checkAvailableYears().then(availableYears => {
-    selects.forEach(id => {
-      const select = document.getElementById(id);
-      if (!select) return;
-      
-      select.innerHTML = '';
-      
-      const allOption = document.createElement('option');
-      allOption.value = 'all';
-      allOption.textContent = 'All Years';
-      select.appendChild(allOption);
-      
-      if (availableYears.length > 0) {
-        availableYears.sort((a, b) => b - a);
-        availableYears.forEach(year => {
-          const option = document.createElement('option');
-          option.value = year;
-          option.textContent = year;
-          if (year === selectedYear || (selectedYear === 'all' && year === new Date().getFullYear())) {
-            option.selected = true;
-          }
-          select.appendChild(option);
-        });
-      } else {
-        for (let year = 2026; year >= 2024; year--) {
-          const option = document.createElement('option');
-          option.value = year;
-          option.textContent = year;
-          if (year === selectedYear || (selectedYear === 'all' && year === 2025)) {
-            option.selected = true;
-          }
-          select.appendChild(option);
-        }
+  selects.forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    
+    select.innerHTML = '';
+    
+    const allOption = document.createElement('option');
+    allOption.value = 'all';
+    allOption.textContent = 'All Years';
+    select.appendChild(allOption);
+    
+    let foundCurrentYear = false;
+    sortedYears.forEach(year => {
+      const option = document.createElement('option');
+      option.value = year;
+      option.textContent = year;
+      if (year === CURRENT_YEAR) {
+        option.selected = true;
+        foundCurrentYear = true;
+        selectedYear = CURRENT_YEAR;
       }
-      
-      if (selectedYear === 'all') {
-        select.value = 'all';
-      }
+      select.appendChild(option);
     });
-  }).catch(() => {
-    selects.forEach(id => {
-      const select = document.getElementById(id);
-      if (!select) return;
-      
-      select.innerHTML = '';
-      const allOption = document.createElement('option');
-      allOption.value = 'all';
-      allOption.textContent = 'All Years';
-      select.appendChild(allOption);
-      
-      for (let year = 2026; year >= 2024; year--) {
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        if (year === selectedYear || (selectedYear === 'all' && year === 2025)) {
-          option.selected = true;
-        }
-        select.appendChild(option);
-      }
-    });
+    
+    if (!foundCurrentYear && select.options.length > 1) {
+      select.options[1].selected = true;
+      selectedYear = parseInt(select.options[1].value);
+    }
   });
+  
+  updateYearDisplays();
 }
 
 function updateYearDisplays() {
@@ -1830,12 +1799,14 @@ function updateYearDisplays() {
 function changeGlobalYear(newYear) {
   selectedYear = newYear === 'all' ? 'all' : parseInt(newYear);
   updateYearDisplays();
-  clearCache('fees');
-  clearCache('village');
-  clearCache('financial');
+  clearCache();
   
   loadAllData();
   loadFinancialData();
+  
+  if (collectionChart) { collectionChart.destroy(); collectionChart = null; }
+  if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
+  initCharts();
   
   showNotification(`Switched to ${selectedYear === 'all' ? 'All Years' : selectedYear}`, 'info');
   addActivity(`Changed year to ${selectedYear === 'all' ? 'All Years' : selectedYear}`, 'info');
@@ -1887,6 +1858,32 @@ function navigateToSection(sectionId) {
   if (navEl) navEl.classList.add('active');
 }
 
+// ==================== BACK TO TOP ====================
+function setupBackToTop() {
+  const btn = document.getElementById('backToTopBtn');
+  if (!btn) return;
+  
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 500) {
+      btn.style.display = 'flex';
+    } else {
+      btn.style.display = 'none';
+    }
+  });
+}
+
+// ==================== MODAL CLOSE ====================
+function setupModalClose() {
+  const modals = document.querySelectorAll('.modal-overlay');
+  modals.forEach(modal => {
+    modal.addEventListener('click', function(e) {
+      if (e.target === this) {
+        this.classList.add('hidden');
+      }
+    });
+  });
+}
+
 // ==================== AUTH HANDLERS ====================
 auth.onAuthStateChanged(user => {
   if (user) {
@@ -1902,15 +1899,25 @@ auth.onAuthStateChanged(user => {
     
     if (!isInitialized) {
       isInitialized = true;
-      setTimeout(() => {
-        loadAllData();
-        loadFinancialData();
+      setTimeout(async () => {
+        await populateYearDropdowns();
+        await loadAllData();
+        await loadFinancialData();
         initCharts();
         setupEventListeners();
         updateYearDisplays();
         startRealtimeUpdates();
+        setupBackToTop();
+        setupModalClose();
         addActivity('Dashboard initialized successfully', 'success');
         addActivity(`Logged in as ${user.email}`, 'success');
+        
+        // Auto-load first member's fees
+        const feeSelect = document.getElementById('feeMemberSelect');
+        if (feeSelect && feeSelect.options.length > 1) {
+          feeSelect.value = feeSelect.options[1].value;
+          loadMemberFeeData(feeSelect.value);
+        }
       }, 500);
     }
   } else {
@@ -1983,7 +1990,7 @@ function applyRoleToUI() {
   const adminButtons = [
     'add-inv-btn', 'add-mem-btn', 'loadMemberFeeBtn', 
     'saveFeeConfigBtn', 'clearFeeRecordBtn', 'show-paid-btn', 
-    'exportCsvBtn', 'add-vc-btn'
+    'exportCsvBtn', 'add-vc-btn', 'exportSummaryBtn'
   ];
   
   adminButtons.forEach(id => {
@@ -1997,9 +2004,7 @@ function startRealtimeUpdates() {
   if (realtimeInterval) clearInterval(realtimeInterval);
   
   realtimeInterval = setInterval(() => {
-    if (document.hidden) return; // Only update when visible
-    
-    // Refresh data every 30 seconds
+    if (document.hidden) return;
     loadAllData();
     loadFinancialData();
   }, 30000);
@@ -2014,6 +2019,11 @@ function stopRealtimeUpdates() {
 
 // ==================== DATA LOADING ====================
 async function loadAllData() {
+  showSkeletonLoading('invitation-table', 7);
+  showSkeletonLoading('members-table', 6);
+  showSkeletonLoading('vc-table', 8);
+  showSkeletonLoading('transactions-table', 7);
+  
   await Promise.all([
     loadInvitations(),
     loadMembers(),
@@ -2028,8 +2038,6 @@ async function loadAllData() {
 async function loadInvitations() {
   const tbody = document.querySelector('#invitation-table tbody');
   if (!tbody) return;
-  
-  showSkeletonLoading('invitation-table', 7);
   
   try {
     const cached = getCached('invitations');
@@ -2062,7 +2070,6 @@ function renderInvitations() {
   tbody.innerHTML = '';
   let data = [...invitationsData];
   
-  // Apply filters
   const village = document.getElementById('filter-village')?.value || '';
   const status = document.getElementById('filter-status')?.value || '';
   const search = document.getElementById('search-invite')?.value || '';
@@ -2075,7 +2082,6 @@ function renderInvitations() {
     return true;
   });
   
-  // Apply sorting
   if (sortState.field === 'invitations') {
     data.sort((a, b) => {
       let valA = a[sortState.subField] || '';
@@ -2142,13 +2148,13 @@ function renderInvitations() {
       actionsTd.innerHTML = '<span class="text-muted text-small">View</span>';
     }
   });
+  
+  updateSortIndicators('invitation-table');
 }
 
 async function loadMembers() {
   const tbody = document.querySelector('#members-table tbody');
   if (!tbody) return;
-  
-  showSkeletonLoading('members-table', 6);
   
   try {
     const cached = getCached('members');
@@ -2235,23 +2241,26 @@ function renderMembers() {
       delBtn.className = 'btn small ghost';
       delBtn.title = 'Delete member';
       delBtn.onclick = async () => {
-        if (!confirm(`Delete member "${item.name}"?`)) return;
-        try {
-          await membersCol.doc(item.id).delete();
-          showNotification('Member deleted', 'success');
-          addActivity(`Deleted member: ${item.name}`, 'info');
-          loadMembers();
-          loadFeeMembersDropdown();
-          updateSummaryCards();
-        } catch (error) {
-          showNotification('Error deleting member: ' + error.message, 'error');
-        }
+        showConfirmDialog(`Delete member "${item.name}"?`, async () => {
+          try {
+            await membersCol.doc(item.id).delete();
+            showNotification('Member deleted', 'success');
+            addActivity(`Deleted member: ${item.name}`, 'info');
+            loadMembers();
+            loadFeeMembersDropdown();
+            updateSummaryCards();
+          } catch (error) {
+            showNotification('Error deleting member: ' + error.message, 'error');
+          }
+        });
       };
       actionsTd.appendChild(delBtn);
     } else {
       actionsTd.innerHTML = '<span class="text-muted text-small">View</span>';
     }
   });
+  
+  updateSortIndicators('members-table');
 }
 
 async function loadAllYearsFees() {
@@ -2259,36 +2268,27 @@ async function loadAllYearsFees() {
     allYearsFeesData = {};
     const years = await getAvailableYears('membership_fees_');
     
-    if (years.length === 0) {
-      const fallbackYears = [2024, 2025, 2026];
-      for (const year of fallbackYears) {
-        try {
-          const snap = await membershipFeesCollectionFor(year).limit(1).get();
-          if (!snap.empty) {
-            years.push(year);
-          }
-        } catch (e) {}
-      }
-    }
-    
     for (const year of years) {
       try {
         const snap = await membershipFeesCollectionFor(year).get();
         if (!snap.empty) {
-          allYearsFeesData[year] = {};
+          const yearData = new Map();
           snap.forEach(doc => {
-            allYearsFeesData[year][doc.id] = doc.data();
+            const data = doc.data();
+            const memberId = data.memberId || doc.id;
+            if (!yearData.has(memberId) || 
+                (data.updatedAt?.toDate?.() || new Date(0)) > 
+                (yearData.get(memberId)?.updatedAt?.toDate?.() || new Date(0))) {
+              yearData.set(memberId, { id: doc.id, ...data });
+            }
           });
-          console.log(`✅ Loaded fees data for year ${year}: ${snap.size} records`);
+          allYearsFeesData[year] = Object.fromEntries(yearData);
         }
-      } catch (error) {
-        console.warn(`No fees data found for year ${year}`);
-      }
+      } catch (error) {}
     }
     
     if (Object.keys(allYearsFeesData).length > 0) {
       showNotification(`Loaded fees from ${Object.keys(allYearsFeesData).length} years`, 'success');
-      addActivity(`Loaded fees data from ${Object.keys(allYearsFeesData).length} years`, 'info');
     }
     
     if (selectedYear === 'all') {
@@ -2297,7 +2297,6 @@ async function loadAllYearsFees() {
     
   } catch (error) {
     console.error('Load all years fees error:', error);
-    showNotification('Error loading fees data: ' + error.message, 'error');
   }
 }
 
@@ -2305,18 +2304,6 @@ async function loadAllYearsVillageCollections() {
   try {
     allYearsVillageData = {};
     const years = await getAvailableYears('village_collections_');
-    
-    if (years.length === 0) {
-      const fallbackYears = [2024, 2025, 2026];
-      for (const year of fallbackYears) {
-        try {
-          const snap = await villageCollectionsCollectionFor(year).limit(1).get();
-          if (!snap.empty) {
-            years.push(year);
-          }
-        } catch (e) {}
-      }
-    }
     
     for (const year of years) {
       try {
@@ -2326,21 +2313,16 @@ async function loadAllYearsVillageCollections() {
           snap.forEach(doc => {
             allYearsVillageData[year][doc.id] = doc.data();
           });
-          console.log(`✅ Loaded village collections for year ${year}: ${snap.size} records`);
         }
-      } catch (error) {
-        console.warn(`No village collections found for year ${year}`);
-      }
+      } catch (error) {}
     }
     
     if (Object.keys(allYearsVillageData).length > 0) {
       showNotification(`Loaded village collections from ${Object.keys(allYearsVillageData).length} years`, 'success');
-      addActivity(`Loaded village collections from ${Object.keys(allYearsVillageData).length} years`, 'info');
     }
     
   } catch (error) {
     console.error('Load all years village collections error:', error);
-    showNotification('Error loading village collections: ' + error.message, 'error');
   }
 }
 
@@ -2465,19 +2447,7 @@ async function loadMemberFeeData(memberId) {
     let year = getCurrentYear();
     
     if (year === 'all' || isNaN(year)) {
-      const currentYear = new Date().getFullYear();
-      const testSnap = await membershipFeesCollectionFor(currentYear).limit(1).get();
-      if (!testSnap.empty) {
-        year = currentYear;
-      } else {
-        for (let y = currentYear; y >= 2020; y--) {
-          const snap = await membershipFeesCollectionFor(y).limit(1).get();
-          if (!snap.empty) {
-            year = y;
-            break;
-          }
-        }
-      }
+      year = CURRENT_YEAR;
     }
     
     const feesCol = membershipFeesCollectionFor(year);
@@ -2503,7 +2473,6 @@ async function loadMemberFeeData(memberId) {
         feeData[month] = { paid: false, paidOn: null, amount: feeAmount };
       });
       await feesCol.doc(memberId).set(feeData);
-      console.log(`✅ Created new fee record for ${memberData.name} in year ${year}`);
     }
     
     updateFeeTable(memberData, feeData, feeAmount);
@@ -2666,6 +2635,51 @@ async function loadFeeYearlySummary() {
   }
 }
 
+// ==================== EXPORT YEARLY SUMMARY ====================
+async function exportYearlySummary() {
+  try {
+    const year = getCurrentYear();
+    const feesCol = membershipFeesCollectionFor(year);
+    const snap = await feesCol.get();
+    
+    if (snap.empty) {
+      showNotification('No data to export', 'info');
+      return;
+    }
+    
+    let csv = 'Member Name,Village,Monthly Fee,';
+    MONTHS.forEach(m => csv += `${m},`);
+    csv += 'Total Paid Months,Total Amount\n';
+    
+    snap.forEach(doc => {
+      const data = doc.data();
+      let paidMonths = 0;
+      let totalPaid = 0;
+      
+      csv += `"${data.memberName || 'Unknown'}","${data.memberVillage || ''}",${data.monthlyFee || 100},`;
+      
+      MONTHS.forEach(month => {
+        const monthData = data[month] || data.months?.[month];
+        const isPaid = monthData?.paid || false;
+        csv += `${isPaid ? 'Paid' : 'Pending'},`;
+        if (isPaid) {
+          paidMonths++;
+          totalPaid += monthData.amount || data.monthlyFee || 100;
+        }
+      });
+      
+      csv += `${paidMonths},${totalPaid}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    downloadBlob(blob, `yearly-summary-${year}-${new Date().toISOString().split('T')[0]}.csv`);
+    showNotification('Yearly summary exported', 'success');
+    addActivity(`Exported yearly summary for ${year}`, 'success');
+  } catch (error) {
+    showNotification('Export failed: ' + error.message, 'error');
+  }
+}
+
 // ==================== PAID MEMBERS TRACKER ====================
 async function loadPaidMembersTracker() {
   const container = document.getElementById('paid-members-list');
@@ -2779,8 +2793,6 @@ async function loadVillageCollections() {
   const tbody = document.querySelector('#vc-table tbody');
   if (!tbody) return;
   
-  showSkeletonLoading('vc-table', 8);
-  
   try {
     const year = getCurrentYear();
     let collections = [];
@@ -2817,7 +2829,6 @@ function renderVillageCollections() {
   let data = [...collectionsData];
   let totalAmount = 0;
   
-  // Apply search
   const search = document.getElementById('search-vc')?.value || '';
   if (search) {
     data = data.filter(item => 
@@ -2825,7 +2836,6 @@ function renderVillageCollections() {
     );
   }
   
-  // Apply sorting
   if (sortState.field === 'collections') {
     data.sort((a, b) => {
       let valA = a[sortState.subField] || '';
@@ -2895,13 +2905,11 @@ function renderVillageCollections() {
     }
   });
   
-  // Update total
   const totalContainer = document.getElementById('vc-total-collection');
   const totalDisplay = document.getElementById('vc-total-amount');
   if (totalDisplay) totalDisplay.textContent = totalAmount.toLocaleString();
   if (totalContainer) totalContainer.style.display = totalAmount > 0 ? 'block' : 'none';
   
-  // Update chart
   updateCollectionChart(data);
   loadVillageBreakdown();
 }
@@ -2925,8 +2933,6 @@ function updateCollectionChart(collections) {
 async function loadFinancialData() {
   const tbody = document.querySelector('#transactions-table tbody');
   if (!tbody) return;
-  
-  showSkeletonLoading('transactions-table', 7);
   
   try {
     const year = getCurrentYear();
@@ -2971,7 +2977,6 @@ function renderTransactions() {
   tbody.innerHTML = '';
   let data = [...transactionsData];
   
-  // Apply filters
   const typeFilter = document.getElementById('filter-transaction-type')?.value || 'all';
   const categoryFilter = document.getElementById('filter-transaction-category')?.value || 'all';
   const fromDate = document.getElementById('filter-transaction-from')?.value;
@@ -2988,7 +2993,6 @@ function renderTransactions() {
     return true;
   });
   
-  // Apply sorting
   if (sortState.field === 'transactions') {
     data.sort((a, b) => {
       let valA = a[sortState.subField] || '';
@@ -3053,30 +3057,21 @@ function renderTransactions() {
     
     tbody.appendChild(tr);
   });
-  
-  // Update filtered totals
-  const totalIncomeEl = document.getElementById('table-total-income');
-  const totalExpenseEl = document.getElementById('table-total-expenses');
-  const netBalanceEl = document.getElementById('table-net-balance');
-  
-  if (totalIncomeEl) totalIncomeEl.textContent = formatCurrency(totalIncome);
-  if (totalExpenseEl) totalExpenseEl.textContent = formatCurrency(totalExpenses);
-  if (netBalanceEl) netBalanceEl.textContent = formatCurrency(totalIncome - totalExpenses);
 }
 
 async function deleteTransaction(id, type) {
-  if (!confirm('Delete this transaction?')) return;
-  
-  try {
-    const year = getCurrentYear();
-    const collection = type === 'income' ? incomeCollectionFor(year) : expenseCollectionFor(year);
-    await collection.doc(id).delete();
-    showNotification('Transaction deleted', 'success');
-    addActivity(`Deleted ${type} transaction`, 'info');
-    loadFinancialData();
-  } catch (error) {
-    showNotification('Error deleting transaction: ' + error.message, 'error');
-  }
+  showConfirmDialog('Delete this transaction?', async () => {
+    try {
+      const year = getCurrentYear();
+      const collection = type === 'income' ? incomeCollectionFor(year) : expenseCollectionFor(year);
+      await collection.doc(id).delete();
+      showNotification('Transaction deleted', 'success');
+      addActivity(`Deleted ${type} transaction`, 'info');
+      loadFinancialData();
+    } catch (error) {
+      showNotification('Error deleting transaction: ' + error.message, 'error');
+    }
+  });
 }
 
 function updateFinancialSummary(totalIncome, totalExpenses) {
@@ -3136,7 +3131,6 @@ async function loadBudgetData() {
         `;
       }).join('');
     
-    // Update budget chart
     if (budgetChart) {
       budgetChart.data.datasets[1].data = actualExpenses;
       budgetChart.update();
@@ -3149,7 +3143,6 @@ async function loadBudgetData() {
 
 // ==================== CHARTS ====================
 function initCharts() {
-  // Collection Chart
   const collectionCtx = document.getElementById('collectionChart');
   if (collectionCtx) {
     if (collectionChart) collectionChart.destroy();
@@ -3176,7 +3169,7 @@ function initCharts() {
           tooltip: {
             callbacks: {
               label: function(context) {
-                return '₹' + context.raw.toLocaleString();
+                return formatCurrency(context.raw);
               }
             }
           }
@@ -3191,7 +3184,6 @@ function initCharts() {
     });
   }
   
-  // Budget Chart
   const budgetCtx = document.getElementById('budgetChart');
   if (budgetCtx) {
     if (budgetChart) budgetChart.destroy();
@@ -3367,6 +3359,38 @@ function sortTransactions(field) {
   renderTransactions();
 }
 
+function updateSortIndicators(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  
+  const headers = table.querySelectorAll('thead th.sortable');
+  headers.forEach(th => {
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = '⇅';
+  });
+  
+  if (sortState.field) {
+    const headerMap = {
+      'invitations': 'invitation-table',
+      'members': 'members-table',
+      'collections': 'vc-table',
+      'transactions': 'transactions-table'
+    };
+    
+    if (headerMap[sortState.field] === tableId) {
+      const sortedHeader = Array.from(headers).find(th => 
+        th.textContent.toLowerCase().includes(sortState.subField.toLowerCase())
+      );
+      if (sortedHeader) {
+        const icon = sortedHeader.querySelector('.sort-icon');
+        if (icon) {
+          icon.textContent = sortState.direction === 'asc' ? '▲' : '▼';
+        }
+      }
+    }
+  }
+}
+
 // ==================== FILTER FUNCTIONS ====================
 function applyInvitationFilters() {
   renderInvitations();
@@ -3537,7 +3561,6 @@ async function processBulkUpload() {
     const mobile = parts[2] || '';
     const remarks = parts[3] || '';
     
-    // Update progress
     const percentage = ((i + 1) / lines.length) * 100;
     progressFill.style.width = percentage + '%';
     progressText.textContent = `Processing ${i + 1} of ${lines.length}...`;
@@ -3610,7 +3633,6 @@ async function processVillageBulkUpload() {
     const village = parts[4] || '';
     const remarks = parts[5] || '';
     
-    // Find collector ID by name
     let collectorId = '';
     for (const [id, name] of Object.entries(memberNamesMap)) {
       if (name.toLowerCase() === collectorName.toLowerCase()) {
@@ -3619,7 +3641,6 @@ async function processVillageBulkUpload() {
       }
     }
     
-    // Update progress
     const percentage = ((i + 1) / lines.length) * 100;
     progressFill.style.width = percentage + '%';
     progressText.textContent = `Processing ${i + 1} of ${lines.length}...`;
@@ -3665,7 +3686,6 @@ async function processVillageBulkUpload() {
   }, 2000);
 }
 
-// Add event listeners for textarea changes
 document.getElementById('bulkUploadTextarea')?.addEventListener('input', function() {
   const text = this.value.trim();
   document.getElementById('processUploadBtn').disabled = text.length === 0;
@@ -3776,7 +3796,6 @@ async function generateFinancialReport() {
     report += `Year: ${selectedYear === 'all' ? 'All Years' : year}\n`;
     report += `${'='.repeat(60)}\n\n`;
     
-    // Income
     report += `INCOME SUMMARY\n${'-'.repeat(40)}\n`;
     const incomeByCategory = {};
     let totalIncome = 0;
@@ -3792,7 +3811,6 @@ async function generateFinancialReport() {
     report += `${'-'.repeat(40)}\n`;
     report += `${'TOTAL INCOME'.padEnd(30)}: ${formatCurrency(totalIncome).padStart(15)}\n\n`;
     
-    // Expenses
     report += `EXPENSE SUMMARY\n${'-'.repeat(40)}\n`;
     const expenseByCategory = {};
     let totalExpenses = 0;
@@ -3810,7 +3828,6 @@ async function generateFinancialReport() {
     report += `${'-'.repeat(40)}\n`;
     report += `${'TOTAL EXPENSES'.padEnd(30)}: ${formatCurrency(totalExpenses).padStart(15)}\n\n`;
     
-    // Summary
     report += `SUMMARY\n${'-'.repeat(40)}\n`;
     report += `${'Net Balance'.padEnd(30)}: ${formatCurrency(totalIncome - totalExpenses).padStart(15)}\n`;
     const totalBudget = Object.values(BUDGET_ITEMS).reduce((a, b) => a + b, 0);
@@ -3843,17 +3860,17 @@ async function toggleInvitationStatus(id, currentStatus, name) {
 }
 
 async function deleteInvitation(id, name) {
-  if (!confirm(`Delete invitation for "${name}"?`)) return;
-  
-  try {
-    await invitationCol.doc(id).delete();
-    showNotification('Invitation deleted', 'success');
-    addActivity(`Deleted invitation for ${name}`, 'info');
-    loadInvitations();
-    updateSummaryCards();
-  } catch (error) {
-    showNotification('Error deleting: ' + error.message, 'error');
-  }
+  showConfirmDialog(`Delete invitation for "${name}"?`, async () => {
+    try {
+      await invitationCol.doc(id).delete();
+      showNotification('Invitation deleted', 'success');
+      addActivity(`Deleted invitation for ${name}`, 'info');
+      loadInvitations();
+      updateSummaryCards();
+    } catch (error) {
+      showNotification('Error deleting: ' + error.message, 'error');
+    }
+  });
 }
 
 function showEditInvitationModal(id, data) {
@@ -4013,22 +4030,22 @@ async function saveCollectionEdit() {
 }
 
 async function deleteCollection(id, donorName) {
-  if (!confirm(`Delete collection from "${donorName}"?`)) return;
-  
-  if (selectedYear === 'all') {
-    showNotification('Cannot delete from All Years view', 'error');
-    return;
-  }
-  
-  try {
-    const year = getCurrentYear();
-    await villageCollectionsCollectionFor(year).doc(id).delete();
-    showNotification('Collection deleted', 'success');
-    addActivity(`Deleted collection from ${donorName}`, 'info');
-    loadVillageCollections();
-  } catch (error) {
-    showNotification('Error deleting: ' + error.message, 'error');
-  }
+  showConfirmDialog(`Delete collection from "${donorName}"?`, async () => {
+    if (selectedYear === 'all') {
+      showNotification('Cannot delete from All Years view', 'error');
+      return;
+    }
+    
+    try {
+      const year = getCurrentYear();
+      await villageCollectionsCollectionFor(year).doc(id).delete();
+      showNotification('Collection deleted', 'success');
+      addActivity(`Deleted collection from ${donorName}`, 'info');
+      loadVillageCollections();
+    } catch (error) {
+      showNotification('Error deleting: ' + error.message, 'error');
+    }
+  });
 }
 
 // ==================== ADD BUTTONS ====================
@@ -4088,23 +4105,48 @@ document.getElementById('add-mem-btn')?.addEventListener('click', async function
   }
   
   try {
-    await membersCol.add({
+    const docRef = await membersCol.add({
       name, village, mobile, remarks,
       dateAdded: firebase.firestore.FieldValue.serverTimestamp()
     });
+    
+    const year = getCurrentYear();
+    const feeAmount = parseInt(document.getElementById('feeAmountInput').value) || 100;
+    const feesCol = membershipFeesCollectionFor(year);
+    
+    const feeData = {
+      memberId: docRef.id,
+      memberName: name,
+      memberVillage: village,
+      monthlyFee: feeAmount,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    MONTHS.forEach(month => {
+      feeData[month] = { paid: false, paidOn: null, amount: feeAmount };
+    });
+    
+    await feesCol.doc(docRef.id).set(feeData);
     
     document.getElementById('mem-name').value = '';
     document.getElementById('mem-village').value = '';
     document.getElementById('mem-mobile').value = '';
     document.getElementById('mem-remarks').value = '';
     
-    showNotification('Member added', 'success');
-    addActivity(`Added member ${name}`, 'success');
+    showNotification('Member added with fee record', 'success');
+    addActivity(`Added member ${name} with fee record`, 'success');
     loadMembers();
     loadFeeMembersDropdown();
     updateSummaryCards();
+    
+    const feeSelect = document.getElementById('feeMemberSelect');
+    if (feeSelect) {
+      feeSelect.value = docRef.id;
+      loadMemberFeeData(docRef.id);
+    }
+    
   } catch (error) {
-    showNotification('Error adding: ' + error.message, 'error');
+    showNotification('Error adding member: ' + error.message, 'error');
   }
 });
 
@@ -4169,7 +4211,7 @@ document.getElementById('saveFeeConfigBtn')?.addEventListener('click', async fun
   try {
     let year = getCurrentYear();
     if (year === 'all' || isNaN(year)) {
-      year = new Date().getFullYear();
+      year = CURRENT_YEAR;
     }
     
     const feesCol = membershipFeesCollectionFor(year);
@@ -4190,50 +4232,50 @@ document.getElementById('clearFeeRecordBtn')?.addEventListener('click', async fu
     return;
   }
   
-  if (!confirm('Clear all payment records for this member?')) return;
-  
-  try {
-    const memberDoc = await membersCol.doc(memberId).get();
-    if (!memberDoc.exists) {
-      showNotification('Member not found', 'error');
-      return;
+  showConfirmDialog('Clear all payment records for this member?', async () => {
+    try {
+      const memberDoc = await membersCol.doc(memberId).get();
+      if (!memberDoc.exists) {
+        showNotification('Member not found', 'error');
+        return;
+      }
+      
+      const memberData = memberDoc.data();
+      let year = getCurrentYear();
+      if (year === 'all' || isNaN(year)) {
+        year = CURRENT_YEAR;
+      }
+      
+      const feesCol = membershipFeesCollectionFor(year);
+      
+      const resetData = {
+        memberId,
+        memberName: memberData.name,
+        memberVillage: memberData.village,
+        monthlyFee: parseInt(document.getElementById('feeAmountInput').value) || 100,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      
+      MONTHS.forEach(month => {
+        resetData[month] = { paid: false, paidOn: null, amount: resetData.monthlyFee };
+      });
+      
+      await feesCol.doc(memberId).set(resetData);
+      showNotification('Records cleared', 'success');
+      addActivity(`Cleared fee records for ${memberData.name}`, 'info');
+      loadMemberFeeData(memberId);
+      loadFeeYearlySummary();
+    } catch (error) {
+      showNotification('Error clearing: ' + error.message, 'error');
     }
-    
-    const memberData = memberDoc.data();
-    let year = getCurrentYear();
-    if (year === 'all' || isNaN(year)) {
-      year = new Date().getFullYear();
-    }
-    
-    const feesCol = membershipFeesCollectionFor(year);
-    
-    const resetData = {
-      memberId,
-      memberName: memberData.name,
-      memberVillage: memberData.village,
-      monthlyFee: parseInt(document.getElementById('feeAmountInput').value) || 100,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    
-    MONTHS.forEach(month => {
-      resetData[month] = { paid: false, paidOn: null, amount: resetData.monthlyFee };
-    });
-    
-    await feesCol.doc(memberId).set(resetData);
-    showNotification('Records cleared', 'success');
-    addActivity(`Cleared fee records for ${memberData.name}`, 'info');
-    loadMemberFeeData(memberId);
-    loadFeeYearlySummary();
-  } catch (error) {
-    showNotification('Error clearing: ' + error.message, 'error');
-  }
+  });
 });
 
 document.getElementById('exportCsvBtn')?.addEventListener('click', async function() {
   try {
     let year = getCurrentYear();
     if (year === 'all' || isNaN(year)) {
-      year = new Date().getFullYear();
+      year = CURRENT_YEAR;
     }
     
     const feesCol = membershipFeesCollectionFor(year);
@@ -4271,6 +4313,8 @@ document.getElementById('exportCsvBtn')?.addEventListener('click', async functio
   }
 });
 
+document.getElementById('exportSummaryBtn')?.addEventListener('click', exportYearlySummary);
+
 // ==================== PAID TRACKER BUTTONS ====================
 document.getElementById('show-paid-btn')?.addEventListener('click', loadPaidMembersTracker);
 
@@ -4283,6 +4327,24 @@ document.getElementById('clear-paid-view')?.addEventListener('click', function()
 document.getElementById('feeMemberSelect')?.addEventListener('change', function() {
   if (this.value) {
     loadMemberFeeData(this.value);
+  }
+});
+
+// ==================== AUTO-SAVE FEE AMOUNT ====================
+document.getElementById('feeAmountInput')?.addEventListener('change', async function() {
+  const memberId = document.getElementById('feeMemberSelect').value;
+  if (!memberId) return;
+  
+  const amount = parseInt(this.value) || 100;
+  
+  try {
+    const year = getCurrentYear();
+    const feesCol = membershipFeesCollectionFor(year);
+    await feesCol.doc(memberId).set({ monthlyFee: amount }, { merge: true });
+    showNotification('Fee amount auto-saved', 'success');
+    addActivity(`Auto-saved fee to ₹${amount}`, 'info');
+  } catch (error) {
+    console.error('Auto-save error:', error);
   }
 });
 
@@ -4307,6 +4369,7 @@ function clearAllTables() {
 // ==================== SEARCH INPUTS ====================
 document.getElementById('search-members')?.addEventListener('input', debounce(renderMembers, 300));
 document.getElementById('search-vc')?.addEventListener('input', debounce(renderVillageCollections, 300));
+document.getElementById('search-invite')?.addEventListener('input', debounce(renderInvitations, 300));
 
 // ==================== INITIALIZATION ====================
 function setupEventListeners() {
@@ -4314,6 +4377,8 @@ function setupEventListeners() {
   loadAllData();
   loadFinancialData();
   updateYearDisplays();
+  setupBackToTop();
+  setupModalClose();
   addActivity('Dashboard ready', 'success');
   
   window.addEventListener('beforeunload', function() {
@@ -4379,10 +4444,10 @@ window.sortTransactions = sortTransactions;
 window.applyInvitationFilters = applyInvitationFilters;
 window.clearInvitationFilters = clearInvitationFilters;
 window.clearMemberSearch = clearMemberSearch;
+window.exportYearlySummary = exportYearlySummary;
 
 console.log('🏮 Club Bornoporichoy Dashboard - ALL FEATURES WORKING');
-console.log('📅 Current year:', selectedYear);
-console.log('👤 Role:', currentRole);
+console.log(`📅 Default year: ${CURRENT_YEAR}`);
 console.log('✅ All features including 2026+, bulk upload, export, filters, sorting, real-time updates, and offline support are now working!');
 </script>
 </body>
