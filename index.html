@@ -1665,12 +1665,12 @@ const BUDGET_ITEMS = {
 };
 
 /* ---------------- Global Year Selection System ---------------- */
-let selectedYear = new Date().getFullYear(); // Default to current year
+let selectedYear = new Date().getFullYear(); // Dynamically gets current year
 let allYearsFeesData = {}; // Store fees data from all years
 let allYearsVillageData = {}; // Store village collection data from all years
 let budgetChart = null;
 
-// Function to populate year dropdowns
+// Function to populate year dropdowns (FIXED: dynamic year range)
 function populateYearDropdowns() {
   const loginYearSelect = document.getElementById('loginYearSelect');
   const globalYearSelect = document.getElementById('globalYearSelect');
@@ -1687,8 +1687,9 @@ function populateYearDropdowns() {
   if (loginYearSelect) loginYearSelect.appendChild(allYearsOption.cloneNode(true));
   if (globalYearSelect) globalYearSelect.appendChild(allYearsOption.cloneNode(true));
   
-  // Add years from 2025 to 2050
-  for (let year = 2025; year <= 2050; year++) {
+  // Add years dynamically: from 2024 up to currentYear + 10 (covers future years)
+  const currentYear = new Date().getFullYear();
+  for (let year = 2024; year <= currentYear + 10; year++) {
     const option = document.createElement('option');
     option.value = year;
     option.textContent = year;
@@ -1767,13 +1768,18 @@ function changeGlobalYear(newYear) {
   }
 }
 
-// Function to load fees data from all years
+// Function to load fees data from all years (FIXED: dynamic years)
 async function loadAllYearsFees() {
   try {
     addActivity('Loading fees data from all years...', 'info');
     
     allYearsFeesData = {};
-    const years = [2024, 2025]; // Add all years you have data for
+    // Generate years dynamically from 2024 to current year + 2
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = 2024; year <= currentYear + 2; year++) {
+      years.push(year);
+    }
     
     for (const year of years) {
       try {
@@ -1805,13 +1811,18 @@ async function loadAllYearsFees() {
   }
 }
 
-// Function to load village collection data from all years
+// Function to load village collection data from all years (FIXED: dynamic years)
 async function loadAllYearsVillageCollections() {
   try {
     addActivity('Loading village collection data from all years...', 'info');
     
     allYearsVillageData = {};
-    const years = [2024, 2025]; // Add all years you have data for
+    // Generate years dynamically from 2024 to current year + 2
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = 2024; year <= currentYear + 2; year++) {
+      years.push(year);
+    }
     
     for (const year of years) {
       try {
@@ -4312,6 +4323,7 @@ function sortMembersTable() {
 function initializeAllEventListeners() {
   console.log('Initializing all event listeners...');
   initMembershipFeesEvents();
+  addDebugButton();
 }
 
 /* ---------------- RECALC TOTAL COLLECTED ---------------- */
@@ -4515,15 +4527,6 @@ function addDebugButton() {
       summaryDiv.parentNode.insertBefore(debugButton, summaryDiv.nextSibling);
     }
   }
-}
-
-// Update initializeAllEventListeners to include debug button
-function initializeAllEventListeners() {
-  console.log('Initializing all event listeners...');
-  initMembershipFeesEvents();
-  
-  // Add debug button after a short delay to ensure DOM is ready
-  setTimeout(addDebugButton, 1000);
 }
 
 /* ---------------- Navigation ---------------- */
