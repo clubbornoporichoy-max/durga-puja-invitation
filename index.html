@@ -2555,6 +2555,12 @@ function initMembershipFeesEvents() {
   });
 }
 
+// Tracks whatever is currently rendered in the Fee Months table, so a toggle
+// click can update the screen instantly instead of waiting on a Firestore
+// write-then-read-back round trip (which was the cause of the "Mark Paid"
+// button appearing to do nothing until a later refresh).
+let currentFeeContext = { memberData: null, feeData: null, feeAmount: 100 };
+
 async function loadMemberFeeData(memberId) {
   if (!memberId) {
     const tbody = document.getElementById('fee-months-table')?.querySelector('tbody');
@@ -2592,6 +2598,11 @@ async function loadMemberFeeData(memberId) {
       await feesCol.doc(memberId).set(feeData);
     }
 
+    // Guarantee this is always set — older documents (or ones created via
+    // "Save Config" before this field existed) may be missing it, which
+    // previously made the Mark Paid/Unpaid button unable to find the doc.
+    feeData.memberId = memberId;
+
     updateFeeTable(memberData, feeData, feeAmount);
   } catch (error) {
     console.error('Error loading member fee data:', error);
@@ -2620,6 +2631,11 @@ function updateFeeTable(memberData, feeData, feeAmount) {
   if (!tbody) return;
   tbody.innerHTML = '';
 
+  // Remember what's on screen right now so togglePaymentStatus can mutate
+  // it directly and re-render instantly, instead of re-fetching from
+  // Firestore before it can update the UI.
+  currentFeeContext = { memberData, feeData, feeAmount };
+
   let paidMonths = 0, totalPaid = 0;
   MONTHS.forEach(month => {
     let monthData = feeData[month] || (feeData.months && feeData.months[month]) || { paid: false, paidOn: null, amount: feeAmount };
@@ -2630,7 +2646,7 @@ function updateFeeTable(memberData, feeData, feeAmount) {
     tr.innerHTML = `
       <td style="font-weight: bold;">${month}</td>
       <td><span class="badge ${isPaid ? 'ok' : 'warn'}">${isPaid ? 'Paid' : 'Pending'}</span></td>
-      <td>${monthData.paidOn ? new Date(monthData.paidOn.seconds * 1000).toLocaleDateString() : '-'}</td>
+      <td>${monthData.paidOn ? new Date(monthData.paidOn.seconds * 1000).toLocaleDateString() : (isPaid ? 'Just now' : '-')}</td>
       <td class="center"></td>
     `;
     const toggleTd = tr.querySelector('td:last-child');
@@ -2648,24 +2664,46 @@ function updateFeeTable(memberData, feeData, feeAmount) {
 }
 
 async function togglePaymentStatus(memberId, month, paid, amount) {
+  if (!memberId) {
+    showNotification('Could not identify this member — please reload and try again.', 'error');
+    return;
+  }
+
+  // 1. Optimistic update: flip it on screen immediately, no waiting on Firestore.
+  const previousMonthData = currentFeeContext.feeData[month]
+    ? { ...currentFeeContext.feeData[month] }
+    : { paid: false, paidOn: null, amount };
+
+  currentFeeContext.feeData = {
+    ...currentFeeContext.feeData,
+    memberId,
+    monthlyFee: amount,
+    [month]: { paid, amount, paidOn: paid ? { seconds: Math.floor(Date.now() / 1000) } : null }
+  };
+  updateFeeTable(currentFeeContext.memberData, currentFeeContext.feeData, currentFeeContext.feeAmount);
+  showNotification(`Marked ${month} as ${paid ? 'Paid' : 'Unpaid'}`, 'success');
+  addActivity(`Updated ${month} payment for ${currentFeeContext.memberData?.name || memberId}`, 'info');
+
+  // 2. Persist in the background. If it fails, revert the on-screen change
+  // and tell the person clearly, instead of leaving a phantom "paid" state
+  // that isn't actually saved.
   try {
     const feesCol = membershipFeesCollectionFor(selectedYear);
     const updateData = {
       [`${month}.paid`]: paid, [`${month}.amount`]: amount, monthlyFee: amount,
+      memberId,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     updateData[`${month}.paidOn`] = paid ? firebase.firestore.FieldValue.serverTimestamp() : null;
-
     await feesCol.doc(memberId).set(updateData, { merge: true });
-    clearCache('fees');
-    showNotification(`Payment status updated for ${month}`, 'success');
-    addActivity(`Updated ${month} payment for member ID: ${memberId}`, 'info');
-    loadMemberFeeData(memberId);
+
     loadFeeYearlySummary();
     recalcTotalCollected();
   } catch (error) {
     console.error('Error updating payment status:', error);
-    showNotification('Error updating payment: ' + error.message, 'error');
+    currentFeeContext.feeData = { ...currentFeeContext.feeData, [month]: previousMonthData };
+    updateFeeTable(currentFeeContext.memberData, currentFeeContext.feeData, currentFeeContext.feeAmount);
+    showNotification(`Could not save ${month} — reverted. (${error.message})`, 'error');
   }
 }
 
@@ -2733,7 +2771,7 @@ async function saveFeeConfiguration() {
     const memberData = memberDoc.data();
 
     await feesCol.doc(memberId).set({
-      monthlyFee, memberName: memberData.name, memberVillage: memberData.village,
+      monthlyFee, memberId, memberName: memberData.name, memberVillage: memberData.village,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
 
