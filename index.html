@@ -720,7 +720,7 @@
     <div class="card" id="budget-tracker">
       <div class="flex space" style="flex-wrap:wrap">
         <h2 style="margin:0">🎯 Budget Overview (<span id="budget-year-display">2025</span>)</h2>
-        <button class="btn small secondary" onclick="showEditBudgetModal()">✏️ Edit Budget</button>
+        <button id="edit-budget-btn" class="btn small secondary" onclick="showEditBudgetModal()">✏️ Edit Budget</button>
       </div>
       <div class="subtitle">Track budget vs actual spending for Durga Puja</div>
 
@@ -824,7 +824,7 @@
         </select>
         <select id="filter-status" style="min-width: 150px;">
           <option value="">All Status</option>
-          <option value="paid">Paid</option>
+          <option value="sent">Sent</option>
           <option value="pending">Pending</option>
         </select>
         <input type="date" id="filter-date-from" placeholder="From Date">
@@ -1557,6 +1557,16 @@ function updateYearDisplays() {
   if (globalYearSelect) globalYearSelect.value = selectedYear;
 }
 
+// The all-years objects (allYearsFeesData etc.) are only fetched once and then
+// reused — call this after any write that could make them stale, so the next
+// time someone views "All Years" it re-fetches instead of showing old numbers.
+function invalidateAllYearsCaches() {
+  allYearsFeesData = {};
+  allYearsVillageData = {};
+  allYearsIncomeData = {};
+  allYearsExpenseData = {};
+}
+
 function changeGlobalYear(newYear) {
   selectedYear = newYear === 'all' ? 'all' : parseInt(newYear);
   updateYearDisplays();
@@ -1961,6 +1971,9 @@ async function loadTransactions() {
 function addTransactionToTable(id, data, type, tbody) {
   const tr = document.createElement('tr');
   tr.className = type === 'income' ? 'transaction-income' : 'transaction-expense';
+  tr.dataset.type = type;
+  tr.dataset.category = data.category || 'Uncategorized';
+  tr.dataset.date = data.date && data.date.seconds ? new Date(data.date.seconds * 1000).toISOString().split('T')[0] : '';
   const isIncome = type === 'income';
 
   tr.innerHTML = `
@@ -1994,6 +2007,7 @@ async function deleteTransaction(id, type) {
     const collection = type === 'income' ? incomeCollectionFor(selectedYear) : expenseCollectionFor(selectedYear);
     await collection.doc(id).delete();
     clearCache('financial'); clearCache('income'); clearCache('expense');
+    invalidateAllYearsCaches();
     showNotification('Transaction deleted successfully', 'success');
     loadFinancialData();
   } catch (error) {
@@ -2029,6 +2043,7 @@ async function updateFinancialSummary() {
 }
 
 function showTransactionModal(type = 'income') {
+  if (currentRole !== 'admin') return showNotification('Only admin can add transactions', 'error');
   currentTransactionType = type;
   const modal = document.getElementById('transactionModal');
   const title = document.getElementById('transactionModalTitle');
@@ -2077,6 +2092,7 @@ async function saveTransaction() {
     });
 
     clearCache('financial'); clearCache('income'); clearCache('expense');
+    invalidateAllYearsCaches();
     showNotification(`${currentTransactionType === 'income' ? 'Income' : 'Expense'} added successfully`, 'success');
     addActivity(`Added ${currentTransactionType} of ₹${amount.toLocaleString()} (${category})`, 'success');
     closeTransactionModal();
@@ -2225,22 +2241,13 @@ function filterTransactions() {
   const fromDate = document.getElementById('filter-transaction-from').value;
   const toDate = document.getElementById('filter-transaction-to').value;
 
-  const rows = document.querySelectorAll('#transactions-table tbody tr');
-  rows.forEach(row => {
-    const cells = row.querySelectorAll('td');
-    if (cells.length < 6) return; // empty-state row
-    const typeText = cells[1].textContent.includes('Income') ? 'income' : 'expense';
-    const category = cells[2].textContent.trim();
-    const dateText = cells[0].textContent.trim();
+  document.querySelectorAll('#transactions-table tbody tr').forEach(row => {
+    if (!row.dataset || row.dataset.type === undefined) return; // empty-state row
     let visible = true;
-
-    if (typeFilter !== 'all' && typeText !== typeFilter) visible = false;
-    if (categoryFilter !== 'all' && category !== categoryFilter) visible = false;
-    if ((fromDate || toDate) && dateText) {
-      const rowDate = new Date(dateText);
-      if (fromDate && rowDate < new Date(fromDate)) visible = false;
-      if (toDate && rowDate > new Date(toDate)) visible = false;
-    }
+    if (typeFilter !== 'all' && row.dataset.type !== typeFilter) visible = false;
+    if (categoryFilter !== 'all' && row.dataset.category !== categoryFilter) visible = false;
+    if (fromDate && row.dataset.date && row.dataset.date < fromDate) visible = false;
+    if (toDate && row.dataset.date && row.dataset.date > toDate) visible = false;
     row.style.display = visible ? '' : 'none';
   });
 }
@@ -2270,6 +2277,9 @@ async function loadInvitations(){
     snapshot.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
+      tr.dataset.village = d.village || '';
+      tr.dataset.status = d.sent ? 'sent' : 'pending';
+      tr.dataset.date = d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toISOString().split('T')[0] : '';
       tr.innerHTML = `
         <td>${escapeHtml(d.name||"")}</td>
         <td>${escapeHtml(d.village||"")}</td>
@@ -2696,6 +2706,7 @@ async function togglePaymentStatus(memberId, month, paid, amount) {
     };
     updateData[`${month}.paidOn`] = paid ? firebase.firestore.FieldValue.serverTimestamp() : null;
     await feesCol.doc(memberId).set(updateData, { merge: true });
+    invalidateAllYearsCaches();
 
     loadFeeYearlySummary();
     recalcTotalCollected();
@@ -2776,6 +2787,7 @@ async function saveFeeConfiguration() {
     }, { merge: true });
 
     clearCache('fees');
+    invalidateAllYearsCaches();
     showNotification('Fee configuration saved', 'success');
     addActivity(`Updated monthly fee to ₹${monthlyFee} for ${memberData.name}`, 'info');
     loadMemberFeeData(memberId);
@@ -2807,6 +2819,7 @@ async function clearFeeRecord() {
 
     await feesCol.doc(memberId).set(resetData);
     clearCache('fees');
+    invalidateAllYearsCaches();
     showNotification('Payment records cleared', 'success');
     addActivity(`Cleared all payment records for ${memberData.name}`, 'info');
     loadMemberFeeData(memberId);
@@ -2977,6 +2990,7 @@ async function saveCollectionEdit() {
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     });
     clearCache('village');
+    invalidateAllYearsCaches();
     showNotification('Collection updated successfully', 'success');
     addActivity(`Updated collection from ${donor}`, 'success');
     closeEditCollectionModal();
@@ -2995,6 +3009,7 @@ async function deleteCollection(collectionId, donorName) {
   try {
     await villageCollectionsCollectionFor(selectedYear).doc(collectionId).delete();
     clearCache('village');
+    invalidateAllYearsCaches();
     showToast('Deleted');
     addActivity(`Deleted collection record for ${donorName}`, 'info');
     loadVillageCollections();
@@ -3106,11 +3121,19 @@ async function updateMonthlySummary() { await recalcTotalCollected(); }
 /* ==================== Bulk upload (invitations & village collections) ==================== */
 /* Simple, dependency-free CSV/pipe parser shared by both bulk-upload flows. */
 
+const HEADER_ROW_MARKERS = ['name', 'bill no', 'bill number', 'bill'];
+
 function parseBulkText(text) {
-  return text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+  const rows = text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
     const sep = line.includes('|') ? '|' : ',';
     return line.split(sep).map(c => c.trim());
   });
+  // If the first row looks like the template's own header (e.g. someone pasted
+  // "Name | Village | Mobile | Remarks" along with their data), drop it.
+  if (rows.length && HEADER_ROW_MARKERS.includes((rows[0][0] || '').toLowerCase())) {
+    rows.shift();
+  }
+  return rows;
 }
 
 function showBulkUploadModal() { document.getElementById('bulkUploadModal')?.classList.remove('hidden'); }
@@ -3251,6 +3274,7 @@ async function processVillageBulkUpload() {
   }
 
   clearCache('village');
+  invalidateAllYearsCaches();
   text.textContent = `Done — ${done} added, ${failed} failed`;
   showNotification(`Bulk upload complete: ${done} added, ${failed} failed (unmatched collector names are skipped)`, done > 0 ? 'success' : 'error');
   addActivity(`Bulk uploaded ${done} village collections (${failed} failed)`, 'success');
@@ -3380,7 +3404,7 @@ auth.onAuthStateChanged(user => {
 });
 
 function applyRoleToUI(){
-  ["add-inv-btn","add-mem-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","show-paid-btn","exportCsvBtn","add-vc-btn"].forEach(id=>{
+  ["add-inv-btn","add-mem-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","show-paid-btn","exportCsvBtn","add-vc-btn","edit-budget-btn"].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.disabled = (currentRole !== "admin");
   });
@@ -3435,6 +3459,25 @@ function filterTable(tableId, term){
   });
 }
 
+function applyInvitationFilters() {
+  const searchTerm = (document.getElementById('search-invite')?.value || '').toLowerCase();
+  const village = document.getElementById('filter-village')?.value || '';
+  const status = document.getElementById('filter-status')?.value || '';
+  const fromDate = document.getElementById('filter-date-from')?.value || '';
+  const toDate = document.getElementById('filter-date-to')?.value || '';
+
+  document.querySelectorAll('#invitation-table tbody tr').forEach(row => {
+    if (!row.dataset || row.dataset.village === undefined) return; // empty-state row
+    let visible = true;
+    if (searchTerm && !row.innerText.toLowerCase().includes(searchTerm)) visible = false;
+    if (village && row.dataset.village !== village) visible = false;
+    if (status && row.dataset.status !== status) visible = false;
+    if (fromDate && row.dataset.date && row.dataset.date < fromDate) visible = false;
+    if (toDate && row.dataset.date && row.dataset.date > toDate) visible = false;
+    row.style.display = visible ? '' : 'none';
+  });
+}
+
 /* ---------------- Navigation ---------------- */
 
 function clearActiveNav(){ document.querySelectorAll('nav.topbar a').forEach(a => a.classList.remove('active')); }
@@ -3480,7 +3523,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  document.getElementById("search-invite")?.addEventListener("input", e => debouncedFilterTable("invitation-table", e.target.value));
+  document.getElementById("search-invite")?.addEventListener("input", debounce(applyInvitationFilters, 300));
+  document.getElementById("filter-village")?.addEventListener("change", applyInvitationFilters);
+  document.getElementById("filter-status")?.addEventListener("change", applyInvitationFilters);
+  document.getElementById("filter-date-from")?.addEventListener("change", applyInvitationFilters);
+  document.getElementById("filter-date-to")?.addEventListener("change", applyInvitationFilters);
   document.getElementById("search-members")?.addEventListener("input", e => debouncedFilterTable("members-table", e.target.value));
   document.getElementById("search-vc")?.addEventListener("input", e => debouncedFilterTable("vc-table", e.target.value));
 
@@ -3559,6 +3606,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       ['vc-bill', 'vc-donor', 'vc-amount', 'vc-remarks'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       clearCache('village');
+      invalidateAllYearsCaches();
       showNotification('Collection added successfully', 'success');
       addActivity(`Added collection from ${donor} in ${village}`, 'success');
       loadVillageCollections();
