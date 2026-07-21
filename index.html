@@ -710,6 +710,7 @@
     <div class="card" id="year-info-card">
       <h3>📅 Currently Viewing: <span id="current-year-display">2025</span> <span class="year-info" id="year-data-status">Loading...</span></h3>
       <div class="subtitle" id="year-data-description">Viewing membership fees and financial data for selected year. Other data (invitations, members) shows all years.</div>
+      <div id="total-collected-summary" class="total-collection" style="margin-top:10px; display:none;"></div>
       <div style="display: flex; gap: 10px; margin-top: 10px;">
         <button class="btn small secondary" onclick="loadAllYearsFees()">🔄 Load Fees from All Years</button>
         <button class="btn small ghost" onclick="showYearComparison()">📊 Compare Years</button>
@@ -2919,15 +2920,20 @@ async function repairAndSyncFees() {
       const memberId = docSnap.id;
       const nestedUpdate = {};
       let needsRepair = false;
+      const hasOldMonthsWrapper = data.months && typeof data.months === 'object';
 
       MONTHS.forEach(month => {
         const strayPaid = data[`${month}.paid`];
         const strayAmount = data[`${month}.amount`];
         const strayPaidOn = data[`${month}.paidOn`];
         const hasStray = strayPaid !== undefined || strayAmount !== undefined || strayPaidOn !== undefined;
-        const existingMonth = data[month] || (data.months && data.months[month]);
+        const existingMonth = data[month] || (hasOldMonthsWrapper && data.months[month]);
 
-        if (hasStray) {
+        // Repair this month if it has a stray flat field OR if the whole
+        // document is still sitting in the old "months" wrapper — otherwise
+        // a never-opened old-structure record's paid months would be
+        // invisible to the Income backfill step below.
+        if (hasStray || (hasOldMonthsWrapper && existingMonth)) {
           needsRepair = true;
           nestedUpdate[month] = {
             paid: strayPaid !== undefined ? strayPaid : (existingMonth ? existingMonth.paid : false),
@@ -3245,7 +3251,7 @@ async function recalcTotalCollected() {
       Object.values(allYearsVillageData).forEach(yd => Object.values(yd).forEach(c => totalVillage += c.amount || 0));
       if (Object.keys(allYearsFeesData).length === 0) await loadAllYearsFees();
       Object.values(allYearsFeesData).forEach(yd => Object.values(yd).forEach(mf => {
-        MONTHS.forEach(month => { if (mf[month] && mf[month].paid) totalMembership += mf.monthlyFee || 100; });
+        MONTHS.forEach(month => { if (mf[month] && mf[month].paid) totalMembership += mf[month].amount || mf.monthlyFee || 100; });
       }));
     } else {
       const villageSnap = await villageCollectionsCollectionFor(selectedYear).get();
@@ -3253,10 +3259,21 @@ async function recalcTotalCollected() {
       const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
       feesSnap.forEach(doc => {
         const data = doc.data();
-        MONTHS.forEach(month => { if (data[month] && data[month].paid) totalMembership += data.monthlyFee || 100; });
+        // Use each month's own recorded amount first — falling back to the
+        // member's current monthlyFee only if that month never had one set.
+        // Using monthlyFee alone would misstate history if the fee amount
+        // was ever changed partway through the year.
+        MONTHS.forEach(month => { if (data[month] && data[month].paid) totalMembership += data[month].amount || data.monthlyFee || 100; });
       });
     }
-    // total available at totalVillage + totalMembership if needed by future UI
+
+    const combined = totalVillage + totalMembership;
+    const el = document.getElementById('total-collected-summary');
+    if (el) {
+      const yearLabel = selectedYear === 'all' ? 'All Years' : selectedYear;
+      el.style.display = 'block';
+      el.textContent = `Total Collected (${yearLabel}): ₹${combined.toLocaleString()}  —  Village: ₹${totalVillage.toLocaleString()} + Membership Fees: ₹${totalMembership.toLocaleString()}`;
+    }
   } catch (error) {
     console.error("Recalc total collected error:", error);
   }
