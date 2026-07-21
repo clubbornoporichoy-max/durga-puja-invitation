@@ -933,7 +933,16 @@
       </div>
 
       <div style="margin-top:12px">
-        <h3 style="margin:0 0 8px 0;color:var(--primary-red);font-size:15px">Yearly Summary</h3>
+        <div class="flex space" style="flex-wrap:wrap">
+          <h3 style="margin:0;color:var(--primary-red);font-size:15px">Yearly Summary</h3>
+          <button id="repairSyncBtn" class="btn small ghost" onclick="repairAndSyncFees()">🔧 Repair &amp; Sync to Income</button>
+        </div>
+        <div class="muted note">
+          Marking a month Paid automatically records it under Income → Membership Fees.
+          If numbers here look off for entries marked paid before this update, run
+          "Repair &amp; Sync" once — it fixes older records and backfills Income; it's
+          safe to run more than once.
+        </div>
         <table id="fees-yearly-summary">
           <thead><tr><th>Month</th><th>Paid Members</th><th>Total Collected (₹)</th></tr></thead>
         <tbody></tbody>
@@ -1975,11 +1984,12 @@ function addTransactionToTable(id, data, type, tbody) {
   tr.dataset.category = data.category || 'Uncategorized';
   tr.dataset.date = data.date && data.date.seconds ? new Date(data.date.seconds * 1000).toISOString().split('T')[0] : '';
   const isIncome = type === 'income';
+  const isFeeLinked = data.source === 'membership_fee';
 
   tr.innerHTML = `
     <td>${data.date ? new Date(data.date.seconds * 1000).toLocaleDateString() : ''}</td>
     <td><span class="badge ${isIncome ? 'ok' : 'warn'}">${isIncome ? '💰 Income' : '💸 Expense'}</span></td>
-    <td>${escapeHtml(data.category || 'Uncategorized')}</td>
+    <td>${escapeHtml(data.category || 'Uncategorized')}${isFeeLinked ? ' <span class="year-info" style="font-size:10px">from Fees</span>' : ''}</td>
     <td>${escapeHtml(data.description || '')}</td>
     <td style="color: ${isIncome ? '#28a745' : '#dc3545'}; font-weight: bold;">${isIncome ? '+' : '-'}₹${(data.amount || 0).toLocaleString()}</td>
     <td>${escapeHtml(data.paymentMode || 'Cash')}</td>
@@ -1991,14 +2001,18 @@ function addTransactionToTable(id, data, type, tbody) {
     const deleteBtn = document.createElement('button');
     deleteBtn.textContent = 'Delete';
     deleteBtn.className = 'btn small ghost';
-    deleteBtn.onclick = () => deleteTransaction(id, type, data.year);
+    deleteBtn.onclick = () => deleteTransaction(id, type, data);
     actionsTd.appendChild(deleteBtn);
   }
   tbody.appendChild(tr);
 }
 
-async function deleteTransaction(id, type) {
-  if (!confirm('Are you sure you want to delete this transaction?')) return;
+async function deleteTransaction(id, type, data) {
+  const isFeeLinked = data && data.source === 'membership_fee';
+  const confirmMsg = isFeeLinked
+    ? `This income entry was auto-created from a ${data.month || ''} membership fee payment. Deleting it here won't mark that fee as unpaid — do that from the Membership Fees Tracker instead if that's what you want. Delete this income entry anyway?`
+    : 'Are you sure you want to delete this transaction?';
+  if (!confirm(confirmMsg)) return;
   if (selectedYear === 'all') {
     showNotification('Switch to a specific year to delete a transaction.', 'error');
     return;
@@ -2673,6 +2687,35 @@ function updateFeeTable(memberData, feeData, feeAmount) {
   safeSetTextContent('fee-member-summary', `${memberData.name} - ${paidMonths}/12 months paid (₹${totalPaid})`);
 }
 
+// A deterministic doc ID so a paid-month always maps to exactly one income
+// entry — lets us create/update/delete it idempotently instead of guessing.
+function feeIncomeDocId(memberId, month) {
+  return `fee_${memberId}_${month}`;
+}
+
+// Keeps the Income tracker in sync with a member's paid/unpaid month.
+// Marking a month Paid creates (or refreshes) a "Membership Fees" income
+// entry; marking it Unpaid removes that entry again, so totals never
+// double-count or go stale.
+async function syncFeeIncomeEntry(year, memberId, memberName, month, paid, amount) {
+  const docRef = incomeCollectionFor(year).doc(feeIncomeDocId(memberId, month));
+  if (paid) {
+    await docRef.set({
+      amount,
+      category: 'Membership Fees',
+      description: `Membership fee — ${month} — ${memberName || memberId}`,
+      paymentMode: 'Cash',
+      date: firebase.firestore.Timestamp.now(),
+      source: 'membership_fee',
+      memberId, month,
+      createdBy: auth.currentUser ? auth.currentUser.uid : null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } else {
+    await docRef.delete().catch(() => { /* fine if it was never marked paid */ });
+  }
+}
+
 async function togglePaymentStatus(memberId, month, paid, amount) {
   if (!memberId) {
     showNotification('Could not identify this member — please reload and try again.', 'error');
@@ -2699,17 +2742,32 @@ async function togglePaymentStatus(memberId, month, paid, amount) {
   // that isn't actually saved.
   try {
     const feesCol = membershipFeesCollectionFor(selectedYear);
-    const updateData = {
-      [`${month}.paid`]: paid, [`${month}.amount`]: amount, monthlyFee: amount,
-      memberId,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    updateData[`${month}.paidOn`] = paid ? firebase.firestore.FieldValue.serverTimestamp() : null;
-    await feesCol.doc(memberId).set(updateData, { merge: true });
-    invalidateAllYearsCaches();
 
+    // IMPORTANT: this is a genuinely-nested object, not a flat object with
+    // dotted-string keys ("Mar.paid"). set(..., {merge:true}) with a nested
+    // object is unambiguous and well-documented — it merges only the
+    // sub-fields provided, leaving everything else in the document alone.
+    // The previous version used dotted keys, which is what let this table
+    // look right (because it now updates itself optimistically, in memory)
+    // while the Yearly Summary and Paid Members Tracker — which both do an
+    // honest fresh read from Firestore — kept showing the old, unwritten data.
+    await feesCol.doc(memberId).set({
+      memberId,
+      monthlyFee: amount,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      [month]: {
+        paid,
+        amount,
+        paidOn: paid ? firebase.firestore.FieldValue.serverTimestamp() : null
+      }
+    }, { merge: true });
+
+    await syncFeeIncomeEntry(selectedYear, memberId, currentFeeContext.memberData?.name, month, paid, amount);
+
+    invalidateAllYearsCaches();
     loadFeeYearlySummary();
     recalcTotalCollected();
+    updateFinancialSummary();
   } catch (error) {
     console.error('Error updating payment status:', error);
     currentFeeContext.feeData = { ...currentFeeContext.feeData, [month]: previousMonthData };
@@ -2811,6 +2869,7 @@ async function clearFeeRecord() {
     const memberData = memberDoc.data();
 
     const resetData = {
+      memberId,
       monthlyFee: parseInt(document.getElementById('feeAmountInput').value) || 100,
       memberName: memberData.name, memberVillage: memberData.village,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2818,6 +2877,13 @@ async function clearFeeRecord() {
     MONTHS.forEach(month => { resetData[month] = { paid: false, paidOn: null, amount: resetData.monthlyFee }; });
 
     await feesCol.doc(memberId).set(resetData);
+
+    // Remove any income entries this member's payments had created, so
+    // clearing the fee record doesn't leave phantom income behind.
+    await Promise.all(MONTHS.map(month =>
+      incomeCollectionFor(selectedYear).doc(feeIncomeDocId(memberId, month)).delete().catch(() => {})
+    ));
+
     clearCache('fees');
     invalidateAllYearsCaches();
     showNotification('Payment records cleared', 'success');
@@ -2825,9 +2891,89 @@ async function clearFeeRecord() {
     loadMemberFeeData(memberId);
     loadFeeYearlySummary();
     recalcTotalCollected();
+    updateFinancialSummary();
   } catch (error) {
     console.error('Error clearing fee record:', error);
     showNotification('Error clearing records: ' + error.message, 'error');
+  }
+}
+
+// One-click recovery tool for data written by the old (buggy) toggle code,
+// which could leave a stray flat field like "Mar.paid" sitting alongside —
+// instead of inside — a member's Mar object, so reads of the real nested
+// field never saw it as paid. This function only ever ADDS/repairs data
+// (it never deletes real records), and is safe to run more than once.
+async function repairAndSyncFees() {
+  if (currentRole !== 'admin') return showNotification('Only admin can run this.', 'error');
+  if (selectedYear === 'all') return showNotification('Select a specific year first.', 'error');
+
+  showNotification('Scanning fee records for this year…', 'info');
+  const feesCol = membershipFeesCollectionFor(selectedYear);
+  let repairedDocs = 0, incomeSynced = 0;
+
+  try {
+    const snap = await feesCol.get();
+
+    for (const docSnap of snap.docs) {
+      const data = docSnap.data();
+      const memberId = docSnap.id;
+      const nestedUpdate = {};
+      let needsRepair = false;
+
+      MONTHS.forEach(month => {
+        const strayPaid = data[`${month}.paid`];
+        const strayAmount = data[`${month}.amount`];
+        const strayPaidOn = data[`${month}.paidOn`];
+        const hasStray = strayPaid !== undefined || strayAmount !== undefined || strayPaidOn !== undefined;
+        const existingMonth = data[month] || (data.months && data.months[month]);
+
+        if (hasStray) {
+          needsRepair = true;
+          nestedUpdate[month] = {
+            paid: strayPaid !== undefined ? strayPaid : (existingMonth ? existingMonth.paid : false),
+            amount: strayAmount !== undefined ? strayAmount : (existingMonth ? existingMonth.amount : (data.monthlyFee || 100)),
+            paidOn: strayPaidOn !== undefined ? strayPaidOn : (existingMonth ? existingMonth.paidOn : null)
+          };
+        }
+      });
+
+      if (needsRepair) {
+        await feesCol.doc(memberId).set({ ...nestedUpdate, memberId }, { merge: true });
+        repairedDocs++;
+      } else if (!data.memberId) {
+        await feesCol.doc(memberId).set({ memberId }, { merge: true });
+      }
+    }
+
+    // Re-read the now-clean data and make sure Income has a matching entry
+    // for every month that's genuinely marked paid. Safe to re-run any
+    // time — it only ever fills in what's missing, never duplicates.
+    const cleanSnap = await feesCol.get();
+    for (const docSnap of cleanSnap.docs) {
+      const data = docSnap.data();
+      const memberId = docSnap.id;
+      for (const month of MONTHS) {
+        const monthData = data[month];
+        if (monthData && monthData.paid) {
+          await syncFeeIncomeEntry(selectedYear, memberId, data.memberName, month, true, monthData.amount || data.monthlyFee || 100);
+          incomeSynced++;
+        }
+      }
+    }
+
+    invalidateAllYearsCaches();
+    clearCache('fees');
+    showNotification(`Done — repaired ${repairedDocs} record(s), confirmed ${incomeSynced} paid month(s) in Income.`, 'success');
+    addActivity(`Ran fee repair & income sync for ${selectedYear}`, 'success');
+
+    loadFeeYearlySummary();
+    loadFinancialData();
+    recalcTotalCollected();
+    const memberSelect = document.getElementById('feeMemberSelect');
+    if (memberSelect && memberSelect.value) loadMemberFeeData(memberSelect.value);
+  } catch (error) {
+    console.error('Repair & sync error:', error);
+    showNotification('Repair failed: ' + error.message, 'error');
   }
 }
 
@@ -3404,7 +3550,7 @@ auth.onAuthStateChanged(user => {
 });
 
 function applyRoleToUI(){
-  ["add-inv-btn","add-mem-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","show-paid-btn","exportCsvBtn","add-vc-btn","edit-budget-btn"].forEach(id=>{
+  ["add-inv-btn","add-mem-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","show-paid-btn","exportCsvBtn","add-vc-btn","edit-budget-btn","repairSyncBtn"].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.disabled = (currentRole !== "admin");
   });
@@ -3657,6 +3803,7 @@ window.changeGlobalYear = changeGlobalYear;
 window.showEditBudgetModal = showEditBudgetModal;
 window.closeEditBudgetModal = closeEditBudgetModal;
 window.saveEditBudget = saveEditBudget;
+window.repairAndSyncFees = repairAndSyncFees;
 
 </script>
 </body>
