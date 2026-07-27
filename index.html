@@ -565,6 +565,72 @@
   .hidden { display: none !important; }
   .visible { display: block !important; }
   .flex-row { display: flex; flex-direction: row; }
+
+  /* Mobile floating "+" Add button */
+  .mobile-fab {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary-red);
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    border: none;
+    box-shadow: 0 8px 20px rgba(183,28,28,0.35);
+    z-index: 500;
+    cursor: pointer;
+  }
+  .mobile-fab:active { transform: scale(0.94); }
+  @media (max-width: 768px) {
+    .mobile-fab.hidden { display: none; }
+    .mobile-fab:not(.hidden) { display: flex; align-items: center; justify-content: center; }
+  }
+
+  /* WhatsApp reminder links */
+  .wa-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: #25D366;
+    color: #fff !important;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .wa-link:hover { opacity: 0.9; }
+
+  /* Print stylesheet: hides all interactive chrome so a printed page shows
+     just the content — a plain list/report instead of a web app screenshot. */
+  @media print {
+    header, nav.topbar, .global-year-selector, .auth-area, .spacer,
+    .quick-actions, .bulk-upload-section, .advanced-filters, .mobile-fab,
+    .modal-overlay, #recent-activity, .toast-container,
+    button, input, select, textarea, .wa-link {
+      display: none !important;
+    }
+    body { background: #fff; }
+    .card {
+      box-shadow: none;
+      border: 1px solid #ccc;
+      page-break-inside: avoid;
+      margin-bottom: 12px;
+    }
+    table { font-size: 12px; }
+  }
+
+  /* When printing a single receipt, hide everything else on the page and
+     show only the receipt content, regardless of which section is open. */
+  body.printing-receipt > *:not(#receipt-print-area) { display: none !important; }
+  body.printing-receipt #receipt-print-area {
+    display: block !important;
+    position: static;
+  }
 </style>
 </head>
 <body>
@@ -695,6 +761,7 @@
         <button class="btn small" onclick="showBulkUploadModal()">📤 Bulk Upload</button>
         <button class="btn small secondary" onclick="showTransactionModal('income')">💰 Add Income</button>
         <button class="btn small" onclick="showTransactionModal('expense')">💸 Add Expense</button>
+        <button id="recycleBinBtn" class="btn small ghost" onclick="openRecycleBin()">🗑️ Recycle Bin</button>
       </div>
     </div>
 
@@ -732,6 +799,14 @@
       <!-- Budget Progress Chart -->
       <div style="margin-top: 20px;">
         <canvas id="budgetChart" height="100"></canvas>
+      </div>
+
+      <!-- Expense Breakdown Chart -->
+      <div style="margin-top: 24px;">
+        <h3 style="margin:0 0 8px;color:var(--primary-red);font-size:15px">🥧 Expense Breakdown</h3>
+        <div style="max-width:420px;margin:0 auto;">
+          <canvas id="expenseBreakdownChart" height="260"></canvas>
+        </div>
       </div>
     </div>
 
@@ -1063,6 +1138,9 @@
 <!-- Toast container -->
 <div class="toast-container" id="toast-container"></div>
 
+<!-- Mobile "+" floating action button — jumps to the Add form for whichever section is on screen -->
+<button id="mobile-fab" class="mobile-fab hidden" onclick="handleFabClick()" title="Add" aria-label="Add">+</button>
+
 <!-- Bulk Upload Modal for Invitations -->
 <div id="bulkUploadModal" class="modal-overlay hidden">
   <div class="modal-content">
@@ -1180,7 +1258,7 @@
     </div>
     
     <div style="display: flex; gap: 10px; margin-top: 20px;">
-      <button class="btn" onclick="saveTransaction()">💾 Save Transaction</button>
+      <button id="transaction-save-btn" class="btn" onclick="saveTransaction()">💾 Save Transaction</button>
       <button class="btn ghost" onclick="closeTransactionModal()">❌ Cancel</button>
     </div>
   </div>
@@ -1323,6 +1401,38 @@
   </div>
 </div>
 
+<!-- Custom Confirm Dialog (replaces native browser confirm()) -->
+<div id="confirmModal" class="modal-overlay hidden">
+  <div class="modal-content" style="max-width:420px">
+    <div class="modal-header">
+      <h3 id="confirm-modal-title">Please Confirm</h3>
+    </div>
+    <div id="confirm-modal-message" style="margin:6px 0 22px;color:var(--text);line-height:1.5"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn ghost" id="confirm-modal-cancel">Cancel</button>
+      <button class="btn" id="confirm-modal-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recycle Bin -->
+<div id="recycleBinModal" class="modal-overlay hidden">
+  <div class="modal-content" style="max-width:700px">
+    <div class="modal-header">
+      <h3>🗑️ Recycle Bin</h3>
+      <button class="modal-close" onclick="closeRecycleBin()">&times;</button>
+    </div>
+    <div class="muted note" style="margin-bottom:10px">
+      Deleted members, invitations, and this year's village collections land here first —
+      restore them any time, or remove them for good.
+    </div>
+    <div id="recycleBinContent" style="max-height:60vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- Hidden receipt content, shown only via the print stylesheet when printing a receipt -->
+<div id="receipt-print-area" class="hidden"></div>
+
 <!-- Screen reader live region -->
 <div id="sr-live-region" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
@@ -1411,6 +1521,7 @@ let allYearsExpenseData = {};
 let knownDataYears = null; // discovered lazily, cached for the session
 let budgetChart = null;
 let collectionChart = null;
+let expenseBreakdownChart = null;
 
 /* Which years to scan when the person picks "All Years". Rather than a hardcoded
    [2024, 2025] that silently misses future years, we scan a generous window around
@@ -1429,6 +1540,65 @@ function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,
 function safeSetTextContent(elementId, text) {
   const element = document.getElementById(elementId);
   if (element) element.textContent = text;
+}
+
+// Promise-based replacement for the native browser confirm() dialog, styled
+// to match the rest of the app. Usage: if (!(await showConfirmDialog('Delete this?'))) return;
+function showConfirmDialog(message, opts = {}) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('confirmModal');
+    const msgEl = document.getElementById('confirm-modal-message');
+    const titleEl = document.getElementById('confirm-modal-title');
+    const okBtn = document.getElementById('confirm-modal-ok');
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+    if (!modal || !msgEl || !titleEl || !okBtn || !cancelBtn) {
+      resolve(window.confirm(message)); // fallback if the modal markup is ever missing
+      return;
+    }
+
+    titleEl.textContent = opts.title || 'Please Confirm';
+    msgEl.textContent = message;
+    okBtn.textContent = opts.okText || 'Confirm';
+    okBtn.style.background = opts.danger ? '#dc3545' : '';
+    modal.classList.remove('hidden');
+
+    const cleanup = (result) => {
+      modal.classList.add('hidden');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
+// Builds a wa.me link. Assumes Indian 10-digit numbers when no country code
+// is present (the club's default), since that's what's stored throughout.
+function whatsappLink(mobile, message) {
+  if (!mobile) return null;
+  let digits = String(mobile).replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 10) digits = '91' + digits;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+// Lets pressing Enter in any of the given text/number inputs act like
+// clicking the given button — skips <select> and <textarea> elements
+// (Enter should insert a newline in a textarea, not submit).
+function enableEnterToSubmit(inputIds, buttonId) {
+  inputIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.tagName === 'TEXTAREA') return;
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById(buttonId)?.click();
+      }
+    });
+  });
 }
 
 function debounce(func, wait) {
@@ -1783,12 +1953,51 @@ function refreshBudgetChartLabels() {
   budgetChart.update();
 }
 
+const EXPENSE_CHART_COLORS = [
+  '#B71C1C', '#D4AF37', '#28a745', '#17a2b8', '#6f42c1', '#e83e8c',
+  '#fd7e14', '#20c997', '#6610f2', '#dc3545', '#795548', '#607d8b', '#455a64', '#8d6e63'
+];
+
+function initExpenseBreakdownChart() {
+  const ctx = document.getElementById('expenseBreakdownChart');
+  if (!ctx || expenseBreakdownChart) return;
+  expenseBreakdownChart = new Chart(ctx.getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: EXPENSE_CHART_COLORS, borderWidth: 1 }] },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => `${c.label}: ₹${(c.raw || 0).toLocaleString()}` } }
+      }
+    }
+  });
+}
+
+// Called from loadBudgetData() with the same categoryExpenses map it already
+// computes, so this never needs its own separate Firestore read.
+function updateExpenseBreakdownChart(categoryExpenses) {
+  if (!expenseBreakdownChart) return;
+  const entries = Object.entries(categoryExpenses).filter(([, amount]) => amount > 0);
+  if (entries.length === 0) {
+    expenseBreakdownChart.data.labels = ['No expenses recorded yet'];
+    expenseBreakdownChart.data.datasets[0].data = [1];
+    expenseBreakdownChart.data.datasets[0].backgroundColor = ['#e0e0e0'];
+  } else {
+    expenseBreakdownChart.data.labels = entries.map(([category]) => category);
+    expenseBreakdownChart.data.datasets[0].data = entries.map(([, amount]) => amount);
+    expenseBreakdownChart.data.datasets[0].backgroundColor = EXPENSE_CHART_COLORS;
+  }
+  expenseBreakdownChart.update();
+}
+
 /* ---------------- Lazy loading for charts ---------------- */
 let lazyLoadObserver;
 function initLazyLoading() {
   if (!('IntersectionObserver' in window)) {
     if (!collectionChart) initCollectionChart();
     if (!budgetChart) initBudgetChart();
+    if (!expenseBreakdownChart) initExpenseBreakdownChart();
     return;
   }
   lazyLoadObserver = new IntersectionObserver((entries) => {
@@ -1796,9 +2005,10 @@ function initLazyLoading() {
       if (!entry.isIntersecting) return;
       if (entry.target.id === 'collectionChart' && !collectionChart) initCollectionChart();
       if (entry.target.id === 'budgetChart' && !budgetChart) initBudgetChart();
+      if (entry.target.id === 'expenseBreakdownChart' && !expenseBreakdownChart) initExpenseBreakdownChart();
     });
   }, { rootMargin: '50px', threshold: 0.1 });
-  document.querySelectorAll('#collectionChart, #budgetChart').forEach(el => lazyLoadObserver.observe(el));
+  document.querySelectorAll('#collectionChart, #budgetChart, #expenseBreakdownChart').forEach(el => lazyLoadObserver.observe(el));
 }
 
 /* ==================== Dropdown population (villages) ==================== */
@@ -1820,15 +2030,17 @@ function populateVillageDropdowns() {
 async function updateSummaryCards() {
   try {
     const invitationsSnap = await cachedLoadInvitations();
-    safeSetTextContent('total-invitations', invitationsSnap.size);
+    const activeInvitations = invitationsSnap.docs.filter(doc => !doc.data().deleted);
+    safeSetTextContent('total-invitations', activeInvitations.length);
 
     const membersSnap = await cachedLoadMembers();
-    safeSetTextContent('total-members', membersSnap.size);
+    const activeMembers = membersSnap.docs.filter(doc => !doc.data().deleted);
+    safeSetTextContent('total-members', activeMembers.length);
 
     let pendingInvitations = 0;
-    invitationsSnap.forEach(doc => { if (!doc.data().sent) pendingInvitations++; });
+    activeInvitations.forEach(doc => { if (!doc.data().sent) pendingInvitations++; });
     safeSetTextContent('pending-invitations', pendingInvitations);
-    safeSetTextContent('active-collectors', membersSnap.size);
+    safeSetTextContent('active-collectors', activeMembers.length);
   } catch (error) {
     console.error("Error updating summary cards:", error);
   }
@@ -1843,6 +2055,7 @@ async function loadVillageBreakdown() {
       if (Object.keys(allYearsVillageData).length === 0) await loadAllYearsVillageCollections();
       Object.values(allYearsVillageData).forEach(yearData => {
         Object.values(yearData).forEach(c => {
+          if (c.deleted) return;
           const village = c.village || 'Others';
           villageTotals[village] = (villageTotals[village] || 0) + (c.amount || 0);
         });
@@ -1851,6 +2064,7 @@ async function loadVillageBreakdown() {
       const snap = await villageCollectionsCollectionFor(selectedYear).get();
       snap.forEach(doc => {
         const d = doc.data();
+        if (d.deleted) return;
         const village = d.village || 'Others';
         villageTotals[village] = (villageTotals[village] || 0) + (d.amount || 0);
       });
@@ -2013,7 +2227,7 @@ async function deleteTransaction(id, type, data) {
   const confirmMsg = isFeeLinked
     ? `This income entry was auto-created from a ${data.month || ''} membership fee payment. Deleting it here won't mark that fee as unpaid — do that from the Membership Fees Tracker instead if that's what you want. Delete this income entry anyway?`
     : 'Are you sure you want to delete this transaction?';
-  if (!confirm(confirmMsg)) return;
+  if (!(await showConfirmDialog(confirmMsg, { title: 'Delete Transaction', okText: 'Delete', danger: true }))) return;
   if (selectedYear === 'all') {
     showNotification('Switch to a specific year to delete a transaction.', 'error');
     return;
@@ -2174,6 +2388,7 @@ async function loadBudgetData() {
       budgetChart.data.datasets[1].data = actualExpenses;
       budgetChart.update();
     }
+    updateExpenseBreakdownChart(categoryExpenses);
   } catch (error) {
     console.error('Error loading budget data:', error);
   }
@@ -2285,11 +2500,12 @@ async function loadInvitations(){
   tbody.innerHTML = "";
   try {
     const snapshot = await cachedLoadInvitations();
-    if (snapshot.empty) {
+    const activeDocs = snapshot.docs.filter(doc => !doc.data().deleted);
+    if (activeDocs.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" class="muted center">No invitations added yet.</td></tr>';
       return;
     }
-    snapshot.forEach(doc => {
+    activeDocs.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
       tr.dataset.village = d.village || '';
@@ -2307,6 +2523,20 @@ async function loadInvitations(){
       tbody.appendChild(tr);
 
       const actionsTd = tr.querySelector("td:last-child");
+
+      // A WhatsApp reminder is a read-only action (no data changes), so any
+      // signed-in user can send one — not gated to admin.
+      if (!d.sent && d.mobile) {
+        const waUrl = whatsappLink(d.mobile, `Hi ${d.name}, this is a friendly reminder about the Durga Puja invitation from Club Bornoporichoy. Hope to see you there! 🪔`);
+        if (waUrl) {
+          const waLink = document.createElement('a');
+          waLink.href = waUrl; waLink.target = '_blank'; waLink.rel = 'noopener';
+          waLink.className = 'wa-link'; waLink.style.marginRight = '5px';
+          waLink.textContent = '📱 Remind';
+          actionsTd.appendChild(waLink);
+        }
+      }
+
       if(currentRole==="admin"){
         const editBtn = document.createElement("button");
         editBtn.textContent = "✏️ Edit"; editBtn.className = "btn small secondary"; editBtn.style.marginRight = "5px";
@@ -2323,8 +2553,8 @@ async function loadInvitations(){
         delBtn.textContent = "🗑️ Delete"; delBtn.className = "btn small ghost";
         delBtn.onclick = () => deleteInvitation(doc.id, d.name);
         actionsTd.appendChild(delBtn);
-      } else {
-        actionsTd.innerHTML = '<span class="muted">View only</span>';
+      } else if (!d.mobile || d.sent) {
+        actionsTd.insertAdjacentHTML('beforeend', '<span class="muted">View only</span>');
       }
     });
   } catch(e){
@@ -2395,11 +2625,15 @@ async function toggleInvitationStatus(invitationId, currentStatus, name) {
 }
 
 async function deleteInvitation(invitationId, name) {
-  if (!confirm(`Are you sure you want to delete invitation for ${name}?`)) return;
+  if (!(await showConfirmDialog(`Move the invitation for ${name} to the Recycle Bin? You can restore it later.`, { title: 'Delete Invitation', okText: 'Delete', danger: true }))) return;
   try {
-    await invitationCol.doc(invitationId).delete();
+    await invitationCol.doc(invitationId).update({
+      deleted: true,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deletedBy: auth.currentUser ? auth.currentUser.uid : null
+    });
     clearCache('invitations');
-    showToast("Deleted");
+    showToast("Moved to Recycle Bin");
     addActivity(`Deleted invitation for ${name}`, 'info');
     loadInvitations();
     updateSummaryCards();
@@ -2419,12 +2653,13 @@ async function loadMembers() {
   tbody.innerHTML = "";
   try {
     const snapshot = await cachedLoadMembers();
-    if (snapshot.empty) {
+    const activeDocs = snapshot.docs.filter(doc => !doc.data().deleted);
+    if (activeDocs.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" class="muted center">No members added yet.</td></tr>';
       updateSummaryCards();
       return;
     }
-    snapshot.forEach(doc => {
+    activeDocs.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -2446,15 +2681,19 @@ async function loadMembers() {
 
         const delBtn = document.createElement("button");
         delBtn.textContent = "🗑️ Delete"; delBtn.className = "btn small ghost";
-        delBtn.onclick = () => {
-          if(confirm("Delete member?")) doc.ref.delete().then(() => {
-            clearCache('members');
-            showToast("Deleted");
-            addActivity(`Deleted member ${d.name}`, 'info');
-            loadMembers();
-            loadFeeMembersDropdown();
-            updateSummaryCards();
+        delBtn.onclick = async () => {
+          if (!(await showConfirmDialog(`Move ${d.name} to the Recycle Bin? You can restore them later.`, { title: 'Delete Member', okText: 'Delete', danger: true }))) return;
+          await doc.ref.update({
+            deleted: true,
+            deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            deletedBy: auth.currentUser ? auth.currentUser.uid : null
           });
+          clearCache('members');
+          showToast("Moved to Recycle Bin");
+          addActivity(`Deleted member ${d.name}`, 'info');
+          loadMembers();
+          loadFeeMembersDropdown();
+          updateSummaryCards();
         };
         actionsTd.appendChild(delBtn);
       } else {
@@ -2524,12 +2763,19 @@ async function loadFeeMembersDropdown() {
     const snapshot = await cachedLoadMembers();
     if (snapshot.empty) return;
 
+    // Keep ALL members (including soft-deleted) in the name-lookup map, so
+    // historical records (e.g. a village collection whose collector has
+    // since been removed) can still show their name instead of a raw ID.
+    // The dropdowns themselves, though, only offer currently-active members
+    // as choices for new entries.
     window.memberNamesMap = {};
+    window.deletedMemberIds = new Set();
     snapshot.forEach(doc => {
       const d = doc.data();
-      const displayText = `${d.name} (${d.village})`;
       window.memberNamesMap[doc.id] = d.name;
+      if (d.deleted) { window.deletedMemberIds.add(doc.id); return; }
 
+      const displayText = `${d.name} (${d.village})`;
       const option = document.createElement("option");
       option.value = doc.id; option.textContent = displayText;
       select.appendChild(option);
@@ -2860,7 +3106,7 @@ async function clearFeeRecord() {
   const memberSelect = document.getElementById('feeMemberSelect');
   if (!memberSelect.value) return showNotification('Please select a member first', 'error');
   if (selectedYear === 'all') return showNotification('Select a specific year to clear fee records.', 'error');
-  if (!confirm('Are you sure you want to clear all payment records for this member?')) return;
+  if (!(await showConfirmDialog('Are you sure you want to clear all payment records for this member?', { title: 'Clear Fee Records', okText: 'Clear', danger: true }))) return;
 
   const memberId = memberSelect.value;
   try {
@@ -2983,6 +3229,121 @@ async function repairAndSyncFees() {
   }
 }
 
+/* ==================== Recycle Bin ==================== */
+
+async function openRecycleBin() {
+  if (currentRole !== 'admin') return showNotification('Only admin can access the Recycle Bin.', 'error');
+  const modal = document.getElementById('recycleBinModal');
+  const content = document.getElementById('recycleBinContent');
+  if (!modal || !content) return;
+  content.innerHTML = "<p class='muted'>Loading…</p>";
+  modal.classList.remove('hidden');
+  await refreshRecycleBin();
+}
+
+function closeRecycleBin() {
+  document.getElementById('recycleBinModal')?.classList.add('hidden');
+}
+
+function renderRecycleRows(items, kind) {
+  return items.map(item => {
+    const label = kind === 'collection'
+      ? `${escapeHtml(item.donor || '')} — ₹${(item.amount || 0).toLocaleString()} (${escapeHtml(item.village || '')})`
+      : `${escapeHtml(item.name || '')}${item.village ? ' — ' + escapeHtml(item.village) : ''}`;
+    return `
+      <div class="activity-item" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <span>${label}</span>
+        <span style="display:flex;gap:6px">
+          <button class="btn small secondary" onclick="restoreRecycleItem('${kind}','${item.id}')">↩️ Restore</button>
+          <button class="btn small ghost" onclick="permanentlyDeleteRecycleItem('${kind}','${item.id}')">🗑️ Delete Forever</button>
+        </span>
+      </div>
+    `;
+  }).join('');
+}
+
+async function refreshRecycleBin() {
+  const content = document.getElementById('recycleBinContent');
+  if (!content) return;
+  try {
+    const [membersSnap, invitationsSnap] = await Promise.all([cachedLoadMembers(), cachedLoadInvitations()]);
+    const deletedMembers = membersSnap.docs.filter(d => d.data().deleted).map(d => ({ id: d.id, ...d.data() }));
+    const deletedInvitations = invitationsSnap.docs.filter(d => d.data().deleted).map(d => ({ id: d.id, ...d.data() }));
+
+    let deletedCollections = [];
+    if (selectedYear !== 'all') {
+      const collSnap = await villageCollectionsCollectionFor(selectedYear).get();
+      collSnap.forEach(doc => { if (doc.data().deleted) deletedCollections.push({ id: doc.id, ...doc.data() }); });
+    }
+
+    let html = `<h4 style="color:var(--primary-red);margin:0 0 8px">🌸 Members (${deletedMembers.length})</h4>`;
+    html += deletedMembers.length ? renderRecycleRows(deletedMembers, 'member') : "<p class='muted'>Nothing here.</p>";
+
+    html += `<h4 style="color:var(--primary-red);margin:16px 0 8px">🪔 Invitations (${deletedInvitations.length})</h4>`;
+    html += deletedInvitations.length ? renderRecycleRows(deletedInvitations, 'invitation') : "<p class='muted'>Nothing here.</p>";
+
+    html += `<h4 style="color:var(--primary-red);margin:16px 0 8px">🏘️ Village Collections — ${selectedYear === 'all' ? 'pick a year to view' : selectedYear} (${deletedCollections.length})</h4>`;
+    html += selectedYear === 'all'
+      ? "<p class='muted'>Switch to a specific year (top-right selector) to see its deleted collections.</p>"
+      : (deletedCollections.length ? renderRecycleRows(deletedCollections, 'collection') : "<p class='muted'>Nothing here.</p>");
+
+    content.innerHTML = html;
+  } catch (error) {
+    content.innerHTML = `<p style="color:red">Error loading recycle bin: ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+async function restoreRecycleItem(kind, id) {
+  try {
+    if (kind === 'member') {
+      await membersCol.doc(id).update({ deleted: false, deletedAt: null, deletedBy: null });
+      clearCache('members');
+      loadMembers();
+      loadFeeMembersDropdown();
+    } else if (kind === 'invitation') {
+      await invitationCol.doc(id).update({ deleted: false, deletedAt: null, deletedBy: null });
+      clearCache('invitations');
+      loadInvitations();
+    } else if (kind === 'collection') {
+      if (selectedYear === 'all') return showNotification('Switch to a specific year to restore a collection.', 'error');
+      await villageCollectionsCollectionFor(selectedYear).doc(id).update({ deleted: false, deletedAt: null, deletedBy: null });
+      clearCache('village');
+      invalidateAllYearsCaches();
+      loadVillageCollections();
+    }
+    updateSummaryCards();
+    showNotification('Restored', 'success');
+    addActivity(`Restored a ${kind} from the Recycle Bin`, 'success');
+    refreshRecycleBin();
+  } catch (error) {
+    showNotification('Restore failed: ' + error.message, 'error');
+  }
+}
+
+async function permanentlyDeleteRecycleItem(kind, id) {
+  if (!(await showConfirmDialog('This removes it forever and cannot be undone. Continue?', { title: 'Delete Forever', okText: 'Delete Forever', danger: true }))) return;
+  try {
+    if (kind === 'member') {
+      await membersCol.doc(id).delete();
+      clearCache('members');
+      loadFeeMembersDropdown();
+    } else if (kind === 'invitation') {
+      await invitationCol.doc(id).delete();
+      clearCache('invitations');
+    } else if (kind === 'collection') {
+      if (selectedYear === 'all') return showNotification('Switch to a specific year first.', 'error');
+      await villageCollectionsCollectionFor(selectedYear).doc(id).delete();
+      clearCache('village');
+      invalidateAllYearsCaches();
+    }
+    showNotification('Permanently deleted', 'success');
+    addActivity(`Permanently deleted a ${kind}`, 'info');
+    refreshRecycleBin();
+  } catch (error) {
+    showNotification('Delete failed: ' + error.message, 'error');
+  }
+}
+
 async function exportFeesCSV() {
   try {
     let feesData = [];
@@ -3028,10 +3389,10 @@ async function loadVillageCollections() {
 
     if (selectedYear === 'all') {
       if (Object.keys(allYearsVillageData).length === 0) await loadAllYearsVillageCollections();
-      Object.values(allYearsVillageData).forEach(yd => Object.entries(yd).forEach(([id, d]) => collectionsData.push({ id, ...d })));
+      Object.values(allYearsVillageData).forEach(yd => Object.entries(yd).forEach(([id, d]) => { if (!d.deleted) collectionsData.push({ id, ...d }); }));
     } else {
       const snap = await villageCollectionsCollectionFor(selectedYear).orderBy('dateAdded', 'desc').get();
-      snap.forEach(doc => collectionsData.push({ id: doc.id, ...doc.data() }));
+      snap.forEach(doc => { if (!doc.data().deleted) collectionsData.push({ id: doc.id, ...doc.data() }); });
     }
 
     if (collectionsData.length === 0) {
@@ -3056,6 +3417,14 @@ async function loadVillageCollections() {
       tbody.appendChild(tr);
 
       const actionsTd = tr.querySelector('td:last-child');
+
+      // Printing a receipt doesn't change any data, so it's available to
+      // viewers too, not just admins.
+      const receiptBtn = document.createElement('button');
+      receiptBtn.textContent = '🧾 Receipt'; receiptBtn.className = 'btn small ghost'; receiptBtn.style.marginRight = '5px';
+      receiptBtn.onclick = () => printVillageReceipt(d, collectorName);
+      actionsTd.appendChild(receiptBtn);
+
       if (currentRole === 'admin') {
         const editBtn = document.createElement('button');
         editBtn.textContent = '✏️ Edit'; editBtn.className = 'btn small secondary'; editBtn.style.marginRight = '5px';
@@ -3066,8 +3435,6 @@ async function loadVillageCollections() {
         delBtn.textContent = '🗑️ Delete'; delBtn.className = 'btn small ghost';
         delBtn.onclick = () => deleteCollection(d.id, d.donor);
         actionsTd.appendChild(delBtn);
-      } else {
-        actionsTd.innerHTML = '<span class="muted">View only</span>';
       }
     });
 
@@ -3102,8 +3469,14 @@ function showEditCollectionModal(collectionId, collectionData) {
   collectorSelect.innerHTML = '<option value="">-- Select Collector --</option>';
   if (window.memberNamesMap) {
     Object.entries(window.memberNamesMap).forEach(([id, name]) => {
+      const isDeleted = window.deletedMemberIds && window.deletedMemberIds.has(id);
+      // Skip removed members entirely, unless they're this record's existing
+      // collector — then keep them, clearly labeled, so the field doesn't
+      // silently blank out when editing an older record.
+      if (isDeleted && id !== collectionData.collectorId) return;
       const option = document.createElement('option');
-      option.value = id; option.textContent = name;
+      option.value = id;
+      option.textContent = isDeleted ? `${name} (removed)` : name;
       collectorSelect.appendChild(option);
     });
   }
@@ -3155,14 +3528,18 @@ async function saveCollectionEdit() {
 }
 
 async function deleteCollection(collectionId, donorName) {
-  if (!confirm(`Are you sure you want to delete collection from ${donorName}?`)) return;
+  if (!(await showConfirmDialog(`Move the collection from ${donorName} to the Recycle Bin? You can restore it later.`, { title: 'Delete Collection', okText: 'Delete', danger: true }))) return;
   if (selectedYear === 'all') return showNotification('Cannot delete from "All Years" view. Switch to specific year.', 'error');
 
   try {
-    await villageCollectionsCollectionFor(selectedYear).doc(collectionId).delete();
+    await villageCollectionsCollectionFor(selectedYear).doc(collectionId).update({
+      deleted: true,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deletedBy: auth.currentUser ? auth.currentUser.uid : null
+    });
     clearCache('village');
     invalidateAllYearsCaches();
-    showToast('Deleted');
+    showToast('Moved to Recycle Bin');
     addActivity(`Deleted collection record for ${donorName}`, 'info');
     loadVillageCollections();
     recalcTotalCollected();
@@ -3171,6 +3548,45 @@ async function deleteCollection(collectionId, donorName) {
     showNotification('Error deleting collection: ' + error.message, 'error');
   }
 }
+
+// Renders a printable receipt into the hidden #receipt-print-area, then
+// triggers the browser print dialog. The print stylesheet's
+// body.printing-receipt rule hides everything else on the page while this
+// is open, so only the receipt itself ends up on paper/PDF.
+function printVillageReceipt(collection, collectorName) {
+  const area = document.getElementById('receipt-print-area');
+  if (!area) return;
+  const dateStr = collection.dateAdded && collection.dateAdded.toDate
+    ? collection.dateAdded.toDate().toLocaleDateString()
+    : new Date().toLocaleDateString();
+
+  area.innerHTML = `
+    <div style="max-width:480px;margin:40px auto;font-family:Poppins,Arial,sans-serif;border:2px solid #B71C1C;border-radius:12px;padding:28px;color:#2f2f2f;">
+      <div style="text-align:center;margin-bottom:22px;">
+        <div style="font-size:22px;font-weight:700;color:#B71C1C;">Club Bornoporichoy</div>
+        <div style="font-size:13px;color:#666;">Durga Puja — Collection Receipt</div>
+      </div>
+      <table style="width:100%;font-size:14px;border-collapse:collapse;">
+        <tr><td style="padding:6px 0;color:#666;">Bill No.</td><td style="text-align:right;font-weight:600;">${escapeHtml(collection.bill || '')}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;">Date</td><td style="text-align:right;">${dateStr}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;">Received From</td><td style="text-align:right;font-weight:600;">${escapeHtml(collection.donor || '')}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;">Village</td><td style="text-align:right;">${escapeHtml(collection.village || '')}</td></tr>
+        <tr><td style="padding:6px 0;color:#666;">Collected By</td><td style="text-align:right;">${escapeHtml(collectorName || '')}</td></tr>
+        <tr><td style="padding-top:16px;font-size:16px;font-weight:700;">Amount</td><td style="text-align:right;padding-top:16px;font-size:22px;font-weight:700;color:#B71C1C;">₹${(collection.amount || 0).toLocaleString()}</td></tr>
+      </table>
+      ${collection.remarks ? `<div style="margin-top:16px;font-size:12px;color:#666;">Remarks: ${escapeHtml(collection.remarks)}</div>` : ''}
+      <div style="margin-top:36px;display:flex;justify-content:space-between;align-items:flex-end;font-size:12px;color:#666;">
+        <div>Signature: ______________________</div>
+        <div style="font-size:16px;">🪔 Thank you!</div>
+      </div>
+    </div>
+  `;
+  document.body.classList.add('printing-receipt');
+  window.print();
+}
+
+// Clean up the print-only view once the print dialog closes (or is cancelled).
+window.addEventListener('afterprint', () => document.body.classList.remove('printing-receipt'));
 
 /* ==================== Paid members visual tracker ==================== */
 
@@ -3188,7 +3604,7 @@ async function loadPaidMembersTracker() {
     container.innerHTML = "<p class='muted'>Loading paid members...</p>";
     const membersSnap = await cachedLoadMembers();
     const members = [];
-    membersSnap.forEach(doc => members.push({ id: doc.id, ...doc.data() }));
+    membersSnap.forEach(doc => { if (!doc.data().deleted) members.push({ id: doc.id, ...doc.data() }); });
 
     if (members.length === 0) {
       container.innerHTML = "<p class='muted'>No members found in database</p>";
@@ -3213,6 +3629,7 @@ async function loadPaidMembersTracker() {
     members.forEach(member => {
       const memberFees = feesData[member.id] || {};
       let memberPaidMonths = 0;
+      const unpaidMonths = [];
       html += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${escapeHtml(member.name)}<br><small style="color: #666;">${escapeHtml(member.village)}</small></td>`;
 
       MONTHS.forEach(month => {
@@ -3220,6 +3637,7 @@ async function loadPaidMembersTracker() {
         if (memberFees[month] && memberFees[month].paid === true) isPaid = true;
         else if (memberFees.months && memberFees.months[month] && memberFees.months[month].paid === true) isPaid = true;
         if (isPaid) memberPaidMonths++;
+        else unpaidMonths.push(month);
 
         html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: ${isPaid ? '#d4edda' : '#f8d7da'};">
           <div class="paid-box ${isPaid ? 'paid-yes' : 'paid-no'}" title="${month}: ${isPaid ? 'Paid' : 'Not Paid'}">${isPaid ? '✓' : '✗'}</div>
@@ -3231,6 +3649,24 @@ async function loadPaidMembersTracker() {
 
     html += `</tbody></table></div>`;
     container.innerHTML = html;
+
+    // Re-attach WhatsApp reminder links per row now that the table is in the
+    // DOM (kept out of the string-built HTML above to avoid escaping headaches
+    // with the reminder message text).
+    const rows = container.querySelectorAll('tbody tr');
+    members.forEach((member, i) => {
+      const memberFees = feesData[member.id] || {};
+      const unpaidMonths = MONTHS.filter(month => {
+        const md = memberFees[month] || (memberFees.months && memberFees.months[month]);
+        return !(md && md.paid === true);
+      });
+      if (unpaidMonths.length === 0 || !member.mobile) return;
+      const waUrl = whatsappLink(member.mobile, `Hi ${member.name}, this is a reminder that your Club Bornoporichoy membership fee for ${unpaidMonths.join(', ')} (${selectedYear}) is still pending. Please pay at your earliest convenience — thank you! 🙏`);
+      if (!waUrl || !rows[i]) return;
+      const cell = rows[i].querySelector('td');
+      cell.insertAdjacentHTML('beforeend', `<br><a href="${waUrl}" target="_blank" rel="noopener" class="wa-link" style="margin-top:4px">📱 Remind</a>`);
+    });
+
     if (countSpan) countSpan.textContent = `Loaded: ${members.length} members, ${membersWithPayments} with payments, ${paidCount} total payments`;
     showNotification(`Loaded ${members.length} members payment status`, 'success');
     addActivity(`Loaded paid members tracker for ${selectedYear}`, 'info');
@@ -3248,14 +3684,14 @@ async function recalcTotalCollected() {
     let totalVillage = 0, totalMembership = 0;
     if (selectedYear === 'all') {
       if (Object.keys(allYearsVillageData).length === 0) await loadAllYearsVillageCollections();
-      Object.values(allYearsVillageData).forEach(yd => Object.values(yd).forEach(c => totalVillage += c.amount || 0));
+      Object.values(allYearsVillageData).forEach(yd => Object.values(yd).forEach(c => { if (!c.deleted) totalVillage += c.amount || 0; }));
       if (Object.keys(allYearsFeesData).length === 0) await loadAllYearsFees();
       Object.values(allYearsFeesData).forEach(yd => Object.values(yd).forEach(mf => {
         MONTHS.forEach(month => { if (mf[month] && mf[month].paid) totalMembership += mf[month].amount || mf.monthlyFee || 100; });
       }));
     } else {
       const villageSnap = await villageCollectionsCollectionFor(selectedYear).get();
-      villageSnap.forEach(doc => totalVillage += doc.data().amount || 0);
+      villageSnap.forEach(doc => { if (!doc.data().deleted) totalVillage += doc.data().amount || 0; });
       const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
       feesSnap.forEach(doc => {
         const data = doc.data();
@@ -3451,6 +3887,7 @@ function exportInvitationsBulk() {
     let csv = 'Name,Village,Mobile,Remarks,Status\n';
     snap.forEach(doc => {
       const d = doc.data();
+      if (d.deleted) return;
       csv += `"${(d.name||'').replace(/"/g,'""')}","${(d.village||'').replace(/"/g,'""')}","${d.mobile||''}","${(d.remarks||'').replace(/"/g,'""')}",${d.sent?'Sent':'Pending'}\n`;
     });
     downloadBlob(new Blob([csv], { type: 'text/csv' }), `invitations-${new Date().toISOString().split('T')[0]}.csv`);
@@ -3532,6 +3969,7 @@ auth.onAuthStateChanged(user => {
     document.getElementById("main-content")?.classList.remove("hidden");
     document.getElementById("logout-btn")?.classList.remove("hidden");
     document.getElementById('global-year-selector')?.classList.remove("hidden");
+    document.getElementById('mobile-fab')?.classList.remove('hidden');
 
     const userInfo = document.getElementById("user-info");
     if (userInfo) userInfo.textContent = `${user.email} (${currentRole})`;
@@ -3552,6 +3990,7 @@ auth.onAuthStateChanged(user => {
       setupGlobalErrorHandlers();
       enhanceAccessibility();
       initializeAllEventListeners();
+      initSectionScrollTracking();
       loadFinancialData();
       addActivity('Dashboard initialized successfully', 'success');
     }, 300);
@@ -3560,6 +3999,7 @@ auth.onAuthStateChanged(user => {
     document.getElementById("main-content")?.classList.add("hidden");
     document.getElementById("logout-btn")?.classList.add("hidden");
     document.getElementById('global-year-selector')?.classList.add("hidden");
+    document.getElementById('mobile-fab')?.classList.add('hidden');
     const userInfo = document.getElementById("user-info");
     if (userInfo) userInfo.textContent = "";
     clearAllTables();
@@ -3567,7 +4007,7 @@ auth.onAuthStateChanged(user => {
 });
 
 function applyRoleToUI(){
-  ["add-inv-btn","add-mem-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","show-paid-btn","exportCsvBtn","add-vc-btn","edit-budget-btn","repairSyncBtn"].forEach(id=>{
+  ["add-inv-btn","add-mem-btn","loadMemberFeeBtn","saveFeeConfigBtn","clearFeeRecordBtn","show-paid-btn","exportCsvBtn","add-vc-btn","edit-budget-btn","repairSyncBtn","recycleBinBtn"].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.disabled = (currentRole !== "admin");
   });
@@ -3641,6 +4081,50 @@ function applyInvitationFilters() {
   });
 }
 
+/* ---------------- Nav highlighting on scroll ---------------- */
+let currentVisibleSection = 'invitations';
+let sectionScrollObserver = null;
+
+function initSectionScrollTracking() {
+  const sectionIds = ['invitations', 'members', 'fees', 'financial-tracker', 'village-collection'];
+  const sections = sectionIds.map(id => document.getElementById(id)).filter(Boolean);
+  if (!sections.length || !('IntersectionObserver' in window) || sectionScrollObserver) return;
+
+  // Treats a thin band near the vertical center of the viewport as "active" —
+  // a section becomes highlighted in the nav as soon as it crosses that band,
+  // not only when explicitly clicked.
+  sectionScrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      currentVisibleSection = entry.target.id;
+      clearActiveNav();
+      document.getElementById(`nav-${entry.target.id}`)?.classList.add('active');
+    });
+  }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+
+  sections.forEach(sec => sectionScrollObserver.observe(sec));
+}
+
+/* ---------------- Mobile "+" FAB ---------------- */
+function handleFabClick() {
+  if (currentVisibleSection === 'financial-tracker') {
+    showTransactionModal('income');
+    return;
+  }
+  const focusTargets = {
+    invitations: 'inv-name',
+    members: 'mem-name',
+    'village-collection': 'vc-bill',
+    fees: 'feeMemberSelect'
+  };
+  const targetId = focusTargets[currentVisibleSection] || 'inv-name';
+  const el = document.getElementById(targetId);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.focus();
+  }
+}
+
 /* ---------------- Navigation ---------------- */
 
 function clearActiveNav(){ document.querySelectorAll('nav.topbar a').forEach(a => a.classList.remove('active')); }
@@ -3708,7 +4192,7 @@ document.addEventListener('DOMContentLoaded', function() {
       let dupQuery = invitationCol.where("name","==",name);
       if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
       const dup = await dupQuery.get();
-      if(!dup.empty && !confirm("Possible duplicate found. Add anyway?")) return;
+      if(!dup.empty && !(await showConfirmDialog("A possible duplicate was found. Add this invitation anyway?", { title: 'Possible Duplicate' }))) return;
       await invitationCol.add({ name, village, mobile, remarks, sent: false, dateAdded: firebase.firestore.FieldValue.serverTimestamp() });
       ["inv-name","inv-village","inv-mobile","inv-remarks"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
       clearCache('invitations');
@@ -3733,7 +4217,7 @@ document.addEventListener('DOMContentLoaded', function() {
       let dupQuery = membersCol.where("name","==",name);
       if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
       const dup = await dupQuery.get();
-      if(!dup.empty && !confirm("Possible duplicate found. Add anyway?")) return;
+      if(!dup.empty && !(await showConfirmDialog("A possible duplicate was found. Add this member anyway?", { title: 'Possible Duplicate' }))) return;
       await membersCol.add({ name, village, mobile, remarks, dateAdded: firebase.firestore.FieldValue.serverTimestamp() });
       ["mem-name","mem-village","mem-mobile","mem-remarks"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
       clearCache('members');
@@ -3779,8 +4263,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  enableEnterToSubmit(['email', 'password'], 'login-btn');
+  enableEnterToSubmit(['inv-name', 'inv-village', 'inv-mobile', 'inv-remarks'], 'add-inv-btn');
+  enableEnterToSubmit(['mem-name', 'mem-village', 'mem-mobile', 'mem-remarks'], 'add-mem-btn');
+  enableEnterToSubmit(['vc-bill', 'vc-donor', 'vc-amount', 'vc-remarks'], 'add-vc-btn');
+  enableEnterToSubmit(['transaction-amount'], 'transaction-save-btn');
+
   initCollectionChart();
   initBudgetChart();
+  initExpenseBreakdownChart();
 
   const hash = window.location.hash.substring(1);
   if (hash && document.getElementById(hash)) navigateToSection(hash);
@@ -3821,6 +4312,12 @@ window.showEditBudgetModal = showEditBudgetModal;
 window.closeEditBudgetModal = closeEditBudgetModal;
 window.saveEditBudget = saveEditBudget;
 window.repairAndSyncFees = repairAndSyncFees;
+window.openRecycleBin = openRecycleBin;
+window.closeRecycleBin = closeRecycleBin;
+window.restoreRecycleItem = restoreRecycleItem;
+window.permanentlyDeleteRecycleItem = permanentlyDeleteRecycleItem;
+window.handleFabClick = handleFabClick;
+window.printVillageReceipt = printVillageReceipt;
 
 </script>
 </body>
