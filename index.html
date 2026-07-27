@@ -3348,7 +3348,7 @@ async function restoreRecycleItem(kind, id) {
       const restoredDoc = await collRef.get();
       const restoredData = restoredDoc.data();
       if (restoredData) {
-        await syncVillageIncomeEntry(selectedYear, id, restoredData.donor, restoredData.village, restoredData.amount || 0);
+        await syncVillageIncomeEntry(selectedYear, id, restoredData.donor, restoredData.village, restoredData.amount || 0, restoredData.dateAdded);
       }
       clearCache('village');
       invalidateAllYearsCaches();
@@ -3532,9 +3532,11 @@ async function loadVillageCollections() {
 }
 
 let editingCollectionId = null;
+let editingCollectionOriginalDate = null;
 
 function showEditCollectionModal(collectionId, collectionData) {
   editingCollectionId = collectionId;
+  editingCollectionOriginalDate = collectionData.dateAdded || null;
   const modal = document.getElementById('editCollectionModal');
   if (!modal) return;
 
@@ -3567,6 +3569,7 @@ function closeEditCollectionModal() {
   const modal = document.getElementById('editCollectionModal');
   if (modal) modal.classList.add('hidden');
   editingCollectionId = null;
+  editingCollectionOriginalDate = null;
 }
 
 async function saveCollectionEdit() {
@@ -3587,7 +3590,7 @@ async function saveCollectionEdit() {
       bill, collectorId, donor, amount, village, remarks,
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await syncVillageIncomeEntry(selectedYear, editingCollectionId, donor, village, amount);
+    await syncVillageIncomeEntry(selectedYear, editingCollectionId, donor, village, amount, editingCollectionOriginalDate);
     clearCache('village');
     invalidateAllYearsCaches();
     showNotification('Collection updated successfully', 'success');
