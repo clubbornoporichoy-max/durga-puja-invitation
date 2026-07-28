@@ -4,10 +4,11 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Club Bornoporichoy — Durga Puja Dashboard</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23B71C1C'/%3E%3Ctext x='50' y='66' font-size='48' text-anchor='middle' fill='%23D4AF37' font-family='Arial' font-weight='bold'%3ECB%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%236B1E23'/%3E%3Ctext x='50' y='66' font-size='48' text-anchor='middle' fill='%23e9dcc8' font-family='Georgia' font-weight='bold'%3ECB%3C/text%3E%3C/svg%3E" />
 
-<!-- Google Font -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- Google Fonts: Tiro Bangla (headings), Work Sans (body), IBM Plex Mono (ledger figures) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla:ital@0;1&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
 <!-- Firebase compat SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -19,18 +20,24 @@
 
 <style>
   :root{
-    --primary-red: #B71C1C;
-    --deep-red: #a31313;
-    --accent-gold: #D4AF37;
-    --bg-start: #ffffff;
-    --bg-end: #f7f0e8; /* soft beige */
-    --card: #ffffff;
-    --muted: #6b6b6b;
-    --text: #2f2f2f;
-    --radius: 12px;
-    --shadow: 0 10px 30px rgba(17,17,17,0.06);
-    --glass: rgba(255,255,255,0.6);
-    --toast-bg: rgba(0,0,0,0.85);
+    --primary-red: #6B1E23;      /* spine maroon — primary actions */
+    --deep-red: #4a1418;         /* darker maroon — headings, hover */
+    --accent-gold: #A8863D;      /* brass — secondary actions, highlights */
+    --margin-red: #B33A3A;       /* ledger margin rule + danger/pending */
+    --ledger-green: #3f6b3f;     /* paid/success ink */
+    --ledger-rule: #A9B6C4;      /* blue-grey ruled lines, like real ledger paper */
+    --bg-start: #F7F1E1;         /* aged ledger paper */
+    --bg-end: #ece3cd;
+    --card: #FBF7EC;             /* ledger card paper — slightly warmer than white */
+    --muted: #766a5c;
+    --text: #2E2620;             /* fountain-pen ink */
+    --radius: 8px;
+    --shadow: 0 4px 16px rgba(46,38,32,0.09);
+    --glass: rgba(247,241,225,0.75);
+    --toast-bg: #2E2620;
+    --font-display: 'Tiro Bangla', Georgia, serif;
+    --font-body: 'Work Sans', system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -38,46 +45,63 @@
     margin: 0;
     background: linear-gradient(180deg, var(--bg-start), var(--bg-end));
     color: var(--text);
-    font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    font-family: var(--font-body);
     -webkit-font-smoothing:antialiased;
     -moz-osx-font-smoothing:grayscale;
     line-height:1.45;
   }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 400; }
+
+  /* ---- Cloth spine — the makeover's signature structural element ---- */
+  .spine {
+    position: fixed; top:0; left:0; bottom:0; width:44px; z-index:150;
+    background: repeating-linear-gradient(180deg, var(--primary-red), var(--primary-red) 3px, var(--deep-red) 3px, var(--deep-red) 4px);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .spine span {
+    writing-mode: vertical-rl; color:#e9dcc8; font-family: var(--font-display);
+    font-size:15px; letter-spacing:0.09em; white-space:nowrap;
+  }
+  @media (max-width: 768px) { .spine { display:none; } }
 
   /* Header / nav (fixed) */
   header {
-    position: fixed; top:0; left:0; right:0; z-index:100;
-    background: linear-gradient(90deg, rgba(255,255,255,0.96), rgba(255,250,240,0.96));
-    border-bottom: 1px solid rgba(0,0,0,0.04);
+    position: fixed; top:0; left:44px; right:0; z-index:100;
+    background: var(--card);
+    border-bottom: 1px solid var(--ledger-rule);
     padding: 12px 18px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.05);
-    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 14px rgba(46,38,32,0.06);
   }
+  @media (max-width: 768px) { header { left:0; } }
   .header-inner { max-width:1200px; margin:0 auto; display:flex; gap:12px; align-items:center; }
   .brand { display:flex; align-items:center; gap:12px; }
   .logo {
-    width:44px; height:44px; border-radius:10px;
-    background: linear-gradient(135deg, var(--primary-red), #e34b4b);
-    display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(183,28,28,0.12);
+    width:44px; height:44px; border-radius:6px;
+    background: var(--primary-red);
+    display:flex; align-items:center; justify-content:center; color:#e9dcc8; font-weight:500; font-family:var(--font-display); font-size:18px;
   }
-  .brand h1 { margin:0; font-size:16px; color:var(--deep-red); font-weight:700; letter-spacing:0.2px; }
-  .brand .sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .brand h1 { margin:0; font-size:19px; color:var(--deep-red); letter-spacing:0.2px; }
+  .brand .sub { font-size:11.5px; color:var(--muted); margin-top:2px; letter-spacing:0.03em; text-transform:uppercase; }
 
-  nav.topbar { margin-left:20px; display:flex; gap:10px; align-items:center; flex:1; }
+  /* Tab-style nav — like paper dividers in a ledger book */
+  nav.topbar { margin-left:20px; display:flex; gap:0; align-items:flex-end; flex:1; }
   nav.topbar a {
-    padding:8px 12px; border-radius:10px; text-decoration:none; color:var(--deep-red);
-    font-weight:600; font-size:14px; transition: all 160ms ease;
+    padding:9px 15px; border-radius:6px 6px 0 0; text-decoration:none; color:var(--muted);
+    font-weight:500; font-size:13.5px; transition: all 160ms ease;
+    background: var(--bg-end); border:1px solid var(--ledger-rule); border-bottom:none;
+    margin-left:-1px;
   }
-  nav.topbar a:hover { transform: translateY(-2px); color: #7f0f0f; box-shadow: inset 0 -2px 0 var(--accent-gold); }
-  nav.topbar a.active { background: rgba(183,28,28,0.06); }
+  nav.topbar a:hover { color: var(--deep-red); }
+  nav.topbar a.active { background: var(--card); color:var(--deep-red); font-weight:600; box-shadow: 0 -2px 0 var(--accent-gold) inset; }
 
   .auth-area { margin-left:auto; display:flex; gap:8px; align-items:center; }
 
   /* Global Year Selector */
   .global-year-selector {
-    background: var(--accent-gold);
-    padding: 8px 15px;
-    border-radius: 8px;
+    background: #f1e6cd;
+    border: 1px solid var(--accent-gold);
+    padding: 7px 14px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -85,105 +109,125 @@
   }
   .global-year-selector label {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text);
     white-space: nowrap;
   }
   .global-year-selector select {
-    background: white;
-    border: none;
-    border-radius: 6px;
+    background: var(--card);
+    border: 1px solid var(--ledger-rule);
+    border-radius: 4px;
     padding: 6px 10px;
     font-weight: 600;
-    color: var(--primary-red);
+    font-family: var(--font-mono);
+    color: var(--deep-red);
     min-width: 100px;
   }
 
   /* Container + cards */
-  .spacer { height:80px } /* to offset fixed header */
-  .container { max-width:1200px; margin:22px auto; padding:0 18px 80px; }
-  .card { background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); margin-bottom:18px; border:1px solid rgba(0,0,0,0.03); transition: transform 160ms ease, box-shadow 160ms ease; }
-  .card:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(17,17,17,0.08); }
-  .card h2 { margin:0 0 8px 0; color:var(--primary-red); font-size:18px; display:flex; align-items:center; gap:8px; }
+  .spacer { height:80px }
+  .container { max-width:1200px; margin:22px auto; padding:0 18px 80px 62px; }
+  @media (max-width: 768px) { .container { padding:0 18px 80px; } }
+  .card { background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); margin-bottom:18px; border:1px solid var(--ledger-rule); }
+  .card h2 { margin:0 0 8px 0; color:var(--deep-red); font-size:18px; display:flex; align-items:center; gap:8px; }
   .subtitle { color:var(--muted); font-size:13px; margin-bottom:10px; }
 
   .flex { display:flex; gap:12px; align-items:center; }
   .flex.space { justify-content:space-between; }
 
   input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
-    padding:10px 12px; border-radius:10px; border:1px solid rgba(0,0,0,0.06); background:#fff;
-    font-size:14px; color:var(--text); outline:none;
+    padding:10px 12px; border-radius:6px; border:1px solid var(--ledger-rule); background:#fff;
+    font-size:14px; color:var(--text); outline:none; font-family:var(--font-body);
   }
-  input:focus, select:focus, textarea:focus { box-shadow: 0 8px 24px rgba(183,28,28,0.06); border-color: rgba(183,28,28,0.18); }
+  input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(107,30,35,0.10); border-color: var(--primary-red); }
 
-  /* Buttons */
-  .btn { background:var(--primary-red); color:#fff; border:none; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600; box-shadow: 0 8px 20px rgba(183,28,28,0.08); transition: transform 120ms ease, box-shadow 120ms ease; }
-  .btn:hover{ transform: translateY(-2px); box-shadow: 0 14px 28px rgba(183,28,28,0.12); }
-  .btn.small { padding:7px 10px; font-size:13px; border-radius:8px; }
-  .btn.secondary { background:var(--accent-gold); color:#222; box-shadow:none; }
-  .btn.ghost { background:transparent; color:var(--deep-red); border:1px solid rgba(0,0,0,0.06); box-shadow:none; }
+  /* Buttons — flatter, stamp-like */
+  .btn { background:var(--primary-red); color:#f3e9d8; border:1px solid var(--primary-red); padding:9px 13px; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px; font-family:var(--font-body); transition: opacity 120ms ease; }
+  .btn:hover{ opacity:0.88; }
+  .btn.small { padding:6px 11px; font-size:12.5px; border-radius:5px; }
+  .btn.secondary { background:#f1e6cd; color:var(--deep-red); border:1px solid var(--accent-gold); }
+  .btn.ghost { background:transparent; color:var(--muted); border:1px solid var(--ledger-rule); }
+  .btn:disabled { opacity:0.4; cursor:not-allowed; }
 
   .muted { color:var(--muted); font-size:13px; }
   .note { font-size:13px; color:var(--muted); margin-top:8px; }
 
-  /* Tables */
+  /* Tables — ruled ledger paper with a red margin rule and monospace figures */
   table { width:100%; border-collapse:collapse; font-size:14px; margin-top:12px; }
   thead th {
-    text-align:left; padding:12px 14px; background:linear-gradient(0deg,var(--accent-gold), #f6e9a8); color:var(--text); border-bottom:2px solid rgba(0,0,0,0.04);
+    text-align:left; padding:10px 14px; background:transparent; color:var(--muted);
+    font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em;
+    border-bottom:2px solid var(--text);
   }
-  tbody td { padding:12px 14px; border-bottom:1px solid rgba(0,0,0,0.04); vertical-align:middle; }
-  tbody tr:hover { background: rgba(183,28,28,0.02); }
-  .editable { background: linear-gradient(180deg,#fff8e6,#fffdf7); border-radius:6px; padding:8px; }
-  .badge { display:inline-block; padding:6px 8px; border-radius:8px; font-weight:700; font-size:13px; transition: all 240ms ease; }
-  .badge.ok { background:#28a745; color:#fff; animation: pulse 1200ms infinite ease-in-out; }
-  .badge.warn { background:#ff8c00; color:#fff; }
-  @keyframes pulse { 0% { transform: scale(1); opacity:1 } 50% { transform: scale(1.03); opacity:0.92 } 100% { transform: scale(1); opacity:1 } }
+  thead th:first-child, tbody td:first-child { border-left:2px solid var(--margin-red); padding-left:16px; }
+  tbody td { padding:11px 14px; border-bottom:1px solid var(--ledger-rule); vertical-align:middle; }
+  tbody tr:hover { background: rgba(107,30,35,0.03); }
+  .editable { background: #f1e6cd; border-radius:6px; padding:8px; }
+  .badge { display:inline-block; padding:4px 10px; border-radius:4px; font-weight:600; font-size:12px; font-family:var(--font-mono); letter-spacing:0.02em; }
+  .badge.ok { background:#e7efe3; color:var(--ledger-green); border:1px solid var(--ledger-green); }
+  .badge.warn { background:#f6e3e1; color:var(--margin-red); border:1px solid var(--margin-red); }
 
   .center { text-align:center; }
   .right { margin-left:auto; }
 
   /* Paid tracker icons */
-  .paid-box { display:inline-block; width:20px; height:20px; line-height:20px; text-align:center; border-radius:4px; font-weight:700; }
-  .paid-yes { background:#28a745; color:white; box-shadow: 0 4px 10px rgba(40,167,69,0.12); }
-  .paid-no { background:#fff; color:#888; border:1px solid #eee; }
+  .paid-box { display:inline-block; width:20px; height:20px; line-height:20px; text-align:center; border-radius:3px; font-weight:700; font-family:var(--font-mono); }
+  .paid-yes { background:#e7efe3; color:var(--ledger-green); border:1px solid var(--ledger-green); }
+  .paid-no { background:#f6e3e1; color:var(--margin-red); border:1px solid var(--margin-red); }
 
   /* Summary Cards */
   .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-  .summary-card-item { text-align: center; background: var(--card); border-radius: var(--radius); padding: 15px; box-shadow: var(--shadow); }
+  .summary-card-item { text-align: center; background: var(--card); border-radius: var(--radius); padding: 15px; box-shadow: var(--shadow); border:1px solid var(--ledger-rule); }
+  .summary-card-item div:first-child { font-family: var(--font-mono) !important; }
 
   /* Village Breakdown */
   .village-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
-  .breakdown-item { background: rgba(255,255,255,0.8); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.05); }
+  .breakdown-item { background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--ledger-rule); }
   .breakdown-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
-  .breakdown-value { font-weight: 700; color: var(--primary-red); font-size: 14px; }
+  .breakdown-value { font-weight: 700; color: var(--deep-red); font-size: 14px; font-family:var(--font-mono); }
 
   /* Quick Actions */
   .quick-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 
   /* Recent Activity */
-  .activity-item { padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; background: rgba(183,28,28,0.03); border-left: 3px solid var(--primary-red); }
-  .activity-item.info { border-left-color: #17a2b8; }
-  .activity-item.success { border-left-color: #28a745; }
-  .activity-item.error { border-left-color: #dc3545; }
+  .activity-item { padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; background: #fff; border-left: 3px solid var(--primary-red); border-top:1px solid var(--ledger-rule); border-right:1px solid var(--ledger-rule); border-bottom:1px solid var(--ledger-rule); }
+  .activity-item.info { border-left-color: #6b8aa3; }
+  .activity-item.success { border-left-color: var(--ledger-green); }
+  .activity-item.error { border-left-color: var(--margin-red); }
 
   /* Notifications */
   .notification {
     position: fixed;
     top: 20px;
     right: 20px;
-    padding: 15px 20px;
-    border-radius: 8px;
-    color: white;
+    padding: 13px 18px;
+    border-radius: 6px;
+    color: #f3e9d8;
     z-index: 10000;
     animation: slideIn 0.3s ease;
+    font-size:14px;
+    box-shadow: var(--shadow);
   }
-  .notification-success { background: #28a745; }
-  .notification-error { background: #dc3545; }
-  .notification-info { background: #17a2b8; }
+  .notification-success { background: var(--ledger-green); }
+  .notification-error { background: var(--margin-red); }
+  .notification-info { background: #4d6478; }
   @keyframes slideIn {
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
   }
+
+  /* Toasts — brief bottom-corner confirmations (was previously unstyled/invisible) */
+  .toast-container {
+    position: fixed; left: 20px; bottom: 24px; z-index: 10001;
+    display:flex; flex-direction:column; gap:8px; pointer-events:none;
+  }
+  @media (max-width: 768px) { .toast-container { left:12px; bottom:90px; } }
+  .toast {
+    background: var(--toast-bg); color:#f3e9d8; padding:10px 16px; border-radius:6px;
+    font-size:13.5px; box-shadow: var(--shadow); opacity:0; transform:translateY(8px);
+    transition: opacity 220ms ease, transform 220ms ease;
+  }
+  .toast.show { opacity:1; transform:translateY(0); }
 
   /* Advanced Filters */
   .advanced-filters { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
@@ -191,90 +235,91 @@
   /* Year Info Badge */
   .year-info {
     background: var(--primary-red);
-    color: white;
+    color: #f3e9d8;
     padding: 4px 8px;
-    border-radius: 6px;
+    border-radius: 4px;
     font-size: 12px;
     font-weight: 600;
     margin-left: 8px;
+    font-family: var(--font-mono);
   }
 
   /* Bulk Upload Styles */
   .bulk-upload-section {
-    background: rgba(183,28,28,0.03);
+    background: #fff;
     border-radius: var(--radius);
     padding: 15px;
     margin-top: 15px;
-    border: 1px dashed var(--primary-red);
+    border: 1px dashed var(--accent-gold);
   }
-  
+
   .upload-options {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
     margin-bottom: 15px;
   }
-  
+
   .upload-textarea {
     width: 100%;
     min-height: 200px;
     padding: 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(0,0,0,0.1);
-    font-family: monospace;
+    border-radius: 6px;
+    border: 1px solid var(--ledger-rule);
+    font-family: var(--font-mono);
     font-size: 13px;
     resize: vertical;
   }
-  
+
   .upload-preview {
     max-height: 300px;
     overflow-y: auto;
     margin: 15px 0;
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 8px;
+    border: 1px solid var(--ledger-rule);
+    border-radius: 6px;
     padding: 10px;
   }
-  
+
   .preview-table {
     font-size: 12px;
   }
-  
+
   .preview-table table {
     width: 100%;
     margin: 0;
   }
-  
+
   .preview-table th {
-    background: rgba(183,28,28,0.1);
+    background: #f1e6cd;
     padding: 8px;
     font-size: 11px;
   }
-  
+
   .preview-table td {
     padding: 6px 8px;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
+    border-bottom: 1px solid var(--ledger-rule);
   }
-  
+
   .entry-status {
     font-size: 10px;
     font-weight: bold;
   }
-  
+
   .progress-bar {
     width: 100%;
     height: 8px;
-    background: #f0f0f0;
+    background: #ece3cd;
     border-radius: 4px;
     margin: 10px 0;
     overflow: hidden;
   }
-  
+
   .progress-fill {
     height: 100%;
     background: var(--primary-red);
     transition: width 0.3s ease;
   }
-  
+
   .progress-text {
     font-size: 12px;
     color: var(--muted);
@@ -288,16 +333,16 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(46,38,32,0.45);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
     padding: 20px;
   }
-  
+
   .modal-content {
-    background: white;
+    background: var(--card);
     border-radius: var(--radius);
     padding: 20px;
     max-width: 500px;
@@ -305,17 +350,19 @@
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow);
+    border: 1px solid var(--ledger-rule);
   }
-  
+
   .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
     padding-bottom: 10px;
-    border-bottom: 1px solid rgba(0,0,0,0.1);
+    border-bottom: 2px solid var(--text);
   }
-  
+  .modal-header h3 { font-family: var(--font-display); font-size:19px; color:var(--deep-red); }
+
   .modal-close {
     background: none;
     border: none;
@@ -324,59 +371,55 @@
     color: var(--muted);
   }
 
-  /* Financial Cards */
+  /* Financial Cards — flattened to ledger-paper + accent left border, no gradients */
   .financial-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--card);
+    color: var(--text);
     border-radius: var(--radius);
     padding: 20px;
     margin-bottom: 15px;
+    border: 1px solid var(--ledger-rule);
+    border-left: 4px solid var(--muted);
   }
-  
-  .financial-card.income {
-    background: linear-gradient(135deg, #28a745, #20c997);
-  }
-  
-  .financial-card.expense {
-    background: linear-gradient(135deg, #dc3545, #e83e8c);
-  }
-  
-  .financial-card.net {
-    background: linear-gradient(135deg, var(--primary-red), var(--accent-gold));
-  }
-  
+  .financial-card > div:first-child { font-family: var(--font-mono); }
+
+  .financial-card.income { border-left-color: var(--ledger-green); }
+  .financial-card.expense { border-left-color: var(--margin-red); }
+  .financial-card.net { border-left-color: var(--accent-gold); }
+
   .budget-card {
-    background: white;
+    background: var(--card);
     padding: 15px;
     border-radius: var(--radius);
     box-shadow: var(--shadow);
+    border: 1px solid var(--ledger-rule);
     border-left: 4px solid var(--primary-red);
   }
-  
+
   .budget-card.over-budget {
-    border-left-color: #dc3545;
-    background: rgba(220, 53, 69, 0.05);
+    border-left-color: var(--margin-red);
+    background: #fbf1ef;
   }
-  
+
   .budget-card.warning {
-    border-left-color: #ffc107;
-    background: rgba(255, 193, 7, 0.05);
+    border-left-color: var(--accent-gold);
+    background: #faf3e2;
   }
-  
+
   .budget-card.good {
-    border-left-color: #28a745;
-    background: rgba(40, 167, 69, 0.05);
+    border-left-color: var(--ledger-green);
+    background: #eef4ec;
   }
 
   /* Transaction Styles */
   .transaction-income {
-    border-left: 4px solid #28a745;
-    background: rgba(40, 167, 69, 0.05);
+    border-left: 4px solid var(--ledger-green);
+    background: #fff;
   }
-  
+
   .transaction-expense {
-    border-left: 4px solid #dc3545;
-    background: rgba(220, 53, 69, 0.05);
+    border-left: 4px solid var(--margin-red);
+    background: #fff;
   }
 
   /* Enhanced Styles */
@@ -389,7 +432,7 @@
     display: inline-block;
     width: 16px;
     height: 16px;
-    border: 2px solid #f3f3f3;
+    border: 2px solid #ece3cd;
     border-top: 2px solid var(--primary-red);
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -401,7 +444,7 @@
   }
 
   .skeleton-loading {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background: linear-gradient(90deg, #ece3cd 25%, #ddd2b8 50%, #ece3cd 75%);
     background-size: 200% 100%;
     animation: loading 1.5s infinite;
   }
@@ -420,8 +463,8 @@
   /* High contrast support */
   @media (prefers-contrast: high) {
     :root {
-      --primary-red: #8B0000;
-      --accent-gold: #B8860B;
+      --primary-red: #4a1418;
+      --accent-gold: #6b4f1a;
       --text: #000000;
     }
   }
@@ -470,19 +513,19 @@
     .summary-cards {
       grid-template-columns: repeat(2, 1fr) !important;
     }
-    
+
     .flex-row-mobile {
       flex-direction: column !important;
     }
-    
+
     input, select, button {
-      font-size: 16px !important; /* Prevents zoom on iOS */
+      font-size: 16px !important;
     }
-    
+
     table {
       font-size: 12px;
     }
-    
+
     .card {
       padding: 12px;
     }
@@ -499,26 +542,26 @@
     nav.topbar{flex-wrap:wrap}
     .flex{flex-direction:column; align-items:stretch}
     .spacer{height:140px}
-    
+
     .global-year-selector {
       margin-left: 0;
       margin-top: 10px;
     }
-    
+
     .upload-options {
       flex-direction: column;
     }
-    
+
     .modal-content {
       margin: 10px;
       padding: 15px;
       max-width: 95%;
     }
-    
+
     .financial-overview-cards {
       grid-template-columns: 1fr !important;
     }
-    
+
     .budget-grid {
       grid-template-columns: 1fr !important;
     }
@@ -529,14 +572,15 @@
   }
 
   .total-collection {
-    background: linear-gradient(135deg, var(--accent-gold), #f8e8a8);
+    background: #f1e6cd;
+    border: 1px solid var(--accent-gold);
     padding: 12px 16px;
-    border-radius: 10px;
+    border-radius: 6px;
     margin-top: 12px;
     text-align: center;
     font-weight: 700;
-    color: var(--text);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    font-family: var(--font-mono);
+    color: var(--deep-red);
   }
 
   .breakdown-container {
@@ -553,7 +597,7 @@
     gap: 15px;
     margin-bottom: 20px;
   }
-  
+
   .budget-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -576,11 +620,11 @@
     height: 56px;
     border-radius: 50%;
     background: var(--primary-red);
-    color: #fff;
+    color: #f3e9d8;
     font-size: 28px;
     line-height: 1;
     border: none;
-    box-shadow: 0 8px 20px rgba(183,28,28,0.35);
+    box-shadow: var(--shadow);
     z-index: 500;
     cursor: pointer;
   }
@@ -596,7 +640,7 @@
     align-items: center;
     gap: 4px;
     padding: 4px 8px;
-    border-radius: 8px;
+    border-radius: 6px;
     background: #25D366;
     color: #fff !important;
     text-decoration: none;
@@ -605,16 +649,16 @@
   }
   .wa-link:hover { opacity: 0.9; }
 
-  /* Print stylesheet: hides all interactive chrome so a printed page shows
-     just the content — a plain list/report instead of a web app screenshot. */
+  /* Print stylesheet */
   @media print {
-    header, nav.topbar, .global-year-selector, .auth-area, .spacer,
+    .spine, header, nav.topbar, .global-year-selector, .auth-area, .spacer,
     .quick-actions, .bulk-upload-section, .advanced-filters, .mobile-fab,
     .modal-overlay, #recent-activity, .toast-container,
     button, input, select, textarea, .wa-link {
       display: none !important;
     }
     body { background: #fff; }
+    .container { padding-left:18px; }
     .card {
       box-shadow: none;
       border: 1px solid #ccc;
@@ -624,8 +668,7 @@
     table { font-size: 12px; }
   }
 
-  /* When printing a single receipt, hide everything else on the page and
-     show only the receipt content, regardless of which section is open. */
+  /* Single-receipt print isolation */
   body.printing-receipt > *:not(#receipt-print-area) { display: none !important; }
   body.printing-receipt #receipt-print-area {
     display: block !important;
@@ -634,6 +677,7 @@
 </style>
 </head>
 <body>
+<div class="spine"><span>CLUB BORNOPORICHOY · DURGA PUJA KHATA</span></div>
 
 <header>
   <div class="header-inner">
@@ -856,10 +900,10 @@
       <div style="margin-top: 15px; padding: 15px; background: var(--glass); border-radius: var(--radius);">
         <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
           <div>
-            <strong>Total Income:</strong> <span id="table-total-income" style="color: #28a745;">₹0</span>
+            <strong>Total Income:</strong> <span id="table-total-income" style="color: #3f6b3f;">₹0</span>
           </div>
           <div>
-            <strong>Total Expenses:</strong> <span id="table-total-expenses" style="color: #dc3545;">₹0</span>
+            <strong>Total Expenses:</strong> <span id="table-total-expenses" style="color: #B33A3A;">₹0</span>
           </div>
           <div>
             <strong>Net Balance:</strong> <span id="table-net-balance" style="color: var(--primary-red);">₹0</span>
@@ -1567,7 +1611,7 @@ function showConfirmDialog(message, opts = {}) {
     titleEl.textContent = opts.title || 'Please Confirm';
     msgEl.textContent = message;
     okBtn.textContent = opts.okText || 'Confirm';
-    okBtn.style.background = opts.danger ? '#dc3545' : '';
+    okBtn.style.background = opts.danger ? '#B33A3A' : '';
     modal.classList.remove('hidden');
 
     const cleanup = (result) => {
@@ -1914,8 +1958,8 @@ function initCollectionChart() {
       datasets: [{
         label: 'Monthly Collection (₹)',
         data: Array(12).fill(0),
-        borderColor: '#B71C1C',
-        backgroundColor: 'rgba(183, 28, 28, 0.1)',
+        borderColor: '#6B1E23',
+        backgroundColor: 'rgba(107, 30, 35, 0.08)',
         tension: 0.4,
         fill: true
       }]
@@ -1936,8 +1980,8 @@ function initBudgetChart() {
     data: {
       labels: Object.keys(BUDGET_ITEMS),
       datasets: [
-        { label: 'Budget', data: Object.values(BUDGET_ITEMS), backgroundColor: 'rgba(183, 28, 28, 0.6)', borderColor: 'rgba(183, 28, 28, 1)', borderWidth: 1 },
-        { label: 'Actual Spent', data: Array(Object.keys(BUDGET_ITEMS).length).fill(0), backgroundColor: 'rgba(212, 175, 55, 0.6)', borderColor: 'rgba(212, 175, 55, 1)', borderWidth: 1 }
+        { label: 'Budget', data: Object.values(BUDGET_ITEMS), backgroundColor: 'rgba(107, 30, 35, 0.55)', borderColor: 'rgba(107, 30, 35, 1)', borderWidth: 1 },
+        { label: 'Actual Spent', data: Array(Object.keys(BUDGET_ITEMS).length).fill(0), backgroundColor: 'rgba(168, 134, 61, 0.6)', borderColor: 'rgba(168, 134, 61, 1)', borderWidth: 1 }
       ]
     },
     options: {
@@ -1962,8 +2006,8 @@ function refreshBudgetChartLabels() {
 }
 
 const EXPENSE_CHART_COLORS = [
-  '#B71C1C', '#D4AF37', '#28a745', '#17a2b8', '#6f42c1', '#e83e8c',
-  '#fd7e14', '#20c997', '#6610f2', '#dc3545', '#795548', '#607d8b', '#455a64', '#8d6e63'
+  '#6B1E23', '#A8863D', '#3f6b3f', '#6b8aa3', '#7c5a3f', '#8a5b6b',
+  '#B33A3A', '#4a1418', '#9c8256', '#5c7a6e', '#8c6d4f', '#6f5f6b', '#556b6f', '#7a6a5c'
 ];
 
 function initExpenseBreakdownChart() {
@@ -2214,7 +2258,7 @@ function addTransactionToTable(id, data, type, tbody) {
     <td><span class="badge ${isIncome ? 'ok' : 'warn'}">${isIncome ? '💰 Income' : '💸 Expense'}</span></td>
     <td>${escapeHtml(data.category || 'Uncategorized')}${linkedTag ? ` <span class="year-info" style="font-size:10px">${linkedTag}</span>` : ''}</td>
     <td>${escapeHtml(data.description || '')}</td>
-    <td style="color: ${isIncome ? '#28a745' : '#dc3545'}; font-weight: bold;">${isIncome ? '+' : '-'}₹${(data.amount || 0).toLocaleString()}</td>
+    <td style="color: ${isIncome ? '#3f6b3f' : '#B33A3A'}; font-weight: bold;">${isIncome ? '+' : '-'}₹${(data.amount || 0).toLocaleString()}</td>
     <td>${escapeHtml(data.paymentMode || 'Cash')}</td>
     <td></td>
   `;
@@ -2376,16 +2420,16 @@ async function loadBudgetData() {
         <div class="budget-card ${statusClass}">
           <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
             <strong>${escapeHtml(category)}</strong>
-            <span style="color: ${percentage > 100 ? '#dc3545' : percentage > 80 ? '#ffc107' : '#28a745'}; font-weight: bold;">${percentage.toFixed(1)}%</span>
+            <span style="color: ${percentage > 100 ? '#B33A3A' : percentage > 80 ? '#A8863D' : '#3f6b3f'}; font-weight: bold;">${percentage.toFixed(1)}%</span>
           </div>
-          <div class="progress-bar" style="height: 8px; background: #f0f0f0; border-radius: 4px; margin-bottom: 8px;">
-            <div class="progress-fill" style="height: 100%; background: ${percentage > 100 ? '#dc3545' : percentage > 80 ? '#ffc107' : '#28a745'}; width: ${Math.min(percentage, 100)}%; border-radius: 4px;"></div>
+          <div class="progress-bar" style="height: 8px; background: #ece3cd; border-radius: 4px; margin-bottom: 8px;">
+            <div class="progress-fill" style="height: 100%; background: ${percentage > 100 ? '#B33A3A' : percentage > 80 ? '#A8863D' : '#3f6b3f'}; width: ${Math.min(percentage, 100)}%; border-radius: 4px;"></div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--muted);">
             <span>Actual: ₹${actual.toLocaleString()}</span>
             <span>Budget: ₹${budget.toLocaleString()}</span>
           </div>
-          <div style="font-size: 11px; color: ${percentage > 100 ? '#dc3545' : percentage > 80 ? '#ffc107' : '#28a745'}; margin-top: 5px;">
+          <div style="font-size: 11px; color: ${percentage > 100 ? '#B33A3A' : percentage > 80 ? '#A8863D' : '#3f6b3f'}; margin-top: 5px;">
             ${percentage > 100 ? '⚠️ Over budget' : percentage > 80 ? '⚠️ Approaching limit' : '✅ Within budget'}
           </div>
         </div>
@@ -3099,7 +3143,8 @@ async function loadFeeYearlySummary() {
     const totalAmount = Object.values(monthlyTotals).reduce((sum, d) => sum + d.totalAmount, 0);
     const totalTr = document.createElement('tr');
     totalTr.style.fontWeight = 'bold';
-    totalTr.style.background = 'rgba(183,28,28,0.1)';
+    totalTr.style.borderTop = '1px solid #2E2620';
+    totalTr.style.borderBottom = '3px double #2E2620';
     totalTr.innerHTML = `<td>TOTAL</td><td>${totalPaidCount}</td><td>₹${totalAmount.toLocaleString()}</td>`;
     tbody.appendChild(totalTr);
   } catch (error) {
@@ -3641,21 +3686,21 @@ function printVillageReceipt(collection, collectorName) {
     : new Date().toLocaleDateString();
 
   area.innerHTML = `
-    <div style="max-width:480px;margin:40px auto;font-family:Poppins,Arial,sans-serif;border:2px solid #B71C1C;border-radius:12px;padding:28px;color:#2f2f2f;">
+    <div style="max-width:480px;margin:40px auto;font-family:'Work Sans',Arial,sans-serif;background:#FBF7EC;border:1px solid #A9B6C4;border-left:6px solid #6B1E23;border-radius:4px;padding:30px;color:#2E2620;">
       <div style="text-align:center;margin-bottom:22px;">
-        <div style="font-size:22px;font-weight:700;color:#B71C1C;">Club Bornoporichoy</div>
-        <div style="font-size:13px;color:#666;">Durga Puja — Collection Receipt</div>
+        <div style="font-family:'Tiro Bangla',serif;font-size:23px;color:#6B1E23;">Club Bornoporichoy</div>
+        <div style="font-size:12px;color:#766a5c;letter-spacing:0.04em;text-transform:uppercase;">Durga Puja — Collection Receipt</div>
       </div>
-      <table style="width:100%;font-size:14px;border-collapse:collapse;">
-        <tr><td style="padding:6px 0;color:#666;">Bill No.</td><td style="text-align:right;font-weight:600;">${escapeHtml(collection.bill || '')}</td></tr>
-        <tr><td style="padding:6px 0;color:#666;">Date</td><td style="text-align:right;">${dateStr}</td></tr>
-        <tr><td style="padding:6px 0;color:#666;">Received From</td><td style="text-align:right;font-weight:600;">${escapeHtml(collection.donor || '')}</td></tr>
-        <tr><td style="padding:6px 0;color:#666;">Village</td><td style="text-align:right;">${escapeHtml(collection.village || '')}</td></tr>
-        <tr><td style="padding:6px 0;color:#666;">Collected By</td><td style="text-align:right;">${escapeHtml(collectorName || '')}</td></tr>
-        <tr><td style="padding-top:16px;font-size:16px;font-weight:700;">Amount</td><td style="text-align:right;padding-top:16px;font-size:22px;font-weight:700;color:#B71C1C;">₹${(collection.amount || 0).toLocaleString()}</td></tr>
+      <table style="width:100%;font-size:14px;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;">
+        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Bill No.</td><td style="text-align:right;font-weight:600;border-bottom:1px solid #A9B6C4;">${escapeHtml(collection.bill || '')}</td></tr>
+        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Date</td><td style="text-align:right;border-bottom:1px solid #A9B6C4;">${dateStr}</td></tr>
+        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Received From</td><td style="text-align:right;font-weight:600;border-bottom:1px solid #A9B6C4;">${escapeHtml(collection.donor || '')}</td></tr>
+        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Village</td><td style="text-align:right;border-bottom:1px solid #A9B6C4;">${escapeHtml(collection.village || '')}</td></tr>
+        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Collected By</td><td style="text-align:right;border-bottom:1px solid #A9B6C4;">${escapeHtml(collectorName || '')}</td></tr>
+        <tr><td style="padding-top:16px;font-family:'Work Sans',sans-serif;font-size:15px;font-weight:600;">Amount</td><td style="text-align:right;padding-top:16px;font-size:21px;font-weight:600;color:#6B1E23;border-bottom:3px double #2E2620;padding-bottom:6px;">₹${(collection.amount || 0).toLocaleString()}</td></tr>
       </table>
-      ${collection.remarks ? `<div style="margin-top:16px;font-size:12px;color:#666;">Remarks: ${escapeHtml(collection.remarks)}</div>` : ''}
-      <div style="margin-top:36px;display:flex;justify-content:space-between;align-items:flex-end;font-size:12px;color:#666;">
+      ${collection.remarks ? `<div style="margin-top:16px;font-size:12px;color:#766a5c;font-family:'Work Sans',sans-serif;">Remarks: ${escapeHtml(collection.remarks)}</div>` : ''}
+      <div style="margin-top:36px;display:flex;justify-content:space-between;align-items:flex-end;font-size:12px;color:#766a5c;font-family:'Work Sans',sans-serif;">
         <div>Signature: ______________________</div>
         <div style="font-size:16px;">🪔 Thank you!</div>
       </div>
@@ -3699,8 +3744,8 @@ async function loadPaidMembersTracker() {
     } catch (error) { /* no data for this year yet */ }
 
     let html = `<div style="overflow-x: auto;"><table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-      <thead><tr><th style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5;">Member</th>`;
-    MONTHS.forEach(month => { html += `<th style="padding: 8px; border: 1px solid #ddd; background: #f5f5f5; text-align: center;">${month}</th>`; });
+      <thead><tr><th style="padding: 8px; border: 1px solid #A9B6C4; background: #f1e6cd;">Member</th>`;
+    MONTHS.forEach(month => { html += `<th style="padding: 8px; border: 1px solid #A9B6C4; background: #f1e6cd; text-align: center;">${month}</th>`; });
     html += `</tr></thead><tbody>`;
 
     members.sort((a, b) => a.name.localeCompare(b.name));
@@ -3710,7 +3755,7 @@ async function loadPaidMembersTracker() {
       const memberFees = feesData[member.id] || {};
       let memberPaidMonths = 0;
       const unpaidMonths = [];
-      html += `<tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${escapeHtml(member.name)}<br><small style="color: #666;">${escapeHtml(member.village)}</small></td>`;
+      html += `<tr><td style="padding: 8px; border: 1px solid #A9B6C4; font-weight: bold;">${escapeHtml(member.name)}<br><small style="color: #766a5c;">${escapeHtml(member.village)}</small></td>`;
 
       MONTHS.forEach(month => {
         let isPaid = false;
@@ -3719,7 +3764,7 @@ async function loadPaidMembersTracker() {
         if (isPaid) memberPaidMonths++;
         else unpaidMonths.push(month);
 
-        html += `<td style="padding: 8px; border: 1px solid #ddd; text-align: center; background: ${isPaid ? '#d4edda' : '#f8d7da'};">
+        html += `<td style="padding: 8px; border: 1px solid #A9B6C4; text-align: center; background: ${isPaid ? '#e7efe3' : '#f6e3e1'};">
           <div class="paid-box ${isPaid ? 'paid-yes' : 'paid-no'}" title="${month}: ${isPaid ? 'Paid' : 'Not Paid'}">${isPaid ? '✓' : '✗'}</div>
         </td>`;
       });
