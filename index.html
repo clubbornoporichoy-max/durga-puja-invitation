@@ -6,6 +6,13 @@
 <title>Club Bornoporichoy — Durga Puja Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%236B1E23'/%3E%3Ctext x='50' y='66' font-size='48' text-anchor='middle' fill='%23e9dcc8' font-family='Georgia' font-weight='bold'%3ECB%3C/text%3E%3C/svg%3E" />
 
+<!-- PWA: makes the app installable on Android/Chrome ("Add to Home Screen")
+     and is what a TWA/APK wrapper (e.g. PWABuilder, Bubblewrap) needs to
+     package this as a real Android app. See README-APK.md for the full path. -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6B1E23">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <!-- Google Fonts: Tiro Bangla (headings), Work Sans (body), IBM Plex Mono (ledger figures) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla:ital@0;1&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -796,6 +803,7 @@
     <!-- 4. Quick Actions Panel -->
     <div class="card">
       <h3>⚡ Quick Actions</h3>
+      <div id="last-backup-display" class="muted note" style="margin-bottom:8px">Checking last backup…</div>
       <div class="quick-actions">
         <button class="btn small" onclick="exportAllData()">📊 Export All Data</button>
         <button class="btn small secondary" onclick="exportInvitationsBulk()">📋 Export Invitations</button>
@@ -1508,6 +1516,17 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Registers the service worker so the browser considers this an installable
+// PWA (required by Chrome/Android before offering "Install app", and by TWA
+// wrappers like PWABuilder/Bubblewrap when packaging this as a real APK).
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(err => {
+      console.warn('Service worker registration failed (app still works normally):', err);
+    });
+  });
+}
+
 /* ---------------- Constants ---------------- */
 const INCOME_CATEGORIES = [
   'Donations', 'Membership Fees', 'Village Collection', 'Sponsorships', 'Advertisement',
@@ -1722,19 +1741,63 @@ function showNotification(message, type = 'info', duration = 5000) {
   setTimeout(() => { if (notification.parentNode) notification.parentNode.removeChild(notification); }, duration);
 }
 
-function addActivity(message, type = 'info') {
+const activityLogCol = db.collection("activity_log");
+
+function addActivity(message, type = 'info', skipPersist = false) {
+  const activityDiv = document.getElementById('recent-activity');
+  if (activityDiv) {
+    const activityItem = document.createElement('div');
+    activityItem.className = `activity-item ${type}`;
+    activityItem.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span>${escapeHtml(message)}</span>
+        <small style="color: var(--muted);">${new Date().toLocaleTimeString()}</small>
+      </div>
+    `;
+    activityDiv.insertBefore(activityItem, activityDiv.firstChild);
+    while (activityDiv.children.length > 10) activityDiv.removeChild(activityDiv.lastChild);
+  }
+
+  // Persist so the log survives a refresh — a real audit trail instead of
+  // an in-memory list that resets every time someone reopens the page.
+  if (!skipPersist) {
+    activityLogCol.add({
+      message, type,
+      byUid: auth.currentUser ? auth.currentUser.uid : null,
+      byEmail: auth.currentUser ? auth.currentUser.email : null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => console.error('Activity log write failed:', err));
+  }
+}
+
+// Loads the most recent entries from Firestore on login, so the Recent
+// Activity panel shows real history immediately instead of starting blank.
+async function loadRecentActivityHistory() {
   const activityDiv = document.getElementById('recent-activity');
   if (!activityDiv) return;
-  const activityItem = document.createElement('div');
-  activityItem.className = `activity-item ${type}`;
-  activityItem.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span>${escapeHtml(message)}</span>
-      <small style="color: var(--muted);">${new Date().toLocaleTimeString()}</small>
-    </div>
-  `;
-  activityDiv.insertBefore(activityItem, activityDiv.firstChild);
-  while (activityDiv.children.length > 10) activityDiv.removeChild(activityDiv.lastChild);
+  try {
+    const snap = await activityLogCol.orderBy('createdAt', 'desc').limit(10).get();
+    activityDiv.innerHTML = '';
+    if (snap.empty) {
+      activityDiv.innerHTML = "<p class='muted' style='margin:4px 0'>No activity recorded yet.</p>";
+      return;
+    }
+    snap.forEach(doc => {
+      const d = doc.data();
+      const when = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleString() : '';
+      const item = document.createElement('div');
+      item.className = `activity-item ${d.type || 'info'}`;
+      item.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>${escapeHtml(d.message || '')}</span>
+          <small style="color: var(--muted);">${escapeHtml(when)}</small>
+        </div>
+      `;
+      activityDiv.appendChild(item);
+    });
+  } catch (error) {
+    console.error('Error loading activity history:', error);
+  }
 }
 
 /* ==================== Year selector ==================== */
@@ -2181,11 +2244,46 @@ async function exportAllData() {
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     downloadBlob(blob, `club-bornoporichoy-backup-${new Date().toISOString().split('T')[0]}.json`);
+    await recordBackupTimestamp();
     showNotification('All data exported successfully!', 'success');
     addActivity('Data exported successfully', 'success');
   } catch (error) {
     showNotification('Export failed: ' + error.message, 'error');
     addActivity('Data export failed: ' + error.message, 'error');
+  }
+}
+
+// Tracks when a full export was last run, since Backup Data is a manual
+// action with no automatic reminder otherwise.
+async function recordBackupTimestamp() {
+  try {
+    await db.collection('config').doc('backup_meta').set({
+      lastBackupAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastBackupBy: auth.currentUser ? auth.currentUser.email : null
+    }, { merge: true });
+    updateLastBackupDisplay();
+  } catch (error) {
+    console.error('Could not record backup timestamp:', error);
+  }
+}
+
+async function updateLastBackupDisplay() {
+  const el = document.getElementById('last-backup-display');
+  if (!el) return;
+  try {
+    const doc = await db.collection('config').doc('backup_meta').get();
+    if (!doc.exists || !doc.data().lastBackupAt) {
+      el.textContent = 'No backup recorded yet — click "Backup Data" below.';
+      return;
+    }
+    const data = doc.data();
+    const when = data.lastBackupAt.toDate();
+    const daysAgo = Math.floor((Date.now() - when.getTime()) / 86400000);
+    const agoText = daysAgo === 0 ? 'today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`;
+    el.textContent = `Last backup: ${when.toLocaleDateString()} (${agoText})${data.lastBackupBy ? ' by ' + data.lastBackupBy : ''}`;
+    el.style.color = daysAgo > 30 ? '#B33A3A' : '';
+  } catch (error) {
+    console.error('Error loading last backup info:', error);
   }
 }
 
@@ -4117,6 +4215,8 @@ auth.onAuthStateChanged(user => {
       initializeAllEventListeners();
       initSectionScrollTracking();
       loadFinancialData();
+      await loadRecentActivityHistory();
+      updateLastBackupDisplay();
       addActivity('Dashboard initialized successfully', 'success');
     }, 300);
   } else {
@@ -4375,6 +4475,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (amount <= 0) return showNotification('Amount must be greater than 0', 'error');
 
     try {
+      const dup = await villageCollectionsCollectionFor(selectedYear).where("bill", "==", bill).get();
+      const activeDup = dup.docs.some(d => !d.data().deleted);
+      if (activeDup && !(await showConfirmDialog(`Bill No. "${bill}" is already recorded for this year. Add this entry anyway?`, { title: 'Possible Duplicate Bill No.' }))) return;
+
       const docRef = await villageCollectionsCollectionFor(selectedYear).add({
         bill, collectorId, donor, amount, remarks, village,
         dateAdded: firebase.firestore.FieldValue.serverTimestamp()
