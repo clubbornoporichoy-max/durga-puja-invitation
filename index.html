@@ -700,7 +700,7 @@
       <a href="#invitations" id="nav-invitations" class="active">Manage Invitations</a>
       <a href="#members" id="nav-members">Members</a>
       <a href="#fees" id="nav-fees">Membership Fees</a>
-      <a href="#financial-tracker" id="nav-financial">Financial Tracker</a>
+      <a href="#financial-tracker" id="nav-financial-tracker">Financial Tracker</a>
       <a href="#village-collection" id="nav-village-collection">Village Collection</a>
     </nav>
 
@@ -4391,7 +4391,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const globalYearSelect = document.getElementById('globalYearSelect');
   if (globalYearSelect) globalYearSelect.addEventListener('change', e => changeGlobalYear(e.target.value));
 
-  ['nav-invitations','nav-members','nav-fees','nav-financial','nav-village-collection'].forEach(navId => {
+  ['nav-invitations','nav-members','nav-fees','nav-financial-tracker','nav-village-collection'].forEach(navId => {
     document.getElementById(navId)?.addEventListener("click", e => {
       e.preventDefault();
       navigateToSection(navId.replace('nav-', ''));
