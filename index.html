@@ -1462,7 +1462,7 @@
 </div>
 
 <!-- Custom Confirm Dialog (replaces native browser confirm()) -->
-<div id="confirmModal" class="modal-overlay hidden">
+<div id="confirmModal" class="modal-overlay hidden" style="z-index:2000">
   <div class="modal-content" style="max-width:420px">
     <div class="modal-header">
       <h3 id="confirm-modal-title">Please Confirm</h3>
@@ -1980,7 +1980,7 @@ function changeGlobalYear(newYear) {
     loadFeeYearlySummary();
     loadVillageCollections();
     loadFinancialData();
-    recalcTotalCollected();
+    recalcTotalCollectedDebounced();
   });
 
   if (selectedYear === 'all') {
@@ -1997,7 +1997,10 @@ function changeGlobalYear(newYear) {
 async function loadAllYearsFees() {
   addActivity('Loading fees data from all years...', 'info');
   allYearsFeesData = {};
-  for (const year of candidateYears()) {
+  // Fire all years' reads in parallel instead of one-by-one — on a slow
+  // connection, 6 sequential round trips can take several seconds; done
+  // together they take about as long as just one.
+  await Promise.all(candidateYears().map(async (year) => {
     try {
       const snap = await membershipFeesCollectionFor(year).get();
       if (!snap.empty) {
@@ -2005,15 +2008,15 @@ async function loadAllYearsFees() {
         snap.forEach(doc => allYearsFeesData[year][doc.id] = doc.data());
       }
     } catch (e) { /* collection doesn't exist for this year — fine */ }
-  }
+  }));
   addActivity('Fees data loaded from all years', 'success');
-  if (selectedYear === 'all') { loadFeeYearlySummary(); recalcTotalCollected(); }
+  if (selectedYear === 'all') { loadFeeYearlySummary(); recalcTotalCollectedDebounced(); }
 }
 
 async function loadAllYearsVillageCollections() {
   addActivity('Loading village collection data from all years...', 'info');
   allYearsVillageData = {};
-  for (const year of candidateYears()) {
+  await Promise.all(candidateYears().map(async (year) => {
     try {
       const snap = await villageCollectionsCollectionFor(year).get();
       if (!snap.empty) {
@@ -2021,15 +2024,15 @@ async function loadAllYearsVillageCollections() {
         snap.forEach(doc => allYearsVillageData[year][doc.id] = doc.data());
       }
     } catch (e) { /* fine */ }
-  }
+  }));
   addActivity('Village collection data loaded from all years', 'success');
-  if (selectedYear === 'all') { loadVillageCollections(); recalcTotalCollected(); }
+  if (selectedYear === 'all') { loadVillageCollections(); recalcTotalCollectedDebounced(); }
 }
 
 async function loadAllYearsFinancials() {
   allYearsIncomeData = {};
   allYearsExpenseData = {};
-  for (const year of candidateYears()) {
+  await Promise.all(candidateYears().map(async (year) => {
     try {
       const incSnap = await incomeCollectionFor(year).get();
       if (!incSnap.empty) {
@@ -2044,7 +2047,7 @@ async function loadAllYearsFinancials() {
         expSnap.forEach(doc => allYearsExpenseData[year][doc.id] = doc.data());
       }
     } catch (e) { /* fine */ }
-  }
+  }));
 }
 
 function showAllYearsData() { changeGlobalYear('all'); }
@@ -3309,7 +3312,7 @@ async function togglePaymentStatus(memberId, month, paid, amount) {
 
     invalidateAllYearsCaches();
     loadFeeYearlySummary();
-    recalcTotalCollected();
+    recalcTotalCollectedDebounced();
     updateFinancialSummary();
   } catch (error) {
     console.error('Error updating payment status:', error);
@@ -3434,7 +3437,7 @@ async function clearFeeRecord() {
     addActivity(`Cleared all payment records for ${memberData.name}`, 'info');
     loadMemberFeeData(memberId);
     loadFeeYearlySummary();
-    recalcTotalCollected();
+    recalcTotalCollectedDebounced();
     updateFinancialSummary();
   } catch (error) {
     console.error('Error clearing fee record:', error);
@@ -3453,12 +3456,14 @@ async function repairAndSyncFees() {
 
   showNotification('Scanning fee records for this year…', 'info');
   const feesCol = membershipFeesCollectionFor(selectedYear);
-  let repairedDocs = 0, incomeSynced = 0;
 
   try {
     const snap = await feesCol.get();
 
-    for (const docSnap of snap.docs) {
+    // Repair every member's record in parallel instead of one at a time —
+    // for a club with 50+ members, sequential awaits here could take a
+    // minute or more; done together it's roughly as fast as one write.
+    const repairResults = await Promise.all(snap.docs.map(async (docSnap) => {
       const data = docSnap.data();
       const memberId = docSnap.id;
       const nestedUpdate = {};
@@ -3488,27 +3493,31 @@ async function repairAndSyncFees() {
 
       if (needsRepair) {
         await feesCol.doc(memberId).set({ ...nestedUpdate, memberId }, { merge: true });
-        repairedDocs++;
+        return true;
       } else if (!data.memberId) {
         await feesCol.doc(memberId).set({ memberId }, { merge: true });
       }
-    }
+      return false;
+    }));
+    const repairedDocs = repairResults.filter(Boolean).length;
 
     // Re-read the now-clean data and make sure Income has a matching entry
-    // for every month that's genuinely marked paid. Safe to re-run any
-    // time — it only ever fills in what's missing, never duplicates.
+    // for every month that's genuinely marked paid — again, all in
+    // parallel rather than one write per paid month in sequence.
     const cleanSnap = await feesCol.get();
-    for (const docSnap of cleanSnap.docs) {
+    const syncTasks = [];
+    cleanSnap.forEach(docSnap => {
       const data = docSnap.data();
       const memberId = docSnap.id;
-      for (const month of MONTHS) {
+      MONTHS.forEach(month => {
         const monthData = data[month];
         if (monthData && monthData.paid) {
-          await syncFeeIncomeEntry(selectedYear, memberId, data.memberName, month, true, monthData.amount || data.monthlyFee || 100);
-          incomeSynced++;
+          syncTasks.push(syncFeeIncomeEntry(selectedYear, memberId, data.memberName, month, true, monthData.amount || data.monthlyFee || 100));
         }
-      }
-    }
+      });
+    });
+    await Promise.all(syncTasks);
+    const incomeSynced = syncTasks.length;
 
     invalidateAllYearsCaches();
     clearCache('fees');
@@ -3517,7 +3526,7 @@ async function repairAndSyncFees() {
 
     loadFeeYearlySummary();
     loadFinancialData();
-    recalcTotalCollected();
+    recalcTotalCollectedDebounced();
     const memberSelect = document.getElementById('feeMemberSelect');
     if (memberSelect && memberSelect.value) loadMemberFeeData(memberSelect.value);
   } catch (error) {
@@ -3695,14 +3704,14 @@ async function syncAllVillageCollectionsToIncome() {
   try {
     showNotification('Syncing village collections to Income…', 'info');
     const snap = await villageCollectionsCollectionFor(selectedYear).get();
-    let synced = 0;
-    for (const doc of snap.docs) {
-      const d = doc.data();
-      if (d.deleted) continue;
-      await syncVillageIncomeEntry(selectedYear, doc.id, d.donor, d.village, d.amount || 0, d.dateAdded);
-      synced++;
-    }
-    showNotification(`Synced ${synced} collection(s) to Income.`, 'success');
+    const tasks = snap.docs
+      .filter(doc => !doc.data().deleted)
+      .map(doc => {
+        const d = doc.data();
+        return syncVillageIncomeEntry(selectedYear, doc.id, d.donor, d.village, d.amount || 0, d.dateAdded);
+      });
+    await Promise.all(tasks);
+    showNotification(`Synced ${tasks.length} collection(s) to Income.`, 'success');
     addActivity(`Synced village collections to Income for ${selectedYear}`, 'success');
     loadFinancialData();
   } catch (error) {
@@ -3877,7 +3886,7 @@ async function saveCollectionEdit() {
     addActivity(`Updated collection from ${donor}`, 'success');
     closeEditCollectionModal();
     loadVillageCollections();
-    recalcTotalCollected();
+    recalcTotalCollectedDebounced();
     updateFinancialSummary();
   } catch (error) {
     console.error('Error updating collection:', error);
@@ -3901,7 +3910,7 @@ async function deleteCollection(collectionId, donorName) {
     showToast('Moved to Recycle Bin');
     addActivity(`Deleted collection record for ${donorName}`, 'info');
     loadVillageCollections();
-    recalcTotalCollected();
+    recalcTotalCollectedDebounced();
     updateFinancialSummary();
   } catch (error) {
     console.error('Error deleting collection:', error);
@@ -4079,9 +4088,17 @@ async function recalcTotalCollected() {
         MONTHS.forEach(month => { if (mf[month] && mf[month].paid) totalMembership += mf[month].amount || mf.monthlyFee || 100; });
       }));
     } else {
-      const villageSnap = await villageCollectionsCollectionFor(selectedYear).get();
-      villageSnap.forEach(doc => { if (!doc.data().deleted) totalVillage += doc.data().amount || 0; });
-      const feesSnap = await membershipFeesCollectionFor(selectedYear).get();
+      // These two reads don't depend on each other — fetch them together
+      // instead of waiting for village collections before even starting
+      // the fees read.
+      const [villageSnap, feesSnap] = await Promise.all([
+        villageCollectionsCollectionFor(selectedYear).get(),
+        membershipFeesCollectionFor(selectedYear).get()
+      ]);
+      villageSnap.forEach(doc => {
+        const d = doc.data();
+        if (!d.deleted) totalVillage += d.amount || 0;
+      });
       feesSnap.forEach(doc => {
         const data = doc.data();
         // Use each month's own recorded amount first — falling back to the
@@ -4103,6 +4120,13 @@ async function recalcTotalCollected() {
     console.error("Recalc total collected error:", error);
   }
 }
+
+// This does 1-2 full collection scans and gets triggered after nearly
+// every add/edit/delete/toggle across fees and village collections. If
+// several of those happen in quick succession (e.g. toggling many
+// members' months in a row), debouncing means only one recompute runs
+// after things settle, instead of one full scan per click stacking up.
+const recalcTotalCollectedDebounced = debounce(recalcTotalCollected, 400);
 
 async function updateMonthlySummary() { await recalcTotalCollected(); }
 
@@ -4267,7 +4291,7 @@ async function processVillageBulkUpload() {
   showNotification(`Bulk upload complete: ${done} added, ${failed} failed (unmatched collector names are skipped)`, done > 0 ? 'success' : 'error');
   addActivity(`Bulk uploaded ${done} village collections (${failed} failed)`, 'success');
   loadVillageCollections();
-  recalcTotalCollected();
+  recalcTotalCollectedDebounced();
   setTimeout(closeVillageBulkUploadModal, 1200);
 }
 
@@ -4658,7 +4682,7 @@ document.addEventListener('DOMContentLoaded', function() {
       showNotification('Collection added successfully', 'success');
       addActivity(`Added collection from ${donor} in ${village}`, 'success');
       loadVillageCollections();
-      recalcTotalCollected();
+      recalcTotalCollectedDebounced();
       updateFinancialSummary();
     } catch (error) {
       showNotification('Error adding collection: ' + error.message, 'error');
