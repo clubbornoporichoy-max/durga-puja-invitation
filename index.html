@@ -1608,6 +1608,100 @@ function candidateYears() {
 
 function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
+// Converts a rupee amount to words (Indian numbering: crore/lakh/thousand),
+// used on receipts the same way a real bill book writes "Rupees ___ Only".
+function numberToWordsINR(num) {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  function twoDigits(n){ if (n < 20) return ones[n]; return tens[Math.floor(n/10)] + (n % 10 ? ' ' + ones[n % 10] : ''); }
+  function threeDigits(n){ if (n < 100) return twoDigits(n); return ones[Math.floor(n/100)] + ' Hundred' + (n % 100 ? ' ' + twoDigits(n % 100) : ''); }
+  num = Math.round(num);
+  if (num === 0) return 'Zero';
+  let crore = Math.floor(num / 10000000); num %= 10000000;
+  let lakh = Math.floor(num / 100000); num %= 100000;
+  let thousand = Math.floor(num / 1000); num %= 1000;
+  let hundred = num;
+  let parts = [];
+  if (crore) parts.push(threeDigits(crore) + ' Crore');
+  if (lakh) parts.push(threeDigits(lakh) + ' Lakh');
+  if (thousand) parts.push(threeDigits(thousand) + ' Thousand');
+  if (hundred) parts.push(threeDigits(hundred));
+  return parts.join(' ') || 'Zero';
+}
+
+// One row of a receipt's details table — shared by both receipt types
+// below so Village Collection and Membership Fee receipts stay visually
+// identical apart from which fields they show.
+function receiptRow(label, value, opts = {}) {
+  const style = `padding:5px 0; text-align:right; ${opts.bold ? 'font-weight:600;' : ''} ${opts.mono ? "font-family:'IBM Plex Mono',monospace;" : ''}`;
+  return `<tr><td style="padding:5px 0; color:#7a6a5c; width:40%;">${escapeHtml(label)}</td><td style="${style}">${escapeHtml(value)}</td></tr>`;
+}
+
+// The shared festive receipt shell — decorative border, the "Sri Sri Durga
+// Sahay" header line, amount-in-words, committee seal, and the closing
+// Durga Puja greeting. Both printVillageReceipt() and printFeeReceipt()
+// build their own detail rows and pass them in here, so the two receipt
+// types always look consistent with each other.
+function buildReceiptShell({ serial, subtitleBn, subtitleEn, rowsHtml, amount, remarks }) {
+  const amountWords = numberToWordsINR(amount || 0);
+  return `
+  <div style="max-width:480px;margin:40px auto;font-family:'Work Sans',Arial,sans-serif;background:#FBF4E6;color:#3a2418;position:relative;padding:4px;">
+    <div style="border:3px solid #7a1518;border-radius:2px;padding:3px;">
+    <div style="border:1px solid #c9a227;border-radius:2px;padding:22px 26px 20px;position:relative;">
+
+      <div style="position:absolute; top:14px; right:16px; border:1.5px solid #7a1518; color:#7a1518; border-radius:3px; padding:3px 10px; font-family:'IBM Plex Mono',monospace; font-size:12px; transform:rotate(2deg);">
+        No. ${escapeHtml(serial)}
+      </div>
+
+      <div style="text-align:center; margin-bottom:6px;">
+        <div style="font-family:'Tiro Bangla',serif; font-size:14px; color:#7a1518; letter-spacing:0.02em;">॥ শ্রী শ্রী দুর্গা সহায় ॥</div>
+      </div>
+
+      <div style="text-align:center; margin-bottom:14px;">
+        <div style="font-family:'Tiro Bangla',serif; font-size:25px; color:#7a1518; line-height:1.15;">Club Bornoporichoy</div>
+        <div style="font-family:'Tiro Bangla',serif; font-size:13px; color:#8a5a1a; margin-top:2px;">${subtitleBn}</div>
+        <div style="font-size:11px; color:#8a5a1a; letter-spacing:0.04em; text-transform:uppercase; margin-top:1px;">${subtitleEn}</div>
+      </div>
+
+      <div style="height:10px; background-image: radial-gradient(circle at 5px 5px, #c9a227 1.6px, transparent 1.7px); background-size:20px 10px; background-position:center; opacity:0.7; margin-bottom:16px;"></div>
+
+      <table style="width:100%; font-size:14px; border-collapse:collapse;">
+        ${rowsHtml}
+      </table>
+
+      <div style="margin-top:14px; border-top:1px dashed #c9a227; padding-top:12px;">
+        <table style="width:100%; font-size:14px; border-collapse:collapse;">
+          <tr>
+            <td style="color:#7a6a5c; vertical-align:top; width:40%;">Sum of Rupees</td>
+            <td style="text-align:right; font-style:italic; font-size:13px; line-height:1.4;">${amountWords} Only</td>
+          </tr>
+          <tr>
+            <td style="padding-top:10px; font-size:17px; font-weight:700; color:#7a1518;">Amount</td>
+            <td style="padding-top:10px; text-align:right; font-size:24px; font-weight:700; color:#7a1518; font-family:'IBM Plex Mono',monospace; border-bottom:3px double #3a2418; padding-bottom:6px;">₹${(amount || 0).toLocaleString('en-IN')}</td>
+          </tr>
+        </table>
+      </div>
+
+      ${remarks ? `<div style="margin-top:14px; font-size:12px; color:#7a6a5c;">Remarks: ${escapeHtml(remarks)}</div>` : ''}
+
+      <div style="margin-top:34px; display:flex; justify-content:space-between; align-items:flex-end;">
+        <div style="border:1px dashed #c9a227; border-radius:4px; padding:10px 16px; font-size:10px; color:#9c8a6f; text-align:center;">
+          Committee<br>Seal
+        </div>
+        <div style="text-align:center; font-size:12px; color:#7a6a5c;">
+          <div style="border-top:1px solid #3a2418; padding-top:4px; min-width:140px;">Authorised Signatory</div>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top:20px; font-family:'Tiro Bangla',serif; font-size:13px; color:#7a1518;">
+        🙏 শুভ দুর্গা পূজা · Subho Durga Puja
+      </div>
+    </div>
+    </div>
+  </div>`;
+}
+
 function safeSetTextContent(elementId, text) {
   const element = document.getElementById(elementId);
   if (element) element.textContent = text;
@@ -3073,6 +3167,18 @@ function updateFeeTable(memberData, feeData, feeAmount) {
       <td class="center"></td>
     `;
     const toggleTd = tr.querySelector('td:last-child');
+
+    // Printing a receipt doesn't change any data, so any signed-in user can
+    // do it for an already-paid month — not gated to admin.
+    if (isPaid) {
+      const receiptBtn = document.createElement('button');
+      receiptBtn.textContent = '🧾 Receipt';
+      receiptBtn.className = 'btn small ghost';
+      receiptBtn.style.marginRight = '5px';
+      receiptBtn.onclick = () => printFeeReceipt(memberData, month, monthData, selectedYear);
+      toggleTd.appendChild(receiptBtn);
+    }
+
     if (currentRole === 'admin') {
       const toggleBtn = document.createElement('button');
       toggleBtn.textContent = isPaid ? 'Mark Unpaid' : 'Mark Paid';
@@ -3780,30 +3886,59 @@ function printVillageReceipt(collection, collectorName) {
   const area = document.getElementById('receipt-print-area');
   if (!area) return;
   const dateStr = collection.dateAdded && collection.dateAdded.toDate
-    ? collection.dateAdded.toDate().toLocaleDateString()
-    : new Date().toLocaleDateString();
+    ? collection.dateAdded.toDate().toLocaleDateString('en-GB')
+    : new Date().toLocaleDateString('en-GB');
 
-  area.innerHTML = `
-    <div style="max-width:480px;margin:40px auto;font-family:'Work Sans',Arial,sans-serif;background:#FBF7EC;border:1px solid #A9B6C4;border-left:6px solid #6B1E23;border-radius:4px;padding:30px;color:#2E2620;">
-      <div style="text-align:center;margin-bottom:22px;">
-        <div style="font-family:'Tiro Bangla',serif;font-size:23px;color:#6B1E23;">Club Bornoporichoy</div>
-        <div style="font-size:12px;color:#766a5c;letter-spacing:0.04em;text-transform:uppercase;">Durga Puja — Collection Receipt</div>
-      </div>
-      <table style="width:100%;font-size:14px;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;">
-        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Bill No.</td><td style="text-align:right;font-weight:600;border-bottom:1px solid #A9B6C4;">${escapeHtml(collection.bill || '')}</td></tr>
-        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Date</td><td style="text-align:right;border-bottom:1px solid #A9B6C4;">${dateStr}</td></tr>
-        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Received From</td><td style="text-align:right;font-weight:600;border-bottom:1px solid #A9B6C4;">${escapeHtml(collection.donor || '')}</td></tr>
-        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Village</td><td style="text-align:right;border-bottom:1px solid #A9B6C4;">${escapeHtml(collection.village || '')}</td></tr>
-        <tr><td style="padding:6px 0;color:#766a5c;border-bottom:1px solid #A9B6C4;">Collected By</td><td style="text-align:right;border-bottom:1px solid #A9B6C4;">${escapeHtml(collectorName || '')}</td></tr>
-        <tr><td style="padding-top:16px;font-family:'Work Sans',sans-serif;font-size:15px;font-weight:600;">Amount</td><td style="text-align:right;padding-top:16px;font-size:21px;font-weight:600;color:#6B1E23;border-bottom:3px double #2E2620;padding-bottom:6px;">₹${(collection.amount || 0).toLocaleString()}</td></tr>
-      </table>
-      ${collection.remarks ? `<div style="margin-top:16px;font-size:12px;color:#766a5c;font-family:'Work Sans',sans-serif;">Remarks: ${escapeHtml(collection.remarks)}</div>` : ''}
-      <div style="margin-top:36px;display:flex;justify-content:space-between;align-items:flex-end;font-size:12px;color:#766a5c;font-family:'Work Sans',sans-serif;">
-        <div>Signature: ______________________</div>
-        <div style="font-size:16px;">🪔 Thank you!</div>
-      </div>
-    </div>
-  `;
+  const rowsHtml = [
+    receiptRow('Date', dateStr, { mono: true }),
+    receiptRow('Received with thanks from', collection.donor || '', { bold: true }),
+    receiptRow('Village', collection.village || ''),
+    receiptRow('Bill No.', collection.bill || '', { mono: true }),
+    receiptRow('On account of', 'Durga Puja Chanda'),
+    receiptRow('Collected by', collectorName || '')
+  ].join('');
+
+  area.innerHTML = buildReceiptShell({
+    serial: collection.bill || '—',
+    subtitleBn: 'শারদীয়া দুর্গা পূজা · চাঁদা রশিদ',
+    subtitleEn: 'Sharodiya Durga Puja — Donation Receipt',
+    rowsHtml,
+    amount: collection.amount,
+    remarks: collection.remarks
+  });
+
+  document.body.classList.add('printing-receipt');
+  window.print();
+}
+
+// Same festive design as the Village Collection receipt above, for a
+// member's membership fee payment. Called from the "🧾 Receipt" button
+// that appears next to any month already marked Paid in the Fee Tracker.
+function printFeeReceipt(memberData, month, monthData, year) {
+  const area = document.getElementById('receipt-print-area');
+  if (!area) return;
+  const dateStr = monthData.paidOn && monthData.paidOn.seconds
+    ? new Date(monthData.paidOn.seconds * 1000).toLocaleDateString('en-GB')
+    : new Date().toLocaleDateString('en-GB');
+  const serial = `MF-${month.slice(0, 3).toUpperCase()}-${year}`;
+
+  const rowsHtml = [
+    receiptRow('Date', dateStr, { mono: true }),
+    receiptRow('Received with thanks from', memberData.name || '', { bold: true }),
+    receiptRow('Village', memberData.village || ''),
+    receiptRow('Month', `${month} ${year}`, { mono: true }),
+    receiptRow('On account of', 'Membership Fee')
+  ].join('');
+
+  area.innerHTML = buildReceiptShell({
+    serial,
+    subtitleBn: 'সদস্য চাঁদা রশিদ',
+    subtitleEn: 'Membership Fee Receipt',
+    rowsHtml,
+    amount: monthData.amount,
+    remarks: ''
+  });
+
   document.body.classList.add('printing-receipt');
   window.print();
 }
