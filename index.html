@@ -1742,6 +1742,15 @@ function showConfirmDialog(message, opts = {}) {
 
 // Builds a wa.me link. Assumes Indian 10-digit numbers when no country code
 // is present (the club's default), since that's what's stored throughout.
+// Loose sanity check, not strict validation — just catches obvious typos
+// (too short/long) before they quietly break the WhatsApp reminder links,
+// which need a clean 10-digit number to build a working wa.me link.
+function looksLikeValidMobile(mobile) {
+  if (!mobile) return true; // empty is fine, mobile is optional
+  const digits = mobile.replace(/\D/g, '');
+  return digits.length === 10 || digits.length === 12; // bare 10-digit, or with a 2-digit country code
+}
+
 function whatsappLink(mobile, message) {
   if (!mobile) return null;
   let digits = String(mobile).replace(/\D/g, '');
@@ -2835,6 +2844,7 @@ async function saveInvitationEdit() {
   const remarks = document.getElementById('edit-inv-remarks').value.trim();
   const sent = document.getElementById('edit-inv-sent').value === 'true';
   if (!name || !village) return showNotification('Name and Village are required', 'error');
+  if (mobile && !looksLikeValidMobile(mobile) && !(await showConfirmDialog(`"${mobile}" doesn't look like a valid mobile number — save anyway?`, { title: 'Check Mobile Number' }))) return;
 
   try {
     await invitationCol.doc(editingInvitationId).update({
@@ -2977,6 +2987,7 @@ async function saveMemberEdit() {
   const mobile = document.getElementById('edit-mem-mobile').value.trim();
   const remarks = document.getElementById('edit-mem-remarks').value.trim();
   if (!name || !village) return showNotification('Name and Village are required', 'error');
+  if (mobile && !looksLikeValidMobile(mobile) && !(await showConfirmDialog(`"${mobile}" doesn't look like a valid mobile number — save anyway?`, { title: 'Check Mobile Number' }))) return;
 
   try {
     await membersCol.doc(editingMemberId).update({
@@ -3700,6 +3711,25 @@ async function syncAllVillageCollectionsToIncome() {
   }
 }
 
+// Pre-fills the next likely Bill No. from the highest existing numeric bill
+// number this year, so collectors don't have to remember or retype it —
+// only fills in if the field is currently empty, and only for a specific
+// year (bill numbering isn't meaningful across "All Years").
+function suggestNextBillNumber(collectionsData) {
+  const billInput = document.getElementById('vc-bill');
+  if (!billInput || billInput.value || selectedYear === 'all') return;
+  let maxNum = 0;
+  let width = 3;
+  collectionsData.forEach(c => {
+    const raw = String(c.bill || '');
+    const n = parseInt(raw, 10);
+    if (!isNaN(n) && n > maxNum) { maxNum = n; width = raw.length; }
+  });
+  if (maxNum > 0) {
+    billInput.value = String(maxNum + 1).padStart(width, '0');
+  }
+}
+
 async function loadVillageCollections() {
   const tbody = document.querySelector('#vc-table tbody');
   if (!tbody) return;
@@ -3775,6 +3805,7 @@ async function loadVillageCollections() {
     }
 
     loadVillageBreakdown();
+    suggestNextBillNumber(collectionsData);
   } catch (error) {
     console.error('Error loading village collections:', error);
   }
@@ -4551,6 +4582,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const mobile = document.getElementById("inv-mobile").value.trim();
     const remarks = document.getElementById("inv-remarks").value.trim();
     if(!name || !village) return showNotification("Name & Village required", 'error');
+    if(mobile && !looksLikeValidMobile(mobile) && !(await showConfirmDialog(`"${mobile}" doesn't look like a valid mobile number — add anyway?`, { title: 'Check Mobile Number' }))) return;
     try {
       let dupQuery = invitationCol.where("name","==",name);
       if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
@@ -4576,6 +4608,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const mobile = document.getElementById("mem-mobile").value.trim();
     const remarks = document.getElementById("mem-remarks").value.trim();
     if(!name || !village) return showNotification("Name & Village required", 'error');
+    if(mobile && !looksLikeValidMobile(mobile) && !(await showConfirmDialog(`"${mobile}" doesn't look like a valid mobile number — add anyway?`, { title: 'Check Mobile Number' }))) return;
     try {
       let dupQuery = membersCol.where("name","==",name);
       if(mobile) dupQuery = dupQuery.where("mobile","==",mobile);
