@@ -747,7 +747,8 @@
       </div>
     </div>
     <div class="muted note" style="margin-top:10px">
-      Use your club admin email/password to sign in.
+      Use your club admin email/password to sign in. Forgot your password?
+      <a href="#" id="forgot-password-link" style="color:var(--primary-red);font-weight:600">Reset it here.</a>
     </div>
   </div>
 
@@ -1775,6 +1776,14 @@ function enableEnterToSubmit(inputIds, buttonId) {
   });
 }
 
+// Shows a brief shimmer placeholder in a table while its data is still
+// being fetched, instead of the table just appearing blank for a moment.
+function showTableSkeleton(tbody, colCount, rows = 3) {
+  if (!tbody) return;
+  const cell = '<td><div class="skeleton-loading" style="height:14px;border-radius:4px;"></div></td>';
+  tbody.innerHTML = Array(rows).fill('<tr>' + cell.repeat(colCount) + '</tr>').join('');
+}
+
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -1887,7 +1896,7 @@ async function loadRecentActivityHistory() {
     }
     snap.forEach(doc => {
       const d = doc.data();
-      const when = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleString() : '';
+      const when = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleString('en-GB') : '';
       const item = document.createElement('div');
       item.className = `activity-item ${d.type || 'info'}`;
       item.innerHTML = `
@@ -2157,7 +2166,7 @@ function initBudgetChart() {
       responsive: true,
       plugins: {
         legend: { position: 'top' },
-        tooltip: { callbacks: { label: c => `${c.dataset.label}: ₹${c.raw.toLocaleString()}` } }
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ₹${c.raw.toLocaleString('en-IN')}` } }
       },
       scales: {
         y: { beginAtZero: true, ticks: { callback: v => '₹' + v } },
@@ -2189,7 +2198,7 @@ function initExpenseBreakdownChart() {
       responsive: true,
       plugins: {
         legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
-        tooltip: { callbacks: { label: c => `${c.label}: ₹${(c.raw || 0).toLocaleString()}` } }
+        tooltip: { callbacks: { label: c => `${c.label}: ₹${(c.raw || 0).toLocaleString('en-IN')}` } }
       }
     }
   });
@@ -2301,7 +2310,7 @@ async function loadVillageBreakdown() {
       .map(([village, total]) => `
         <div class="breakdown-item">
           <div class="breakdown-label">${escapeHtml(village)}</div>
-          <div class="breakdown-value">₹${total.toLocaleString()}</div>
+          <div class="breakdown-value">₹${total.toLocaleString('en-IN')}</div>
         </div>
       `).join('');
   } catch (error) {
@@ -2386,7 +2395,7 @@ async function updateLastBackupDisplay() {
     const when = data.lastBackupAt.toDate();
     const daysAgo = Math.floor((Date.now() - when.getTime()) / 86400000);
     const agoText = daysAgo === 0 ? 'today' : daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`;
-    el.textContent = `Last backup: ${when.toLocaleDateString()} (${agoText})${data.lastBackupBy ? ' by ' + data.lastBackupBy : ''}`;
+    el.textContent = `Last backup: ${when.toLocaleDateString('en-GB')} (${agoText})${data.lastBackupBy ? ' by ' + data.lastBackupBy : ''}`;
     el.style.color = daysAgo > 30 ? '#B33A3A' : '';
   } catch (error) {
     console.error('Error loading last backup info:', error);
@@ -2439,9 +2448,9 @@ async function loadTransactions() {
       addTransactionToTable(r.id, r.data, r.type, tbody);
     });
 
-    safeSetTextContent('table-total-income', `₹${totalIncome.toLocaleString()}`);
-    safeSetTextContent('table-total-expenses', `₹${totalExpenses.toLocaleString()}`);
-    safeSetTextContent('table-net-balance', `₹${(totalIncome - totalExpenses).toLocaleString()}`);
+    safeSetTextContent('table-total-income', `₹${totalIncome.toLocaleString('en-IN')}`);
+    safeSetTextContent('table-total-expenses', `₹${totalExpenses.toLocaleString('en-IN')}`);
+    safeSetTextContent('table-net-balance', `₹${(totalIncome - totalExpenses).toLocaleString('en-IN')}`);
   } catch (error) {
     console.error('Error loading transactions:', error);
     showNotification('Error loading transactions: ' + error.message, 'error');
@@ -2458,11 +2467,11 @@ function addTransactionToTable(id, data, type, tbody) {
   const linkedTag = data.source === 'membership_fee' ? 'from Fees' : data.source === 'village_collection' ? 'from Village' : null;
 
   tr.innerHTML = `
-    <td>${data.date ? new Date(data.date.seconds * 1000).toLocaleDateString() : ''}</td>
+    <td>${data.date ? new Date(data.date.seconds * 1000).toLocaleDateString('en-GB') : ''}</td>
     <td><span class="badge ${isIncome ? 'ok' : 'warn'}">${isIncome ? '💰 Income' : '💸 Expense'}</span></td>
     <td>${escapeHtml(data.category || 'Uncategorized')}${linkedTag ? ` <span class="year-info" style="font-size:10px">${linkedTag}</span>` : ''}</td>
     <td>${escapeHtml(data.description || '')}</td>
-    <td style="color: ${isIncome ? '#3f6b3f' : '#B33A3A'}; font-weight: bold;">${isIncome ? '+' : '-'}₹${(data.amount || 0).toLocaleString()}</td>
+    <td style="color: ${isIncome ? '#3f6b3f' : '#B33A3A'}; font-weight: bold;">${isIncome ? '+' : '-'}₹${(data.amount || 0).toLocaleString('en-IN')}</td>
     <td>${escapeHtml(data.paymentMode || 'Cash')}</td>
     <td></td>
   `;
@@ -2520,9 +2529,9 @@ async function updateFinancialSummary() {
     const totalBudget = Object.values(BUDGET_ITEMS).reduce((a, b) => a + b, 0);
     const budgetUtilization = totalBudget > 0 ? (totalExpenses / totalBudget) * 100 : 0;
 
-    safeSetTextContent('total-income', `₹${totalIncome.toLocaleString()}`);
-    safeSetTextContent('total-expenses', `₹${totalExpenses.toLocaleString()}`);
-    safeSetTextContent('net-balance', `₹${netBalance.toLocaleString()}`);
+    safeSetTextContent('total-income', `₹${totalIncome.toLocaleString('en-IN')}`);
+    safeSetTextContent('total-expenses', `₹${totalExpenses.toLocaleString('en-IN')}`);
+    safeSetTextContent('net-balance', `₹${netBalance.toLocaleString('en-IN')}`);
     safeSetTextContent('budget-utilization', `${budgetUtilization.toFixed(1)}%`);
   } catch (error) {
     console.error('Error updating financial summary:', error);
@@ -2581,7 +2590,7 @@ async function saveTransaction() {
     clearCache('financial'); clearCache('income'); clearCache('expense');
     invalidateAllYearsCaches();
     showNotification(`${currentTransactionType === 'income' ? 'Income' : 'Expense'} added successfully`, 'success');
-    addActivity(`Added ${currentTransactionType} of ₹${amount.toLocaleString()} (${category})`, 'success');
+    addActivity(`Added ${currentTransactionType} of ₹${amount.toLocaleString('en-IN')} (${category})`, 'success');
     closeTransactionModal();
     loadFinancialData();
   } catch (error) {
@@ -2630,8 +2639,8 @@ async function loadBudgetData() {
             <div class="progress-fill" style="height: 100%; background: ${percentage > 100 ? '#B33A3A' : percentage > 80 ? '#A8863D' : '#3f6b3f'}; width: ${Math.min(percentage, 100)}%; border-radius: 4px;"></div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--muted);">
-            <span>Actual: ₹${actual.toLocaleString()}</span>
-            <span>Budget: ₹${budget.toLocaleString()}</span>
+            <span>Actual: ₹${actual.toLocaleString('en-IN')}</span>
+            <span>Budget: ₹${budget.toLocaleString('en-IN')}</span>
           </div>
           <div style="font-size: 11px; color: ${percentage > 100 ? '#B33A3A' : percentage > 80 ? '#A8863D' : '#3f6b3f'}; margin-top: 5px;">
             ${percentage > 100 ? '⚠️ Over budget' : percentage > 80 ? '⚠️ Approaching limit' : '✅ Within budget'}
@@ -2668,8 +2677,8 @@ async function generateFinancialReport() {
 
     const label = selectedYear === 'all' ? 'All Years' : selectedYear;
     let report = `CLUB BORNOPORICHOY - FINANCIAL REPORT (${label})\n`;
-    report += `Generated on: ${new Date().toLocaleDateString()}\n`;
-    report += `Total Budget: ₹${Object.values(BUDGET_ITEMS).reduce((a, b) => a + b, 0).toLocaleString()}\n\n`;
+    report += `Generated on: ${new Date().toLocaleDateString('en-GB')}\n`;
+    report += `Total Budget: ₹${Object.values(BUDGET_ITEMS).reduce((a, b) => a + b, 0).toLocaleString('en-IN')}\n\n`;
 
     report += `INCOME SUMMARY\n${'='.repeat(50)}\n`;
     const incomeByCategory = {};
@@ -2680,9 +2689,9 @@ async function generateFinancialReport() {
       totalIncome += d.amount || 0;
     });
     Object.entries(incomeByCategory).forEach(([category, amount]) => {
-      report += `${category.padEnd(25)}: ₹${amount.toLocaleString()}\n`;
+      report += `${category.padEnd(25)}: ₹${amount.toLocaleString('en-IN')}\n`;
     });
-    report += `\nTotal Income: ₹${totalIncome.toLocaleString()}\n\n`;
+    report += `\nTotal Income: ₹${totalIncome.toLocaleString('en-IN')}\n\n`;
 
     report += `EXPENSE SUMMARY\n${'='.repeat(50)}\n`;
     const expenseByCategory = {};
@@ -2695,14 +2704,14 @@ async function generateFinancialReport() {
     Object.entries(expenseByCategory).forEach(([category, amount]) => {
       const budget = BUDGET_ITEMS[category] || 0;
       const percentage = budget > 0 ? (amount / budget) * 100 : 0;
-      report += `${category.padEnd(25)}: ₹${amount.toLocaleString()} / ₹${budget.toLocaleString()} (${percentage.toFixed(1)}%)\n`;
+      report += `${category.padEnd(25)}: ₹${amount.toLocaleString('en-IN')} / ₹${budget.toLocaleString('en-IN')} (${percentage.toFixed(1)}%)\n`;
     });
-    report += `\nTotal Expenses: ₹${totalExpenses.toLocaleString()}\n\n`;
+    report += `\nTotal Expenses: ₹${totalExpenses.toLocaleString('en-IN')}\n\n`;
 
     report += `NET SUMMARY\n${'='.repeat(50)}\n`;
     const netBalance = totalIncome - totalExpenses;
     const totalBudget = Object.values(BUDGET_ITEMS).reduce((a, b) => a + b, 0);
-    report += `Net Balance: ₹${netBalance.toLocaleString()}\n`;
+    report += `Net Balance: ₹${netBalance.toLocaleString('en-IN')}\n`;
     report += `Budget Utilization: ${totalBudget > 0 ? ((totalExpenses / totalBudget) * 100).toFixed(1) : '0.0'}%\n\n`;
 
     report += `BUDGET STATUS\n${'='.repeat(50)}\n`;
@@ -2755,7 +2764,7 @@ let editingInvitationId = null;
 async function loadInvitations(){
   const tbody = document.querySelector("#invitation-table tbody");
   if (!tbody) return;
-  tbody.innerHTML = "";
+  showTableSkeleton(tbody, 7);
   try {
     const snapshot = await cachedLoadInvitations();
     const activeDocs = snapshot.docs.filter(doc => !doc.data().deleted);
@@ -2763,6 +2772,7 @@ async function loadInvitations(){
       tbody.innerHTML = '<tr><td colspan="7" class="muted center">No invitations added yet.</td></tr>';
       return;
     }
+    tbody.innerHTML = '';
     activeDocs.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -2775,7 +2785,7 @@ async function loadInvitations(){
         <td>${escapeHtml(d.mobile||"")}</td>
         <td>${escapeHtml(d.remarks||"")}</td>
         <td class="center">${d.sent?'<span class="badge ok">Sent</span>':'<span class="badge warn">Pending</span>'}</td>
-        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleDateString() : ""}</td>
+        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleDateString('en-GB') : ""}</td>
         <td style="white-space: nowrap;"></td>
       `;
       tbody.appendChild(tr);
@@ -2909,7 +2919,7 @@ let editingMemberId = null;
 async function loadMembers() {
   const tbody = document.querySelector("#members-table tbody");
   if (!tbody) return;
-  tbody.innerHTML = "";
+  showTableSkeleton(tbody, 6);
   try {
     const snapshot = await cachedLoadMembers();
     const activeDocs = snapshot.docs.filter(doc => !doc.data().deleted);
@@ -2918,6 +2928,7 @@ async function loadMembers() {
       updateSummaryCards();
       return;
     }
+    tbody.innerHTML = '';
     activeDocs.forEach(doc => {
       const d = doc.data();
       const tr = document.createElement("tr");
@@ -2926,7 +2937,7 @@ async function loadMembers() {
         <td>${escapeHtml(d.village||"")}</td>
         <td>${escapeHtml(d.mobile||"")}</td>
         <td>${escapeHtml(d.remarks||"")}</td>
-        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleDateString() : ""}</td>
+        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleDateString('en-GB') : ""}</td>
         <td style="white-space: nowrap;"></td>
       `;
       tbody.appendChild(tr);
@@ -3177,7 +3188,7 @@ function updateFeeTable(memberData, feeData, feeAmount) {
     tr.innerHTML = `
       <td style="font-weight: bold;">${month}</td>
       <td><span class="badge ${isPaid ? 'ok' : 'warn'}">${isPaid ? 'Paid' : 'Pending'}</span></td>
-      <td>${monthData.paidOn ? new Date(monthData.paidOn.seconds * 1000).toLocaleDateString() : (isPaid ? 'Just now' : '-')}</td>
+      <td>${monthData.paidOn ? new Date(monthData.paidOn.seconds * 1000).toLocaleDateString('en-GB') : (isPaid ? 'Just now' : '-')}</td>
       <td class="center"></td>
     `;
     const toggleTd = tr.querySelector('td:last-child');
@@ -3353,7 +3364,7 @@ async function loadFeeYearlySummary() {
     MONTHS.forEach(month => {
       const tr = document.createElement('tr');
       const data = monthlyTotals[month];
-      tr.innerHTML = `<td style="font-weight: bold;">${month}</td><td>${data.paidCount}</td><td>₹${data.totalAmount.toLocaleString()}</td>`;
+      tr.innerHTML = `<td style="font-weight: bold;">${month}</td><td>${data.paidCount}</td><td>₹${data.totalAmount.toLocaleString('en-IN')}</td>`;
       tbody.appendChild(tr);
     });
 
@@ -3363,7 +3374,7 @@ async function loadFeeYearlySummary() {
     totalTr.style.fontWeight = 'bold';
     totalTr.style.borderTop = '1px solid #2E2620';
     totalTr.style.borderBottom = '3px double #2E2620';
-    totalTr.innerHTML = `<td>TOTAL</td><td>${totalPaidCount}</td><td>₹${totalAmount.toLocaleString()}</td>`;
+    totalTr.innerHTML = `<td>TOTAL</td><td>${totalPaidCount}</td><td>₹${totalAmount.toLocaleString('en-IN')}</td>`;
     tbody.appendChild(totalTr);
   } catch (error) {
     console.error('Error loading yearly summary:', error);
@@ -3554,7 +3565,7 @@ function closeRecycleBin() {
 function renderRecycleRows(items, kind) {
   return items.map(item => {
     const label = kind === 'collection'
-      ? `${escapeHtml(item.donor || '')} — ₹${(item.amount || 0).toLocaleString()} (${escapeHtml(item.village || '')})`
+      ? `${escapeHtml(item.donor || '')} — ₹${(item.amount || 0).toLocaleString('en-IN')} (${escapeHtml(item.village || '')})`
       : `${escapeHtml(item.name || '')}${item.village ? ' — ' + escapeHtml(item.village) : ''}`;
     return `
       <div class="activity-item" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -3742,9 +3753,9 @@ function suggestNextBillNumber(collectionsData) {
 async function loadVillageCollections() {
   const tbody = document.querySelector('#vc-table tbody');
   if (!tbody) return;
+  showTableSkeleton(tbody, 8);
 
   try {
-    tbody.innerHTML = '';
     let totalAmount = 0;
     let collectionsData = [];
 
@@ -3758,6 +3769,8 @@ async function loadVillageCollections() {
 
     if (collectionsData.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8" class="muted center">No collections recorded yet.</td></tr>';
+    } else {
+      tbody.innerHTML = '';
     }
 
     collectionsData.forEach(d => {
@@ -3769,10 +3782,10 @@ async function loadVillageCollections() {
         <td>${escapeHtml(d.bill || '')}</td>
         <td>${escapeHtml(collectorName || '')}</td>
         <td>${escapeHtml(d.donor || '')}</td>
-        <td>₹${(d.amount || 0).toLocaleString()}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
         <td>${escapeHtml(d.remarks || '')}</td>
         <td>${escapeHtml(d.village || '')}</td>
-        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleDateString() : ''}</td>
+        <td>${d.dateAdded && d.dateAdded.toDate ? d.dateAdded.toDate().toLocaleDateString('en-GB') : ''}</td>
         <td style="white-space: nowrap;"></td>
       `;
       tbody.appendChild(tr);
@@ -3801,7 +3814,7 @@ async function loadVillageCollections() {
 
     const totalDisplay = document.getElementById('vc-total-amount');
     const totalContainer = document.getElementById('vc-total-collection');
-    if (totalDisplay) totalDisplay.textContent = totalAmount.toLocaleString();
+    if (totalDisplay) totalDisplay.textContent = totalAmount.toLocaleString('en-IN');
     if (totalContainer) totalContainer.style.display = totalAmount > 0 ? 'block' : 'none';
 
     if (collectionChart) {
@@ -4114,7 +4127,7 @@ async function recalcTotalCollected() {
     if (el) {
       const yearLabel = selectedYear === 'all' ? 'All Years' : selectedYear;
       el.style.display = 'block';
-      el.textContent = `Total Collected (${yearLabel}): ₹${combined.toLocaleString()}  —  Village: ₹${totalVillage.toLocaleString()} + Membership Fees: ₹${totalMembership.toLocaleString()}`;
+      el.textContent = `Total Collected (${yearLabel}): ₹${combined.toLocaleString('en-IN')}  —  Village: ₹${totalVillage.toLocaleString('en-IN')} + Membership Fees: ₹${totalMembership.toLocaleString('en-IN')}`;
     }
   } catch (error) {
     console.error("Recalc total collected error:", error);
@@ -4364,6 +4377,22 @@ if (loginBtn) {
       .finally(() => { loginBtn.disabled = false; loginBtn.innerHTML = originalHTML; });
   });
 }
+
+document.getElementById('forgot-password-link')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const emailInput = document.getElementById('email');
+  let email = emailInput ? emailInput.value.trim() : '';
+  if (!email) {
+    email = prompt('Enter the email address for your account:');
+    if (!email) return;
+  }
+  try {
+    await auth.sendPasswordResetEmail(email.trim());
+    showNotification(`Password reset email sent to ${email.trim()} — check your inbox.`, 'success');
+  } catch (error) {
+    showNotification('Could not send reset email: ' + error.message, 'error');
+  }
+});
 
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
