@@ -3562,17 +3562,30 @@ function closeRecycleBin() {
   document.getElementById('recycleBinModal')?.classList.add('hidden');
 }
 
+function timeAgo(date) {
+  if (!date) return '';
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 function renderRecycleRows(items, kind) {
   return items.map(item => {
     const label = kind === 'collection'
-      ? `${escapeHtml(item.donor || '')} — ₹${(item.amount || 0).toLocaleString('en-IN')} (${escapeHtml(item.village || '')})`
-      : `${escapeHtml(item.name || '')}${item.village ? ' — ' + escapeHtml(item.village) : ''}`;
+      ? `${item.donor || ''} — ₹${(item.amount || 0).toLocaleString('en-IN')} (${item.village || ''})`
+      : `${item.name || ''}${item.village ? ' — ' + item.village : ''}`;
+    const deletedWhen = item.deletedAt && item.deletedAt.toDate ? timeAgo(item.deletedAt.toDate()) : '';
     return `
-      <div class="activity-item" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <span>${label}</span>
+      <div class="activity-item" data-recycle-kind="${kind}" data-recycle-id="${item.id}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <span>${escapeHtml(label)}${deletedWhen ? ` <small class="muted">— deleted ${deletedWhen}</small>` : ''}</span>
         <span style="display:flex;gap:6px">
           <button class="btn small secondary" onclick="restoreRecycleItem('${kind}','${item.id}')">↩️ Restore</button>
-          <button class="btn small ghost" onclick="permanentlyDeleteRecycleItem('${kind}','${item.id}')">🗑️ Delete Forever</button>
+          <button class="btn small ghost" onclick="permanentlyDeleteRecycleItem('${kind}','${item.id}', decodeURIComponent('${encodeURIComponent(label)}'))">🗑️ Delete Forever</button>
         </span>
       </div>
     `;
@@ -3593,20 +3606,84 @@ async function refreshRecycleBin() {
       collSnap.forEach(doc => { if (doc.data().deleted) deletedCollections.push({ id: doc.id, ...doc.data() }); });
     }
 
-    let html = `<h4 style="color:var(--primary-red);margin:0 0 8px">🌸 Members (${deletedMembers.length})</h4>`;
-    html += deletedMembers.length ? renderRecycleRows(deletedMembers, 'member') : "<p class='muted'>Nothing here.</p>";
+    const section = (kind, icon, title, items, extraNote) => `
+      <div data-recycle-section="${kind}" style="margin-bottom:16px">
+        <div class="flex space" style="margin-bottom:6px">
+          <h4 style="color:var(--primary-red);margin:0">${icon} ${title} (<span class="recycle-count">${items.length}</span>)</h4>
+          ${items.length ? `<button class="btn small ghost" onclick="emptyRecycleSection('${kind}')">🗑️ Empty All</button>` : ''}
+        </div>
+        ${extraNote || ''}
+        <div class="recycle-list">${items.length ? renderRecycleRows(items, kind) : "<p class='muted'>Nothing here.</p>"}</div>
+      </div>
+    `;
 
-    html += `<h4 style="color:var(--primary-red);margin:16px 0 8px">🪔 Invitations (${deletedInvitations.length})</h4>`;
-    html += deletedInvitations.length ? renderRecycleRows(deletedInvitations, 'invitation') : "<p class='muted'>Nothing here.</p>";
-
-    html += `<h4 style="color:var(--primary-red);margin:16px 0 8px">🏘️ Village Collections — ${selectedYear === 'all' ? 'pick a year to view' : selectedYear} (${deletedCollections.length})</h4>`;
-    html += selectedYear === 'all'
-      ? "<p class='muted'>Switch to a specific year (top-right selector) to see its deleted collections.</p>"
-      : (deletedCollections.length ? renderRecycleRows(deletedCollections, 'collection') : "<p class='muted'>Nothing here.</p>");
+    let html = '';
+    html += section('member', '🌸', 'Members', deletedMembers);
+    html += section('invitation', '🪔', 'Invitations', deletedInvitations);
+    html += section('collection', '🏘️', `Village Collections — ${selectedYear === 'all' ? 'pick a year to view' : selectedYear}`,
+      selectedYear === 'all' ? [] : deletedCollections,
+      selectedYear === 'all' ? "<p class='muted'>Switch to a specific year (top-right selector) to see its deleted collections.</p>" : '');
 
     content.innerHTML = html;
   } catch (error) {
     content.innerHTML = `<p style="color:red">Error loading recycle bin: ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+// Removes a single row from view immediately and updates that section's
+// count, instead of re-fetching all three collections just to reflect one
+// change — the same optimistic-update pattern used elsewhere in the app.
+function removeRecycleRowFromView(kind, id) {
+  const row = document.querySelector(`[data-recycle-kind="${kind}"][data-recycle-id="${id}"]`);
+  const section = document.querySelector(`[data-recycle-section="${kind}"]`);
+  if (row) row.remove();
+  if (!section) return;
+  const list = section.querySelector('.recycle-list');
+  const countEl = section.querySelector('.recycle-count');
+  const remaining = list ? list.querySelectorAll('[data-recycle-kind]').length : 0;
+  if (countEl) countEl.textContent = remaining;
+  if (remaining === 0 && list && !list.querySelector('p')) {
+    list.innerHTML = "<p class='muted'>Nothing here.</p>";
+  }
+  const emptyBtn = section.querySelector('button[onclick^="emptyRecycleSection"]');
+  if (remaining === 0 && emptyBtn) emptyBtn.remove();
+}
+
+// Permanently deletes every item currently in one Recycle Bin section at
+// once, instead of clicking "Delete Forever" one at a time.
+async function emptyRecycleSection(kind) {
+  if (currentRole !== 'admin') return showNotification('Only admin can do this.', 'error');
+  const section = document.querySelector(`[data-recycle-section="${kind}"]`);
+  if (!section) return;
+  const ids = Array.from(section.querySelectorAll('[data-recycle-kind]')).map(r => r.dataset.recycleId);
+  if (ids.length === 0) return;
+
+  const labels = { member: 'members', invitation: 'invitations', collection: 'village collections' };
+  if (!(await showConfirmDialog(`Permanently delete all ${ids.length} deleted ${labels[kind]}? This cannot be undone.`, { title: 'Empty Section', okText: `Delete All ${ids.length}`, danger: true }))) return;
+
+  try {
+    if (kind === 'member') {
+      await Promise.all(ids.map(id => membersCol.doc(id).delete()));
+      clearCache('members');
+      loadFeeMembersDropdown();
+    } else if (kind === 'invitation') {
+      await Promise.all(ids.map(id => invitationCol.doc(id).delete()));
+      clearCache('invitations');
+    } else if (kind === 'collection') {
+      if (selectedYear === 'all') return showNotification('Switch to a specific year first.', 'error');
+      await Promise.all(ids.map(id => Promise.all([
+        villageCollectionsCollectionFor(selectedYear).doc(id).delete(),
+        removeVillageIncomeEntry(selectedYear, id)
+      ])));
+      clearCache('village');
+      invalidateAllYearsCaches();
+      updateFinancialSummary();
+    }
+    showNotification(`Permanently deleted ${ids.length} item(s)`, 'success');
+    addActivity(`Emptied ${labels[kind]} from the Recycle Bin (${ids.length} item${ids.length === 1 ? '' : 's'})`, 'info');
+    refreshRecycleBin();
+  } catch (error) {
+    showNotification('Bulk delete failed: ' + error.message, 'error');
   }
 }
 
@@ -3638,14 +3715,15 @@ async function restoreRecycleItem(kind, id) {
     updateSummaryCards();
     showNotification('Restored', 'success');
     addActivity(`Restored a ${kind} from the Recycle Bin`, 'success');
-    refreshRecycleBin();
+    removeRecycleRowFromView(kind, id);
   } catch (error) {
     showNotification('Restore failed: ' + error.message, 'error');
   }
 }
 
-async function permanentlyDeleteRecycleItem(kind, id) {
-  if (!(await showConfirmDialog('This removes it forever and cannot be undone. Continue?', { title: 'Delete Forever', okText: 'Delete Forever', danger: true }))) return;
+async function permanentlyDeleteRecycleItem(kind, id, label) {
+  const what = label ? `"${label}"` : 'this item';
+  if (!(await showConfirmDialog(`Permanently delete ${what}? This cannot be undone.`, { title: 'Delete Forever', okText: 'Delete Forever', danger: true }))) return;
   try {
     if (kind === 'member') {
       await membersCol.doc(id).delete();
@@ -3663,8 +3741,8 @@ async function permanentlyDeleteRecycleItem(kind, id) {
       updateFinancialSummary();
     }
     showNotification('Permanently deleted', 'success');
-    addActivity(`Permanently deleted a ${kind}`, 'info');
-    refreshRecycleBin();
+    addActivity(`Permanently deleted a ${kind}${label ? ' (' + label + ')' : ''}`, 'info');
+    removeRecycleRowFromView(kind, id);
   } catch (error) {
     showNotification('Delete failed: ' + error.message, 'error');
   }
@@ -4772,6 +4850,7 @@ window.openRecycleBin = openRecycleBin;
 window.closeRecycleBin = closeRecycleBin;
 window.restoreRecycleItem = restoreRecycleItem;
 window.permanentlyDeleteRecycleItem = permanentlyDeleteRecycleItem;
+window.emptyRecycleSection = emptyRecycleSection;
 window.handleFabClick = handleFabClick;
 window.printVillageReceipt = printVillageReceipt;
 
