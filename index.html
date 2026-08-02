@@ -59,49 +59,61 @@
   }
   h1, h2, h3 { font-family: var(--font-display); font-weight: 400; }
 
-  /* ---- Cloth spine — the makeover's signature structural element ---- */
-  .spine {
-    position: fixed; top:0; left:0; bottom:0; width:44px; z-index:150;
-    background: repeating-linear-gradient(180deg, var(--primary-red), var(--primary-red) 3px, var(--deep-red) 3px, var(--deep-red) 4px);
-    display:flex; align-items:center; justify-content:center;
-  }
-  .spine span {
-    writing-mode: vertical-rl; color:#e9dcc8; font-family: var(--font-display);
-    font-size:15px; letter-spacing:0.09em; white-space:nowrap;
-  }
-  @media (max-width: 768px) { .spine { display:none; } }
-
-  /* Header / nav (fixed) */
-  header {
-    position: fixed; top:0; left:44px; right:0; z-index:100;
-    background: var(--card);
-    border-bottom: 1px solid var(--ledger-rule);
-    padding: 12px 18px;
-    box-shadow: 0 4px 14px rgba(46,38,32,0.06);
-  }
-  @media (max-width: 768px) { header { left:0; } }
-  .header-inner { max-width:1200px; margin:0 auto; display:flex; gap:12px; align-items:center; }
-  .brand { display:flex; align-items:center; gap:12px; }
-  .logo {
-    width:44px; height:44px; border-radius:6px;
+  /* ---------------- Sidebar navigation — replaces the old header+spine ---------------- */
+  .sidebar {
+    position: fixed; top:0; left:0; bottom:0; width:230px; z-index:200;
     background: var(--primary-red);
-    display:flex; align-items:center; justify-content:center; color:#e9dcc8; font-weight:500; font-family:var(--font-display); font-size:18px;
+    display:flex; flex-direction:column;
+    overflow-y:auto;
   }
-  .brand h1 { margin:0; font-size:19px; color:var(--deep-red); letter-spacing:0.2px; }
-  .brand .sub { font-size:11.5px; color:var(--muted); margin-top:2px; letter-spacing:0.03em; text-transform:uppercase; }
-
-  /* Tab-style nav — like paper dividers in a ledger book */
-  nav.topbar { margin-left:20px; display:flex; gap:0; align-items:flex-end; flex:1; }
-  nav.topbar a {
-    padding:9px 15px; border-radius:6px 6px 0 0; text-decoration:none; color:var(--muted);
-    font-weight:500; font-size:13.5px; transition: all 160ms ease;
-    background: var(--bg-end); border:1px solid var(--ledger-rule); border-bottom:none;
-    margin-left:-1px;
+  .sidebar-brand { display:flex; align-items:center; gap:12px; padding:20px 18px 16px; border-bottom:1px solid rgba(233,220,200,0.15); }
+  .sidebar-brand .logo {
+    width:40px; height:40px; border-radius:8px; flex-shrink:0;
+    background: rgba(233,220,200,0.15);
+    display:flex; align-items:center; justify-content:center; color:#e9dcc8; font-weight:500; font-family:var(--font-display); font-size:17px;
   }
-  nav.topbar a:hover { color: var(--deep-red); }
-  nav.topbar a.active { background: var(--card); color:var(--deep-red); font-weight:600; box-shadow: 0 -2px 0 var(--accent-gold) inset; }
+  .sidebar-brand h1 { margin:0; font-size:16px; color:#fff; letter-spacing:0.2px; line-height:1.25; }
+  .sidebar-brand .sub { font-size:10.5px; color:rgba(233,220,200,0.7); margin-top:2px; letter-spacing:0.03em; text-transform:uppercase; }
 
-  .auth-area { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .sidebar-nav { display:flex; flex-direction:column; padding:12px 0; flex:1; }
+  .nav-item {
+    display:flex; align-items:center; gap:10px; padding:11px 18px; font-size:13.5px;
+    color:rgba(233,220,200,0.85); text-decoration:none; border-left:3px solid transparent;
+    cursor:pointer; font-family:var(--font-body);
+  }
+  .nav-item:hover { background:rgba(233,220,200,0.07); color:#fff; }
+  .nav-item.active { background:rgba(233,220,200,0.12); border-left-color:var(--accent-gold); color:#fff; font-weight:600; }
+  .nav-icon { width:18px; text-align:center; flex-shrink:0; }
+
+  .sidebar-footer { padding:14px 18px 18px; border-top:1px solid rgba(233,220,200,0.15); margin-top:auto; }
+  .sidebar-footer .global-year-selector { margin:0 0 10px; width:100%; }
+  .sidebar-user { font-size:11px; color:rgba(233,220,200,0.7) !important; margin-bottom:8px; word-break:break-all; }
+
+  /* Mobile hamburger + backdrop */
+  .mobile-nav-toggle {
+    display:none; position:fixed; top:14px; left:14px; z-index:300;
+    width:40px; height:40px; border-radius:8px; border:none;
+    background:var(--primary-red); color:#e9dcc8; font-size:18px; cursor:pointer;
+    box-shadow: var(--shadow);
+  }
+  .sidebar-backdrop {
+    display:none; position:fixed; inset:0; background:rgba(46,38,32,0.5); z-index:190;
+  }
+
+  @media (max-width: 768px) {
+    .mobile-nav-toggle { display:flex; align-items:center; justify-content:center; }
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 220ms ease;
+      width: 250px;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-backdrop:not(.hidden) { display:block; }
+  }
+
+  /* Page show/hide — only the active section renders at a time */
+  .page { display:none; }
+  .page.active { display:block; }
 
   /* Global Year Selector */
   .global-year-selector {
@@ -112,7 +124,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: 20px;
   }
   .global-year-selector label {
     font-size: 13px;
@@ -129,12 +140,12 @@
     font-family: var(--font-mono);
     color: var(--deep-red);
     min-width: 100px;
+    width: 100%;
   }
 
   /* Container + cards */
-  .spacer { height:80px }
-  .container { max-width:1200px; margin:22px auto; padding:0 18px 80px 62px; }
-  @media (max-width: 768px) { .container { padding:0 18px 80px; } }
+  .container { margin-left:230px; padding:22px 24px 80px; max-width:1100px; }
+  @media (max-width: 768px) { .container { margin-left:0; padding:70px 18px 80px; } }
   .card { background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); margin-bottom:18px; border:1px solid var(--ledger-rule); }
   .card h2 { margin:0 0 8px 0; color:var(--deep-red); font-size:18px; display:flex; align-items:center; gap:8px; }
   .subtitle { color:var(--muted); font-size:13px; margin-bottom:10px; }
@@ -545,10 +556,7 @@
       flex-direction: column;
     }
 
-    .header-inner{flex-direction:column; gap:10px; align-items:flex-start}
-    nav.topbar{flex-wrap:wrap}
     .flex{flex-direction:column; align-items:stretch}
-    .spacer{height:140px}
 
     .global-year-selector {
       margin-left: 0;
@@ -658,14 +666,14 @@
 
   /* Print stylesheet */
   @media print {
-    .spine, header, nav.topbar, .global-year-selector, .auth-area, .spacer,
+    .sidebar, .mobile-nav-toggle, .sidebar-backdrop, .global-year-selector,
     .quick-actions, .bulk-upload-section, .advanced-filters, .mobile-fab,
     .modal-overlay, #recent-activity, .toast-container,
     button, input, select, textarea, .wa-link {
       display: none !important;
     }
     body { background: #fff; }
-    .container { padding-left:18px; }
+    .container { margin-left:0; padding-left:18px; }
     .card {
       box-shadow: none;
       border: 1px solid #ccc;
@@ -684,42 +692,41 @@
 </style>
 </head>
 <body>
-<div class="spine"><span>CLUB BORNOPORICHOY · DURGA PUJA KHATA</span></div>
 
-<header>
-  <div class="header-inner">
-    <div class="brand">
-      <div class="logo">CB</div>
-      <div>
-        <h1>Club Bornoporichoy</h1>
-        <div class="sub">Durga Puja Dashboard</div>
-      </div>
+<!-- Mobile menu toggle (hidden on desktop via CSS) -->
+<button id="mobile-nav-toggle" class="mobile-nav-toggle" aria-label="Open menu">☰</button>
+<div id="sidebar-backdrop" class="sidebar-backdrop hidden"></div>
+
+<aside id="sidebar" class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo">CB</div>
+    <div>
+      <h1>Club Bornoporichoy</h1>
+      <div class="sub">Durga Puja Dashboard</div>
     </div>
+  </div>
 
-    <nav class="topbar" role="navigation" aria-label="Main navigation">
-      <a href="#invitations" id="nav-invitations" class="active">Manage Invitations</a>
-      <a href="#members" id="nav-members">Members</a>
-      <a href="#fees" id="nav-fees">Membership Fees</a>
-      <a href="#financial-tracker" id="nav-financial-tracker">Financial Tracker</a>
-      <a href="#village-collection" id="nav-village-collection">Village Collection</a>
-    </nav>
+  <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
+    <a href="#" id="nav-overview" class="nav-item active" data-page="overview"><span class="nav-icon">📊</span> Overview</a>
+    <a href="#" id="nav-invitations" class="nav-item" data-page="invitations"><span class="nav-icon">🪔</span> Invitations</a>
+    <a href="#" id="nav-members" class="nav-item" data-page="members"><span class="nav-icon">🌸</span> Members</a>
+    <a href="#" id="nav-fees" class="nav-item" data-page="fees"><span class="nav-icon">💰</span> Fees</a>
+    <a href="#" id="nav-financial-tracker" class="nav-item" data-page="financial-tracker"><span class="nav-icon">📈</span> Financial Tracker</a>
+    <a href="#" id="nav-village-collection" class="nav-item" data-page="village-collection"><span class="nav-icon">🏘️</span> Village Collection</a>
+    <a href="#" id="recycleBinBtn" class="nav-item"><span class="nav-icon">🗑️</span> Recycle Bin</a>
+  </nav>
 
-    <!-- Global Year Selector -->
+  <div class="sidebar-footer">
     <div class="global-year-selector hidden" id="global-year-selector">
-      <label>📅 Year:</label>
+      <label>📅</label>
       <select id="globalYearSelect">
         <!-- Options will be populated dynamically -->
       </select>
     </div>
-
-    <div class="auth-area">
-      <div id="user-info" class="muted" style="font-size:13px"></div>
-      <button id="logout-btn" class="btn small hidden">Logout</button>
-    </div>
+    <div id="user-info" class="muted sidebar-user"></div>
+    <button id="logout-btn" class="btn small ghost hidden" style="width:100%">Logout</button>
   </div>
-</header>
-
-<div class="spacer"></div>
+</aside>
 
 <div class="container">
 
@@ -754,6 +761,8 @@
 
   <!-- Main content (hidden until login) -->
   <div id="main-content" class="hidden">
+
+    <div id="page-overview" class="page active">
 
     <!-- 1. Real-time Dashboard Summary Cards (SEPARATE PANEL) -->
     <div class="card">
@@ -814,7 +823,6 @@
         <button class="btn small" onclick="showBulkUploadModal()">📤 Bulk Upload</button>
         <button class="btn small secondary" onclick="showTransactionModal('income')">💰 Add Income</button>
         <button class="btn small" onclick="showTransactionModal('expense')">💸 Add Expense</button>
-        <button id="recycleBinBtn" class="btn small ghost" onclick="openRecycleBin()">🗑️ Recycle Bin</button>
       </div>
     </div>
 
@@ -836,6 +844,10 @@
         <button class="btn small ghost" onclick="showYearComparison()">📊 Compare Years</button>
       </div>
     </div>
+
+    </div> <!-- /page-overview -->
+
+    <div id="page-financial-tracker" class="page">
 
     <!-- Budget Overview Card -->
     <div class="card" id="budget-tracker">
@@ -921,6 +933,10 @@
       </div>
     </div>
 
+    </div> <!-- /page-financial-tracker -->
+
+    <div id="page-invitations" class="page">
+
     <!-- Enhanced Invitations Table with Edit Buttons -->
     <div class="card" id="invitations">
       <h2>🪔 Invitation List <span class="year-info">All Years</span></h2>
@@ -991,6 +1007,10 @@
       </div>
     </div>
 
+    </div> <!-- /page-invitations -->
+
+    <div id="page-members" class="page">
+
     <!-- Enhanced Members Table with Edit Buttons -->
     <div class="card" id="members">
       <h2>🌸 Members List <span class="year-info">All Years</span></h2>
@@ -1025,6 +1045,10 @@
         </div>
       </div>
     </div>
+
+    </div> <!-- /page-members -->
+
+    <div id="page-fees" class="page">
 
     <!-- Membership Fees -->
     <div class="card" id="fees">
@@ -1097,6 +1121,10 @@
 
       <div id="paid-members-list" style="margin-top:14px;overflow:auto;"></div>
     </div>
+
+    </div> <!-- /page-fees -->
+
+    <div id="page-village-collection" class="page">
 
     <!-- Enhanced Village Collection Tracker with Edit Buttons -->
     <div class="card" id="village-collection">
@@ -1188,6 +1216,8 @@
 
       <input id="search-vc" type="text" placeholder="Search collections..." style="margin-top:12px;width:100%;padding:8px;border-radius:8px;border:1px solid #ccc;" />
     </div>
+
+    </div> <!-- /page-village-collection -->
 
   </div> <!-- main-content -->
 
@@ -4510,7 +4540,11 @@ auth.onAuthStateChanged(user => {
       setupGlobalErrorHandlers();
       enhanceAccessibility();
       initializeAllEventListeners();
-      initSectionScrollTracking();
+      // Respect a deep-link hash if present (e.g. reopening on a bookmarked
+      // page); otherwise Overview is already the default active page.
+      const initialHash = window.location.hash.substring(1);
+      if (initialHash && document.getElementById(`page-${initialHash}`)) navigateToSection(initialHash);
+      else currentActivePage = 'overview';
       loadFinancialData();
       await loadRecentActivityHistory();
       updateLastBackupDisplay();
@@ -4607,32 +4641,15 @@ function applyInvitationFilters() {
 }
 
 /* ---------------- Nav highlighting on scroll ---------------- */
-let currentVisibleSection = 'invitations';
-let sectionScrollObserver = null;
-
-function initSectionScrollTracking() {
-  const sectionIds = ['invitations', 'members', 'fees', 'financial-tracker', 'village-collection'];
-  const sections = sectionIds.map(id => document.getElementById(id)).filter(Boolean);
-  if (!sections.length || !('IntersectionObserver' in window) || sectionScrollObserver) return;
-
-  // Treats a thin band near the vertical center of the viewport as "active" —
-  // a section becomes highlighted in the nav as soon as it crosses that band,
-  // not only when explicitly clicked.
-  sectionScrollObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      currentVisibleSection = entry.target.id;
-      clearActiveNav();
-      document.getElementById(`nav-${entry.target.id}`)?.classList.add('active');
-    });
-  }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
-
-  sections.forEach(sec => sectionScrollObserver.observe(sec));
-}
+// Tracks which page is currently shown, so the mobile FAB knows where to
+// focus and other code can check "am I on the Fees page" etc. Replaces the
+// old scroll-position tracking now that pages show one at a time instead
+// of all being stacked on one long scrolling page.
+let currentActivePage = 'overview';
 
 /* ---------------- Mobile "+" FAB ---------------- */
 function handleFabClick() {
-  if (currentVisibleSection === 'financial-tracker') {
+  if (currentActivePage === 'financial-tracker') {
     showTransactionModal('income');
     return;
   }
@@ -4642,7 +4659,7 @@ function handleFabClick() {
     'village-collection': 'vc-bill',
     fees: 'feeMemberSelect'
   };
-  const targetId = focusTargets[currentVisibleSection] || 'inv-name';
+  const targetId = focusTargets[currentActivePage] || 'inv-name';
   const el = document.getElementById(targetId);
   if (el) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -4652,22 +4669,37 @@ function handleFabClick() {
 
 /* ---------------- Navigation ---------------- */
 
-function clearActiveNav(){ document.querySelectorAll('nav.topbar a').forEach(a => a.classList.remove('active')); }
+function clearActiveNav(){ document.querySelectorAll('.sidebar-nav .nav-item').forEach(a => a.classList.remove('active')); }
 
+function closeMobileSidebar() {
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-backdrop')?.classList.add('hidden');
+}
+
+// Shows one page at a time (Overview, Invitations, Members, Fees,
+// Financial Tracker, Village Collection) instead of the old single long
+// scrolling page — this is the core of the sidebar layout.
 function navigateToSection(sectionId) {
-  const targetElement = document.getElementById(sectionId);
-  if (!targetElement) return;
+  const targetPage = document.getElementById(`page-${sectionId}`);
+  if (!targetPage) return;
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  targetPage.classList.add('active');
+  currentActivePage = sectionId;
+  window.scrollTo(0, 0);
+
   history.pushState(null, '', `#${sectionId}`);
-  targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
   clearActiveNav();
-  document.getElementById(`nav-${sectionId}`)?.classList.add('active');
+  document.querySelector(`.sidebar-nav .nav-item[data-page="${sectionId}"]`)?.classList.add('active');
+  closeMobileSidebar();
+
   const liveRegion = document.getElementById('sr-live-region');
   if (liveRegion) liveRegion.textContent = `Navigated to ${sectionId} section`;
 }
 
 window.addEventListener('popstate', () => {
   const hash = window.location.hash.substring(1);
-  if (hash && document.getElementById(hash)) navigateToSection(hash);
+  if (hash && document.getElementById(`page-${hash}`)) navigateToSection(hash);
 });
 
 function initializeAllEventListeners() {
@@ -4688,12 +4720,28 @@ document.addEventListener('DOMContentLoaded', function() {
   const globalYearSelect = document.getElementById('globalYearSelect');
   if (globalYearSelect) globalYearSelect.addEventListener('change', e => changeGlobalYear(e.target.value));
 
-  ['nav-invitations','nav-members','nav-fees','nav-financial-tracker','nav-village-collection'].forEach(navId => {
-    document.getElementById(navId)?.addEventListener("click", e => {
+  document.querySelectorAll('.sidebar-nav .nav-item[data-page]').forEach(link => {
+    link.addEventListener("click", e => {
       e.preventDefault();
-      navigateToSection(navId.replace('nav-', ''));
+      navigateToSection(link.dataset.page);
     });
   });
+
+  // Recycle Bin lives in the sidebar too, but opens a modal instead of
+  // switching pages.
+  document.getElementById('recycleBinBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    closeMobileSidebar();
+    openRecycleBin();
+  });
+
+  // Mobile sidebar drawer: hamburger opens it, backdrop or Escape closes it.
+  document.getElementById('mobile-nav-toggle')?.addEventListener('click', () => {
+    document.getElementById('sidebar')?.classList.add('open');
+    document.getElementById('sidebar-backdrop')?.classList.remove('hidden');
+  });
+  document.getElementById('sidebar-backdrop')?.addEventListener('click', closeMobileSidebar);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMobileSidebar(); });
 
   document.getElementById("search-invite")?.addEventListener("input", debounce(applyInvitationFilters, 300));
   document.getElementById("filter-village")?.addEventListener("change", applyInvitationFilters);
@@ -4807,7 +4855,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initExpenseBreakdownChart();
 
   const hash = window.location.hash.substring(1);
-  if (hash && document.getElementById(hash)) navigateToSection(hash);
+  if (hash && document.getElementById(`page-${hash}`)) navigateToSection(hash);
 });
 
 /* Expose a few functions for onclick= handlers in the HTML */
