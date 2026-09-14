@@ -89,6 +89,52 @@
   .sidebar-footer .global-year-selector { margin:0 0 10px; width:100%; }
   .sidebar-user { font-size:11px; color:rgba(233,220,200,0.7) !important; margin-bottom:8px; word-break:break-all; }
 
+  /* Collapse-to-icons toggle */
+  .sidebar-collapse-toggle {
+    background:rgba(233,220,200,0.12); border:none; color:#e9dcc8; width:24px; height:24px;
+    border-radius:5px; cursor:pointer; font-size:13px; flex-shrink:0; margin-left:auto;
+  }
+  .sidebar-collapse-toggle:hover { background:rgba(233,220,200,0.22); }
+  .sidebar.collapsed { width:64px; }
+  .sidebar.collapsed .sidebar-brand-text,
+  .sidebar.collapsed .nav-label,
+  .sidebar.collapsed .sidebar-search,
+  .sidebar.collapsed .sidebar-footer .global-year-selector,
+  .sidebar.collapsed .sidebar-user,
+  .sidebar.collapsed .nav-badge { display:none; }
+  .sidebar.collapsed .sidebar-brand { justify-content:center; padding:20px 8px 16px; }
+  .sidebar.collapsed .sidebar-collapse-toggle { margin-left:0; transform:rotate(180deg); }
+  .sidebar.collapsed .nav-item { justify-content:center; padding:11px 8px; }
+  .sidebar.collapsed ~ .container { margin-left:64px; }
+  @media (max-width:768px) { .sidebar.collapsed ~ .container { margin-left:0; } }
+
+  /* Sidebar-level global search */
+  .sidebar-search { padding:0 18px 12px; position:relative; }
+  .sidebar-search input {
+    width:100%; padding:8px 10px; border-radius:6px; border:1px solid rgba(233,220,200,0.25);
+    background:rgba(255,255,255,0.08); color:#fff; font-size:12.5px; font-family:var(--font-body);
+  }
+  .sidebar-search input::placeholder { color:rgba(233,220,200,0.6); }
+  .sidebar-search input:focus { outline:none; border-color:var(--accent-gold); background:rgba(255,255,255,0.14); }
+  .global-search-results {
+    position:absolute; left:18px; right:18px; top:100%; margin-top:4px;
+    background:var(--card); border:1px solid var(--ledger-rule); border-radius:8px;
+    box-shadow:var(--shadow); z-index:250; max-height:280px; overflow-y:auto; color:var(--text);
+  }
+  .global-search-results .gs-item {
+    display:block; padding:9px 12px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--ledger-rule);
+  }
+  .global-search-results .gs-item:last-child { border-bottom:none; }
+  .global-search-results .gs-item:hover { background:#f1e6cd; }
+  .global-search-results .gs-type { font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.03em; }
+  .global-search-results .gs-empty { padding:12px; font-size:12.5px; color:var(--muted); }
+
+  /* Nav item badges */
+  .nav-badge {
+    margin-left:auto; background:var(--margin-red); color:#fff; font-size:10.5px; font-weight:700;
+    padding:1px 7px; border-radius:20px; font-family:var(--font-mono);
+  }
+
   /* Mobile hamburger + backdrop */
   .mobile-nav-toggle {
     display:none; position:fixed; top:14px; left:14px; z-index:300;
@@ -526,6 +572,33 @@
     min-width: 200px;
   }
 
+  /* Mobile card-view: on narrow screens, the 4 main data tables (Invitations,
+     Members, Village Collections, Transactions) restyle from a horizontal-
+     scroll table into stacked cards — one per row, with each cell showing
+     its column label instead of relying on a header row nobody can see. */
+  @media (max-width: 600px) {
+    table.card-table thead { display: none; }
+    table.card-table, table.card-table tbody, table.card-table tr, table.card-table td {
+      display: block; width: 100%;
+    }
+    table.card-table tr {
+      margin-bottom: 12px; border: 1px solid var(--ledger-rule); border-radius: 8px;
+      padding: 4px 10px; background: var(--card);
+    }
+    table.card-table td {
+      display: flex; justify-content: space-between; align-items:center; gap:10px;
+      padding: 8px 2px; border: none; border-bottom: 1px solid var(--ledger-rule);
+      text-align: right; min-width: 0;
+    }
+    table.card-table td:last-child { border-bottom: none; min-width:0; }
+    table.card-table td::before {
+      content: attr(data-label); font-weight: 600; color: var(--muted);
+      text-align: left; flex-shrink: 0;
+    }
+    table.card-table td:empty::before { content: none; }
+    table.card-table tr:hover { background: var(--card); }
+  }
+
   /* responsive */
   @media (max-width: 768px) {
     .summary-cards {
@@ -700,20 +773,26 @@
 <aside id="sidebar" class="sidebar">
   <div class="sidebar-brand">
     <div class="logo">CB</div>
-    <div>
+    <div class="sidebar-brand-text">
       <h1>Club Bornoporichoy</h1>
       <div class="sub">Durga Puja Dashboard</div>
     </div>
+    <button id="sidebar-collapse-toggle" class="sidebar-collapse-toggle" title="Collapse sidebar" aria-label="Collapse sidebar">«</button>
+  </div>
+
+  <div class="sidebar-search">
+    <input id="global-search-input" type="text" placeholder="🔍 Search members, donors…" autocomplete="off" />
+    <div id="global-search-results" class="global-search-results hidden"></div>
   </div>
 
   <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
-    <a href="#" id="nav-overview" class="nav-item active" data-page="overview"><span class="nav-icon">📊</span> Overview</a>
-    <a href="#" id="nav-invitations" class="nav-item" data-page="invitations"><span class="nav-icon">🪔</span> Invitations</a>
-    <a href="#" id="nav-members" class="nav-item" data-page="members"><span class="nav-icon">🌸</span> Members</a>
-    <a href="#" id="nav-fees" class="nav-item" data-page="fees"><span class="nav-icon">💰</span> Fees</a>
-    <a href="#" id="nav-financial-tracker" class="nav-item" data-page="financial-tracker"><span class="nav-icon">📈</span> Financial Tracker</a>
-    <a href="#" id="nav-village-collection" class="nav-item" data-page="village-collection"><span class="nav-icon">🏘️</span> Village Collection</a>
-    <a href="#" id="recycleBinBtn" class="nav-item" data-page="recycle-bin"><span class="nav-icon">🗑️</span> Recycle Bin</a>
+    <a href="#" id="nav-overview" class="nav-item active" data-page="overview"><span class="nav-icon">📊</span><span class="nav-label">Overview</span></a>
+    <a href="#" id="nav-invitations" class="nav-item" data-page="invitations"><span class="nav-icon">🪔</span><span class="nav-label">Invitations</span><span class="nav-badge hidden" id="badge-invitations"></span></a>
+    <a href="#" id="nav-members" class="nav-item" data-page="members"><span class="nav-icon">🌸</span><span class="nav-label">Members</span></a>
+    <a href="#" id="nav-fees" class="nav-item" data-page="fees"><span class="nav-icon">💰</span><span class="nav-label">Fees</span><span class="nav-badge hidden" id="badge-fees"></span></a>
+    <a href="#" id="nav-financial-tracker" class="nav-item" data-page="financial-tracker"><span class="nav-icon">📈</span><span class="nav-label">Financial Tracker</span></a>
+    <a href="#" id="nav-village-collection" class="nav-item" data-page="village-collection"><span class="nav-icon">🏘️</span><span class="nav-label">Village Collection</span></a>
+    <a href="#" id="recycleBinBtn" class="nav-item" data-page="recycle-bin"><span class="nav-icon">🗑️</span><span class="nav-label">Recycle Bin</span><span class="nav-badge hidden" id="badge-recycle-bin"></span></a>
   </nav>
 
   <div class="sidebar-footer">
@@ -1811,6 +1890,70 @@ function showTableSkeleton(tbody, colCount, rows = 3) {
   tbody.innerHTML = Array(rows).fill('<tr>' + cell.repeat(colCount) + '</tr>').join('');
 }
 
+// Searches Members, Invitations, and this year's Village Collections at
+// once by name/village/mobile/donor, so you don't have to guess which
+// page a name is on with content now split across 7 pages.
+async function performGlobalSearch(query) {
+  const resultsEl = document.getElementById('global-search-results');
+  if (!resultsEl) return;
+  const q = query.trim().toLowerCase();
+  if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
+
+  let results = [];
+  try {
+    const [membersSnap, invitationsSnap] = await Promise.all([cachedLoadMembers(), cachedLoadInvitations()]);
+    membersSnap.docs.forEach(doc => {
+      const d = doc.data();
+      if (d.deleted) return;
+      if ((d.name || '').toLowerCase().includes(q) || (d.village || '').toLowerCase().includes(q) || (d.mobile || '').includes(q)) {
+        results.push({ type: 'Member', label: `${d.name} — ${d.village}`, page: 'members', term: d.name });
+      }
+    });
+    invitationsSnap.docs.forEach(doc => {
+      const d = doc.data();
+      if (d.deleted) return;
+      if ((d.name || '').toLowerCase().includes(q) || (d.village || '').toLowerCase().includes(q)) {
+        results.push({ type: 'Invitation', label: `${d.name} — ${d.village}`, page: 'invitations', term: d.name });
+      }
+    });
+    if (selectedYear !== 'all') {
+      const collSnap = await villageCollectionsCollectionFor(selectedYear).get();
+      collSnap.forEach(doc => {
+        const d = doc.data();
+        if (d.deleted) return;
+        if ((d.donor || '').toLowerCase().includes(q) || (d.village || '').toLowerCase().includes(q)) {
+          results.push({ type: 'Village Collection', label: `${d.donor} — ₹${(d.amount || 0).toLocaleString('en-IN')} (${d.village})`, page: 'village-collection', term: d.donor });
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Global search error:', error);
+  }
+
+  results = results.slice(0, 15);
+  resultsEl.innerHTML = results.length === 0
+    ? "<div class='gs-empty'>No matches found.</div>"
+    : results.map(r => `
+        <div class="gs-item" data-page="${escapeHtml(r.page)}" data-term="${escapeHtml(r.term)}">
+          <div class="gs-type">${escapeHtml(r.type)}</div>
+          <div>${escapeHtml(r.label)}</div>
+        </div>
+      `).join('');
+  resultsEl.classList.remove('hidden');
+}
+
+function goToSearchResult(page, term) {
+  document.getElementById('global-search-results')?.classList.add('hidden');
+  const input = document.getElementById('global-search-input');
+  if (input) input.value = '';
+  navigateToSection(page);
+  setTimeout(() => {
+    const searchBoxId = { members: 'search-members', invitations: 'search-invite', 'village-collection': 'search-vc' }[page];
+    const box = searchBoxId ? document.getElementById(searchBoxId) : null;
+    if (box) { box.value = term; box.dispatchEvent(new Event('input')); }
+  }, 50);
+}
+
 function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {
@@ -2017,6 +2160,8 @@ function changeGlobalYear(newYear) {
     loadVillageCollections();
     loadFinancialData();
     recalcTotalCollectedDebounced();
+    updateFeesBadge();
+    updateRecycleBinBadge();
   });
 
   if (selectedYear === 'all') {
@@ -2284,6 +2429,14 @@ function populateVillageDropdowns() {
 
 /* ==================== Summary cards ==================== */
 
+// Sets (or hides) a small count badge on a sidebar nav item.
+function setNavBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (count > 0) { el.textContent = count > 99 ? '99+' : String(count); el.classList.remove('hidden'); }
+  else { el.classList.add('hidden'); }
+}
+
 async function updateSummaryCards() {
   try {
     const invitationsSnap = await cachedLoadInvitations();
@@ -2298,8 +2451,55 @@ async function updateSummaryCards() {
     activeInvitations.forEach(doc => { if (!doc.data().sent) pendingInvitations++; });
     safeSetTextContent('pending-invitations', pendingInvitations);
     safeSetTextContent('active-collectors', activeMembers.length);
+    setNavBadge('badge-invitations', pendingInvitations);
   } catch (error) {
     console.error("Error updating summary cards:", error);
+  }
+}
+
+// Badge on Fees: active members who haven't paid the current calendar
+// month yet, for whichever year is selected. Skipped for "All Years" or
+// a year that isn't the current one — "this month" isn't meaningful then.
+async function updateFeesBadge() {
+  try {
+    if (selectedYear === 'all' || selectedYear !== new Date().getFullYear()) {
+      setNavBadge('badge-fees', 0);
+      return;
+    }
+    const thisMonth = MONTHS[new Date().getMonth()];
+    const [membersSnap, feesSnap] = await Promise.all([
+      cachedLoadMembers(),
+      membershipFeesCollectionFor(selectedYear).get()
+    ]);
+    const activeMemberIds = membersSnap.docs.filter(d => !d.data().deleted).map(d => d.id);
+    const feesById = {};
+    feesSnap.forEach(doc => feesById[doc.id] = doc.data());
+
+    let unpaid = 0;
+    activeMemberIds.forEach(id => {
+      const fee = feesById[id];
+      const monthData = fee && (fee[thisMonth] || (fee.months && fee.months[thisMonth]));
+      if (!monthData || !monthData.paid) unpaid++;
+    });
+    setNavBadge('badge-fees', unpaid);
+  } catch (error) {
+    console.error('Error updating fees badge:', error);
+  }
+}
+
+// Badge on Recycle Bin: total items currently sitting in it.
+async function updateRecycleBinBadge() {
+  try {
+    const [membersSnap, invitationsSnap] = await Promise.all([cachedLoadMembers(), cachedLoadInvitations()]);
+    let count = membersSnap.docs.filter(d => d.data().deleted).length
+      + invitationsSnap.docs.filter(d => d.data().deleted).length;
+    if (selectedYear !== 'all') {
+      const collSnap = await villageCollectionsCollectionFor(selectedYear).get();
+      count += collSnap.docs.filter(d => d.data().deleted).length;
+    }
+    setNavBadge('badge-recycle-bin', count);
+  } catch (error) {
+    console.error('Error updating recycle bin badge:', error);
   }
 }
 
@@ -4539,6 +4739,8 @@ auth.onAuthStateChanged(user => {
       if (initialHash && document.getElementById(`page-${initialHash}`)) navigateToSection(initialHash);
       else { currentActivePage = 'overview'; updateFabVisibility(); }
       loadFinancialData();
+      updateFeesBadge();
+      updateRecycleBinBadge();
       await loadRecentActivityHistory();
       updateLastBackupDisplay();
       addActivity('Dashboard initialized successfully', 'success');
@@ -4756,6 +4958,27 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('sidebar-backdrop')?.classList.remove('hidden');
   });
   document.getElementById('sidebar-backdrop')?.addEventListener('click', closeMobileSidebar);
+
+  document.getElementById('sidebar-collapse-toggle')?.addEventListener('click', () => {
+    const collapsed = document.getElementById('sidebar')?.classList.toggle('collapsed');
+    const toggle = document.getElementById('sidebar-collapse-toggle');
+    if (toggle) {
+      toggle.textContent = collapsed ? '»' : '«';
+      toggle.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    }
+  });
+
+  const globalSearchInput = document.getElementById('global-search-input');
+  if (globalSearchInput) {
+    globalSearchInput.addEventListener('input', debounce((e) => performGlobalSearch(e.target.value), 300));
+  }
+  document.getElementById('global-search-results')?.addEventListener('click', (e) => {
+    const item = e.target.closest('.gs-item');
+    if (item && item.dataset.page) goToSearchResult(item.dataset.page, item.dataset.term);
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.sidebar-search')) document.getElementById('global-search-results')?.classList.add('hidden');
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMobileSidebar(); });
 
   document.getElementById("search-invite")?.addEventListener("input", debounce(applyInvitationFilters, 300));
